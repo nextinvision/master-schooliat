@@ -89,7 +89,7 @@ export default function BookDemoModal({
       >
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-500 hover:text-black transition-colors p-1 rounded-full hover:bg-gray-100"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 text-gray-500 hover:text-black transition-all duration-200 ease-in-out p-1 rounded-full hover:bg-gray-100 hover:scale-110 active:scale-95"
           aria-label="Close modal"
         >
           <X size={20} className="w-5 h-5" />
@@ -116,10 +116,10 @@ export default function BookDemoModal({
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-2.5 sm:py-3 md:py-3.5 rounded-lg font-semibold transition-all duration-200 text-sm sm:text-base ${
+            className={`w-full py-2.5 sm:py-3 md:py-3.5 rounded-lg font-semibold transition-all duration-300 ease-in-out text-sm sm:text-base ${
               loading
                 ? "bg-gray-400 cursor-not-allowed"
-                : "bg-[#6f8f3e] text-white hover:bg-[#5f7f33] shadow-md hover:shadow-lg"
+                : "bg-[#6f8f3e] text-white hover:bg-[#5f7f33] shadow-md hover:shadow-xl hover:shadow-[#6f8f3e]/30 hover:-translate-y-1 active:scale-95"
             }`}
           >
             {loading ? "Submitting..." : "Submit Request"}

@@ -17,7 +17,7 @@ export default function FloatingActions() {
         href={whatsappUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-green-500 hover:bg-green-600 shadow-lg hover:scale-110 active:scale-95 transition-all duration-200"
+        className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-green-500 hover:bg-green-600 shadow-lg hover:shadow-xl hover:shadow-green-500/40 hover:scale-110 hover:-translate-y-1 active:scale-95 transition-all duration-300 ease-in-out"
         aria-label="Chat on WhatsApp"
       >
         <FaWhatsapp className="text-white text-xl sm:text-2xl md:text-3xl" />
@@ -26,7 +26,7 @@ export default function FloatingActions() {
       {/* Call */}
       <a
         href="tel:+918551919628"
-        className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-orange-500 hover:bg-orange-600 shadow-lg hover:scale-110 active:scale-95 transition-all duration-200"
+        className="w-12 h-12 sm:w-14 sm:h-14 flex items-center justify-center rounded-full bg-orange-500 hover:bg-orange-600 shadow-lg hover:shadow-xl hover:shadow-orange-500/40 hover:scale-110 hover:-translate-y-1 active:scale-95 transition-all duration-300 ease-in-out"
         aria-label="Call us"
       >
         <FaPhoneAlt className="text-white text-base sm:text-lg md:text-xl" />

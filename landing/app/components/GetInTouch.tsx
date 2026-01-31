@@ -189,7 +189,7 @@ export default function GetInTouch() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="sm:col-span-2 mt-2 sm:mt-3 md:mt-4 bg-[#6f8f3e] hover:bg-[#5a752f] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 sm:py-3.5 md:py-4 rounded-xl shadow-lg transition-all duration-200 w-full text-sm sm:text-base"
+                  className="sm:col-span-2 mt-2 sm:mt-3 md:mt-4 bg-[#6f8f3e] hover:bg-[#5a752f] disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold py-3 sm:py-3.5 md:py-4 rounded-xl shadow-lg hover:shadow-xl hover:shadow-[#6f8f3e]/30 hover:-translate-y-1 active:scale-95 transition-all duration-300 ease-in-out w-full text-sm sm:text-base disabled:hover:translate-y-0 disabled:hover:shadow-lg"
                 >
                   {loading ? "Submitting..." : "🚀 Request Free Demo"}
                 </button>

@@ -117,7 +117,7 @@ export default function OpportunityPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="inline-flex items-center justify-center rounded-full bg-[#7A9B4A] px-8 sm:px-10 py-2.5 sm:py-3 font-medium text-white transition-all duration-200 hover:bg-[#6C8E40] disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-lg text-sm sm:text-base"
+                className="inline-flex items-center justify-center rounded-full bg-[#7A9B4A] px-8 sm:px-10 py-2.5 sm:py-3 font-medium text-white transition-all duration-300 ease-in-out hover:bg-[#6C8E40] disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-xl hover:shadow-[#7A9B4A]/30 hover:-translate-y-1 active:scale-95 text-sm sm:text-base disabled:hover:translate-y-0 disabled:hover:shadow-md"
               >
                 {loading ? "Submitting..." : "Submit Application"}
               </button>

@@ -85,7 +85,7 @@ export default function Navbar() {
           href={DASHBOARD_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="hidden lg:block bg-[#6f8f3e] text-white px-5 xl:px-6 py-2.5 rounded-lg hover:bg-[#5a752f] transition-all duration-200 shadow-md hover:shadow-lg text-sm xl:text-base"
+          className="hidden lg:block bg-[#6f8f3e] text-white px-5 xl:px-6 py-2.5 rounded-lg hover:bg-[#5a752f] transition-all duration-300 ease-in-out shadow-md hover:shadow-xl hover:shadow-[#6f8f3e]/30 hover:-translate-y-0.5 active:scale-95 text-sm xl:text-base"
         >
           Login →
         </a>
@@ -93,7 +93,7 @@ export default function Navbar() {
         {/* Mobile Menu Button */}
         <button
           onClick={toggleMobileMenu}
-          className="lg:hidden p-2 text-gray-700 hover:text-[#6f8f3e] transition-colors"
+          className="lg:hidden p-2 text-gray-700 hover:text-[#6f8f3e] transition-all duration-200 ease-in-out rounded-md hover:bg-gray-100 active:scale-95"
           aria-label="Toggle menu"
           aria-expanded={isMobileMenuOpen}
         >
@@ -142,7 +142,7 @@ export default function Navbar() {
               target="_blank"
               rel="noopener noreferrer"
               onClick={closeMobileMenu}
-              className="block mt-4 bg-[#6f8f3e] text-white px-6 py-3 rounded-lg hover:bg-[#5a752f] transition-colors text-center font-medium"
+              className="block mt-4 bg-[#6f8f3e] text-white px-6 py-3 rounded-lg hover:bg-[#5a752f] transition-all duration-300 ease-in-out shadow-md hover:shadow-xl hover:shadow-[#6f8f3e]/30 hover:-translate-y-0.5 active:scale-95 text-center font-medium"
             >
               Login →
             </a>

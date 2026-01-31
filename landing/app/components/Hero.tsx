@@ -41,7 +41,7 @@ export default function Hero() {
               <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center lg:justify-start">
                 <button
                   onClick={openModal}
-                  className="bg-[#6f8f3e] text-white px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-[#5a752f] transition-all duration-200 w-full sm:w-auto font-medium text-sm sm:text-base shadow-md hover:shadow-lg"
+                  className="bg-[#6f8f3e] text-white px-6 sm:px-8 py-3 sm:py-3.5 rounded-lg hover:bg-[#5a752f] transition-all duration-300 ease-in-out w-full sm:w-auto font-medium text-sm sm:text-base shadow-md hover:shadow-xl hover:shadow-[#6f8f3e]/30 hover:-translate-y-1 active:scale-95"
                 >
                   Book a Demo →
                 </button>
