@@ -461,7 +461,8 @@ npm run seed
 
 ```bash
 cd /opt/schooliat/dashboard/production/current
-npm ci --production
+# Note: Install all dependencies (including devDependencies) as Next.js build requires TypeScript and other build tools
+npm ci
 ```
 
 #### 2. Build Dashboard
@@ -486,7 +487,8 @@ npm start
 
 ```bash
 cd /opt/schooliat/dashboard/staging/current
-npm ci --production
+# Note: Install all dependencies (including devDependencies) as Next.js build requires TypeScript and other build tools
+npm ci
 ```
 
 #### 2. Build Dashboard
@@ -1449,12 +1451,12 @@ tail -f /var/log/nginx/error.log
 
 # Deployment - Production
 cd /opt/schooliat/backend/production/current && git pull && npm ci --production && pm2 restart schooliat-backend-production
-cd /opt/schooliat/dashboard/production/current && git pull && npm ci --production && npm run build && pm2 restart schooliat-dashboard-production
+cd /opt/schooliat/dashboard/production/current && git pull && npm ci && npm run build && pm2 restart schooliat-dashboard-production
 cd /opt/schooliat/landing/current && git pull && npm ci --production && npm run build && cp -r out/* /var/www/schooliat-landing/
 
 # Deployment - Staging
 cd /opt/schooliat/backend/staging/current && git pull && npm ci --production && pm2 restart schooliat-backend-staging
-cd /opt/schooliat/dashboard/staging/current && git pull && npm ci --production && npm run build && pm2 restart schooliat-dashboard-staging
+cd /opt/schooliat/dashboard/staging/current && git pull && npm ci && npm run build && pm2 restart schooliat-dashboard-staging
 ```
 
 ---

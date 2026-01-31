@@ -63,8 +63,8 @@ jobs:
             git fetch origin develop
             git checkout develop
             cd dashboard
-            echo "📦 Installing dependencies..."
-            npm ci --production
+            echo "📦 Installing dependencies (including devDependencies for build)..."
+            npm ci
             echo "🏗️ Building dashboard..."
             npm run build
             echo "🔄 Restarting PM2 process..."
