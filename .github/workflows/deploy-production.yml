@@ -1,0 +1,98 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          ref: main
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      # Deploy Backend Production
+      - name: Deploy Backend Production
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            echo "🚀 Deploying Backend Production..."
+            cd /opt/schooliat/backend/production/current
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+            echo "📦 Installing dependencies..."
+            npm ci --production
+            echo "🔧 Generating Prisma client..."
+            npm run prisma:generate
+            echo "💾 Creating database backup..."
+            mkdir -p /opt/schooliat/shared/backups
+            pg_dump -U schooliat_user schooliat_production > /opt/schooliat/shared/backups/pre-migration-$(date +%Y%m%d-%H%M%S).sql || echo "⚠️ Backup failed, continuing..."
+            echo "🗄️ Running database migrations..."
+            export DATABASE_URL="${{ secrets.PRODUCTION_DATABASE_URL }}"
+            npm run prisma:migrate:deploy
+            echo "🔄 Restarting PM2 process..."
+            pm2 restart schooliat-backend-production --update-env
+            echo "✅ Backend Production deployment complete!"
+      
+      # Deploy Dashboard Production
+      - name: Deploy Dashboard Production
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            echo "🚀 Deploying Dashboard Production..."
+            cd /opt/schooliat/dashboard/production/current
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+            echo "📦 Installing dependencies..."
+            npm ci --production
+            echo "🏗️ Building dashboard..."
+            npm run build
+            echo "🔄 Restarting PM2 process..."
+            pm2 restart schooliat-dashboard-production --update-env
+            echo "✅ Dashboard Production deployment complete!"
+      
+      # Deploy Landing
+      - name: Deploy Landing
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            set -e
+            echo "🚀 Deploying Landing Page..."
+            cd /opt/schooliat/landing/current
+            git fetch origin main
+            git reset --hard origin/main
+            git clean -fd
+            echo "📦 Installing dependencies..."
+            npm ci --production
+            echo "🏗️ Building landing page..."
+            npm run build
+            echo "📤 Copying files to web root..."
+            cp -r out/* /var/www/schooliat-landing/
+            chown -R www-data:www-data /var/www/schooliat-landing
+            echo "🔄 Reloading Nginx..."
+            systemctl reload nginx
+            echo "✅ Landing Page deployment complete!"
