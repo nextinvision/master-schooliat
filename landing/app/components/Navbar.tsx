@@ -5,6 +5,9 @@ import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import logo from "@/public/images/logo.png";
 
+// Dashboard URL from environment variable, fallback to production
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "https://app.schooliat.com";
+
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -78,11 +81,14 @@ export default function Navbar() {
         </nav>
 
         {/* Desktop CTA Button */}
-        <button className="hidden lg:block bg-[#6f8f3e] text-white px-5 xl:px-6 py-2.5 rounded-lg hover:bg-[#5a752f] transition-all duration-200 shadow-md hover:shadow-lg">
-          <a href="#contact" className="text-sm xl:text-base">
-            Contact Us →
-          </a>
-        </button>
+        <a
+          href={DASHBOARD_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hidden lg:block bg-[#6f8f3e] text-white px-5 xl:px-6 py-2.5 rounded-lg hover:bg-[#5a752f] transition-all duration-200 shadow-md hover:shadow-lg text-sm xl:text-base"
+        >
+          Login →
+        </a>
 
         {/* Mobile Menu Button */}
         <button
@@ -132,11 +138,13 @@ export default function Navbar() {
               Opportunity
             </Link>
             <a
-              href="#contact"
+              href={DASHBOARD_URL}
+              target="_blank"
+              rel="noopener noreferrer"
               onClick={closeMobileMenu}
               className="block mt-4 bg-[#6f8f3e] text-white px-6 py-3 rounded-lg hover:bg-[#5a752f] transition-colors text-center font-medium"
             >
-              Contact Us →
+              Login →
             </a>
           </nav>
         </div>
