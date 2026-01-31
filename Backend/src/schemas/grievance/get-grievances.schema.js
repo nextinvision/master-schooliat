@@ -1,0 +1,20 @@
+import { z } from "zod";
+
+const getGrievancesSchema = z
+  .object({
+    request: z.object({}).strip(),
+    query: z
+      .object({
+        status: z
+          .enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"])
+          .optional(),
+        priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]).optional(),
+        page: z.coerce.number().positive().optional().default(1),
+        limit: z.coerce.number().positive().max(100).optional().default(20),
+      })
+      .strip(),
+    params: z.object({}).strip(),
+  })
+  .strip();
+
+export default getGrievancesSchema;

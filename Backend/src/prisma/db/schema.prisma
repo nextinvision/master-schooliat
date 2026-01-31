@@ -1,0 +1,1059 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Connection URLs are configured in prisma.config.js
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Permission {
+  GET_USERS
+
+  //School Related Permissions
+  CREATE_STUDENT
+  GET_STUDENTS
+  EDIT_STUDENT
+  DELETE_STUDENT
+  CREATE_TEACHER
+  GET_TEACHERS
+  EDIT_TEACHER
+  DELETE_TEACHER
+  CREATE_CLASSES
+  GET_CLASSES
+  EDIT_CLASSES
+  DELETE_CLASSES
+  CREATE_TRANSPORT
+  GET_TRANSPORTS
+  EDIT_TRANSPORT
+  DELETE_TRANSPORT
+  GET_MY_SCHOOL
+
+  // App Related Permissions
+  CREATE_EMPLOYEE
+  GET_EMPLOYEES
+  EDIT_EMPLOYEE
+  DELETE_EMPLOYEE
+  CREATE_SCHOOL
+  GET_SCHOOLS
+  EDIT_SCHOOL
+  DELETE_SCHOOL
+  CREATE_VENDOR
+  GET_VENDORS
+  EDIT_VENDOR
+  DELETE_VENDOR
+  GET_REGIONS
+  CREATE_REGION
+  EDIT_REGION
+  DELETE_REGION
+
+  // Receipt Related Permissions
+  CREATE_RECEIPT
+  GET_RECEIPTS
+  UPDATE_RECEIPT
+  DELETE_RECEIPT
+
+  // License Related Permissions
+  CREATE_LICENSE
+  GET_LICENSES
+  UPDATE_LICENSE
+  DELETE_LICENSE
+
+  // Location Related Permissions
+  CREATE_LOCATION
+  GET_LOCATIONS
+  DELETE_LOCATION
+
+  // Statistics Related Permissions
+  GET_STATISTICS
+  GET_DASHBOARD_STATS
+
+  // Calendar Related Permissions
+  CREATE_EVENT
+  GET_EVENTS
+  EDIT_EVENT
+  DELETE_EVENT
+  GET_CALENDAR
+  CREATE_HOLIDAY
+  GET_HOLIDAYS
+  EDIT_HOLIDAY
+  DELETE_HOLIDAY
+  CREATE_EXAM_CALENDAR
+  GET_EXAM_CALENDARS
+  EDIT_EXAM_CALENDAR
+  DELETE_EXAM_CALENDAR
+  CREATE_EXAM_CALENDAR_ITEM
+  GET_EXAM_CALENDAR_ITEMS
+  EDIT_EXAM_CALENDAR_ITEM
+  DELETE_EXAM_CALENDAR_ITEM
+  CREATE_NOTICE
+  GET_NOTICES
+  EDIT_NOTICE
+  DELETE_NOTICE
+
+  // Exam Related Permissions
+  CREATE_EXAM
+  GET_EXAMS
+  EDIT_EXAM
+  DELETE_EXAM
+
+  // ID Card Related Permissions
+  MANAGE_ID_CARD_CONFIG
+  GENERATE_ID_CARDS
+  GET_ID_CARDS
+
+  // Settings Related Permissions
+  GET_SETTINGS
+  EDIT_SETTINGS
+
+  // Fee Related Permissions
+  GET_FEES
+  RECORD_FEE_PAYMENT
+
+  // Common
+  GET_ROLES
+
+  // Grievance Related Permissions
+  CREATE_GRIEVANCE
+  GET_GRIEVANCES
+  GET_MY_GRIEVANCES
+  UPDATE_GRIEVANCE
+  ADD_GRIEVANCE_COMMENT
+
+  @@map("permission")
+}
+
+enum UserType {
+  APP
+  SCHOOL
+
+  @@map("user_type")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+
+  @@map("gender")
+}
+
+enum AccommodationType {
+  DAY_SCHOLAR
+  HOSTELLER
+
+  @@map("accommodation_type")
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+
+  @@map("blood_group")
+}
+
+enum RoleName {
+  // Roles for user type APP
+  SUPER_ADMIN
+  EMPLOYEE
+
+  // Roles for user type SCHOOL
+  SCHOOL_ADMIN
+  STUDENT
+  TEACHER
+  STAFF
+
+  @@map("role_name")
+}
+
+enum DateType {
+  SINGLE_DATE
+  DATE_RANGE
+
+  @@map("date_type")
+}
+
+enum ExamType {
+  UNIT_TEST
+  SEMESTER
+  FINAL
+}
+
+enum FeePaymentStatus {
+  PENDING
+  PARTIALLY_PAID
+  PAID
+
+  @@map("fee_payment_status")
+}
+
+enum GrievanceStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+
+  @@map("grievance_status")
+}
+
+enum GrievancePriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+
+  @@map("grievance_priority")
+}
+
+enum IdCardCollectionStatus {
+  GENERATED
+  NOT_GENERATED
+  IN_PROGRESS
+
+  @@map("id_card_collection_status")
+}
+
+enum LicenseStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+
+  @@map("license_status")
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CHEQUE
+  UPI
+  CREDIT_CARD
+  DEBIT_CARD
+
+  @@map("payment_method")
+}
+
+enum ReceiptStatus {
+  GENERATED
+  PENDING
+  PAID
+  CANCELLED
+
+  @@map("receipt_status")
+}
+
+enum SalaryComponentValueType {
+  PERCENTAGE // percentage of base pay
+  ABSOLUTE
+
+  @@map("salary_component_value_type")
+}
+
+enum SalaryComponentType {
+  GROSS
+  NET
+
+  @@map("salary_component_type")
+}
+
+enum SalaryComponentFrequency {
+  MONTHLY
+  YEARLY // for bonuses
+
+  @@map("salary_component_frequency")
+}
+
+enum TemplateType {
+  ID_CARD
+  RESULT
+  INVENTORY_RECEIPT
+  FEE_RECEIPT
+
+  @@map("template_type")
+}
+
+enum TransportType {
+  BUS
+  VAN
+  CAR
+
+  @@map("transport_type")
+}
+
+enum LeadStatus {
+  NEW
+  HOT
+  COLD
+  FOLLOW_UP
+  CONVERTED
+
+  @@map("lead_status")
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model File {
+  id          String  @id @default(uuid())
+  extension   String
+  name        String
+  ownerId     String? @map("owner_id")
+  contentType String  @map("content_type")
+  size        Int
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("files")
+}
+
+model Template {
+  id       String       @id @default(uuid())
+  type     TemplateType
+  path     String
+  imageId  String?      @map("image_id")
+  sampleId String?      @map("sample_id")
+  title    String
+
+  @@unique(name: "templates_unique_type_path", [type, path])
+  @@map("templates")
+}
+
+model Region {
+  id   String @id @default(uuid())
+  name String
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users     User[]
+  vendors   Vendor[]
+  locations Location[]
+
+  @@map("regions")
+}
+
+model Location {
+  id         String  @id @default(uuid())
+  name       String
+  regionId   String  @map("region_id")
+  employeeId String? @map("employee_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  region   Region @relation(fields: [regionId], references: [id])
+  employee User?  @relation("EmployeeLocations", fields: [employeeId], references: [id])
+
+  @@map("locations")
+}
+
+model Role {
+  id          String       @id @default(uuid())
+  name        RoleName     @unique
+  permissions Permission[] @default([])
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users User[]
+
+  @@map("roles")
+}
+
+model School {
+  id              String   @id @default(uuid())
+  name            String
+  code            String   @unique
+  address         String[] @unique
+  email           String   @unique
+  phone           String   @unique
+  certificateLink String?  @map("certificate_link")
+  logoId          String?  @map("logoId")
+
+  users            User[]
+  receipts         Receipt[]
+  grievances       Grievance[]
+  gstNumber        String?     @map("gst_number")
+  principalName    String?     @map("principal_name")
+  principalEmail   String?     @map("principal_email")
+  principalPhone   String?     @map("principal_phone")
+  establishedYear  Int?        @map("established_year")
+  boardAffiliation String?     @map("board_affiliation")
+  studentStrength  Int?        @map("student_strength")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("schools")
+}
+
+model Class {
+  id             String  @id @default(uuid())
+  grade          String
+  division       String?
+  schoolId       String  @map("school_id")
+  classTeacherId String? @map("class_teacher_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  students StudentProfile[]
+
+  @@unique(name: "subjects_unique_name_school_id", [grade, division, schoolId])
+  @@map("classes")
+}
+
+model Subject {
+  id       String @id @default(uuid())
+  name     String
+  schoolId String @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique(name: "subjects_unique_name_school_id", [name, schoolId])
+  @@map("subjects")
+}
+
+model User {
+  id                  String   @id @default(uuid())
+  publicUserId        String   @map("public_user_id")
+  userType            UserType @map("user_type")
+  email               String   @unique(map: "users_unique_email")
+  password            String?
+  firstName           String   @map("first_name")
+  lastName            String?  @map("last_name")
+  contact             String
+  gender              Gender
+  dateOfBirth         DateTime @map("date_of_birth")
+  address             String[]
+  aadhaarId           String?  @unique @map("aadhaar_id")
+  registrationPhotoId String?  @map("registration_photo_id")
+  idPhotoId           String?  @map("id_photo_id")
+
+  roleId           String  @map("role_id")
+  // Hybrid element - keep schoolId in main table (frequently accessed)
+  schoolId         String? @map("school_id")
+  // Employee field - kept in User (not worth splitting for 1 field)
+  assignedRegionId String? @map("assigned_region_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  role           Role    @relation(fields: [roleId], references: [id])
+  school         School? @relation(fields: [schoolId], references: [id])
+  assignedRegion Region? @relation(fields: [assignedRegionId], references: [id])
+
+  // Profile relations (one-to-one optional)
+  studentProfile StudentProfile?
+  teacherProfile TeacherProfile?
+
+  // Employee-specific relations
+  assignedVendors   Vendor[]   @relation("EmployeeVendors")
+  assignedLocations Location[] @relation("EmployeeLocations")
+
+  // Grievance relations
+  createdGrievances Grievance[]        @relation("GrievanceCreator")
+  grievanceComments GrievanceComment[] @relation("GrievanceCommentAuthor")
+
+  // Performance indexes for frequently queried fields
+  @@index([schoolId, deletedAt], name: "users_school_id_deleted_at_idx")
+  @@index([roleId, userType, deletedAt], name: "users_role_id_user_type_deleted_at_idx")
+  @@index([schoolId, roleId, deletedAt], name: "users_school_id_role_id_deleted_at_idx")
+  @@index([deletedAt], name: "users_deleted_at_idx")
+  @@map("users")
+}
+
+model StudentProfile {
+  id     String @id @default(uuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rollNumber  Int     @map("roll_number")
+  apaarId     String  @unique @map("apaar_id")
+  classId     String  @map("class_id")
+  transportId String? @map("transport_id")
+
+  // Parent details
+  fatherName        String            @map("father_name")
+  motherName        String            @map("mother_name")
+  fatherContact     String            @map("father_contact")
+  motherContact     String            @map("mother_contact")
+  fatherOccupation  String?           @map("father_occupation")
+  annualIncome      Decimal?          @map("annual_income") @db.Decimal(15, 0)
+  accommodationType AccommodationType @map("accommodation_type")
+  bloodGroup        BloodGroup?       @map("blood_group")
+
+  class     Class      @relation(fields: [classId], references: [id])
+  transport Transport? @relation(fields: [transportId], references: [id])
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("student_profiles")
+}
+
+model TeacherProfile {
+  id     String @id @default(uuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  designation          String?
+  highestQualification String      @map("highest_qualification")
+  university           String
+  yearOfPassing        Int         @map("year_of_passing")
+  grade                String // Store as String to handle both "85%" and "A+"
+  transportId          String?     @map("transport_id")
+  panCardNumber        String?     @map("pan_card_number")
+  bloodGroup           BloodGroup? @map("blood_group")
+
+  transport Transport? @relation(fields: [transportId], references: [id])
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("teacher_profiles")
+}
+
+model Transport {
+  id String @id @default(uuid())
+
+  // Vehicle
+  type          TransportType
+  licenseNumber String        @unique @map("license_number")
+  vehicleNumber String?       @map("vehicle_number")
+  schoolId      String        @map("school_id")
+
+  // Vehicle Owner
+  ownerFirstName String @map("owner_first_name")
+  ownerLastName  String @map("owner_last_name")
+
+  // Driver
+  driverFirstName   String   @map("driver_first_name")
+  driverLastName    String   @map("driver_last_name")
+  driverDateOfBirth DateTime @map("driver_date_of_birth")
+  driverContact     String   @map("driver_contact")
+  driverGender      Gender   @map("driver_gender")
+  driverPhotoLink   String?  @map("driver_photo_link")
+
+  // Conductor
+  conductorFirstName   String    @map("conductor_first_name")
+  conductorLastName    String    @map("conductor_last_name")
+  conductorDateOfBirth DateTime? @map("conductor_date_of_birth")
+  conductorContact     String    @map("conductor_contact")
+  conductorGender      Gender    @map("conductor_gender")
+  conductorPhotoLink   String?   @map("conductor_photo_link")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  students StudentProfile[]
+  teachers TeacherProfile[]
+
+  @@unique(name: "transports_unique_vehicle_number_school_id", [vehicleNumber, schoolId])
+  @@map("transports")
+}
+
+model Vendor {
+  id         String     @id @default(uuid())
+  name       String
+  email      String?
+  contact    String
+  address    String[]
+  status     LeadStatus @default(NEW) @map("status")
+  comments   String?
+  regionId   String     @map("region_id")
+  employeeId String?    @map("employee_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  region   Region @relation(fields: [regionId], references: [id])
+  employee User?  @relation("EmployeeVendors", fields: [employeeId], references: [id])
+
+  @@map("vendors")
+}
+
+model Settings {
+  id String @id @default(uuid())
+
+  schoolId String? @map("school_id")
+
+  studentFeeInstallments   Int  @default(12) @map("student_fee_installments")
+  studentFeeAmount         Int? @map("student_fee_amount")
+  currentInstallmentNumber Int  @map("current_installement_number")
+
+  logoId String? @map("logo_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("settings")
+}
+
+model License {
+  id                String        @id @default(uuid())
+  name              String
+  issuer            String
+  issueDate         DateTime      @map("issue_date")
+  expiryDate        DateTime      @map("expiry_date")
+  certificateNumber String        @unique @map("certificate_number")
+  documentUrl       String?       @map("document_url")
+  status            LicenseStatus @default(ACTIVE)
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("licenses")
+}
+
+model Receipt {
+  id            String        @id @default(uuid())
+  receiptNumber String?       @unique @map("receipt_number")
+  schoolId      String        @map("school_id")
+  amount        Decimal       @db.Decimal(10, 2)
+  baseAmount    Decimal       @map("base_amount") @db.Decimal(10, 2)
+  sgstPercent   Decimal?      @map("sgst_percent") @db.Decimal(5, 2)
+  cgstPercent   Decimal?      @map("cgst_percent") @db.Decimal(5, 2)
+  igstPercent   Decimal?      @map("igst_percent") @db.Decimal(5, 2)
+  ugstPercent   Decimal?      @map("ugst_percent") @db.Decimal(5, 2)
+  sgstAmount    Decimal?      @map("sgst_amount") @db.Decimal(10, 2)
+  cgstAmount    Decimal?      @map("cgst_amount") @db.Decimal(10, 2)
+  igstAmount    Decimal?      @map("igst_amount") @db.Decimal(10, 2)
+  ugstAmount    Decimal?      @map("ugst_amount") @db.Decimal(10, 2)
+  totalGst      Decimal?      @map("total_gst") @db.Decimal(10, 2)
+  description   String
+  paymentMethod PaymentMethod @map("payment_method")
+  status        ReceiptStatus @default(GENERATED)
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  @@map("receipts")
+}
+
+model Event {
+  id String @id @default(uuid())
+
+  title       String
+  description String
+  dateType    DateType @map("date_type")
+  from        DateTime
+  till        DateTime
+  visibleFrom DateTime @map("visible_from") // affects from when to when it should be visible to other users than school admins
+  visibleTill DateTime @map("visible_to") // affects from when to when it should be visible to other users than school admins
+  schoolId    String   @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("events")
+}
+
+model Holiday {
+  id String @id @default(uuid())
+
+  title       String
+  dateType    DateType @map("date_type")
+  from        DateTime
+  till        DateTime
+  visibleFrom DateTime @map("visible_from") // affects from when to when it should be visible to other users than school admins
+  visibleTill DateTime @map("visible_to") // affects from when to when it should be visible to other users than school admins
+  schoolId    String   @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("holidays")
+}
+
+model ExamCalendar {
+  id String @id @default(uuid())
+
+  classId     String   @map("class_id")
+  examId      String   @map("exam_id")
+  title       String
+  visibleFrom DateTime @map("visible_from") // affects from when to when it should be visible to other users than school admins
+  visibleTill DateTime @map("visible_to") // affects from when to when it should be visible to other users than school admins
+  schoolId    String   @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("exam_calendar")
+}
+
+model ExamCalendarItem {
+  id String @id @default(uuid())
+
+  examCalendarId String
+  subject        String
+  date           DateTime
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("exam_calendar_items")
+}
+
+model Notice {
+  id String @id @default(uuid())
+
+  title       String
+  content     String
+  visibleFrom DateTime @map("visible_from") // affects from when to when it should be visible to other users than school admins
+  visibleTill DateTime @map("visible_to") // affects from when to when it should be visible to other users than school admins
+  schoolId    String   @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Performance indexes
+  @@index([schoolId, deletedAt], name: "notices_school_id_deleted_at_idx")
+  @@index([schoolId, visibleFrom, visibleTill], name: "notices_school_id_visible_range_idx")
+  @@map("notices")
+}
+
+model Exam {
+  id String @id @default(uuid())
+
+  schoolId String   @map("school_id")
+  year     Int
+  name     String
+  type     ExamType
+
+  @@map("exams")
+}
+
+// we need scores here for result generation. we need to have a list of subjects per class. then the exam_id + class_id + student_id + subject_id would be a key and we could store the score in number and out of. This would also allow us to include class tests easily.
+
+model Fee {
+  id String @id @default(uuid())
+
+  schoolId  String? @map("school_id")
+  studentId String? @map("student_id") // student user id
+  year      Int
+
+  totalAmount          Int @map("total_amount")
+  totalPaidAmount      Int @map("total_paid_amount")
+  totalRemainingAmount Int @map("total_pending_amount")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("fees")
+}
+
+model FeeInstallements {
+  id String @id @default(uuid())
+
+  feeId     String? @map("fee_id")
+  schoolId  String? @map("school_id")
+  studentId String? @map("student_id") // student user id
+
+  installementNumber Int              @map("installement_number")
+  paymentStatus      FeePaymentStatus @map("payment_status")
+  amount             Int
+
+  remainingAmount Int       @map("remaining_amount")
+  paidAmount      Int       @map("paid_amount")
+  paidAt          DateTime? @map("paid_at") // auto populated when record payment api is called
+  receiptFileId   String?   @map("receipt_file_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Performance indexes
+  @@index([schoolId, installementNumber, paymentStatus, deletedAt], name: "fee_installments_school_installment_status_idx")
+  @@index([schoolId, deletedAt], name: "fee_installments_school_id_deleted_at_idx")
+  @@index([studentId, deletedAt], name: "fee_installments_student_id_deleted_at_idx")
+  @@map("fee_installments")
+}
+
+model Grievance {
+  id          String            @id @default(uuid())
+  title       String
+  description String
+  status      GrievanceStatus   @default(OPEN)
+  priority    GrievancePriority @default(MEDIUM)
+
+  // The user who created the grievance (School Admin or Employee)
+  createdById String @map("created_by_id")
+  createdBy   User   @relation("GrievanceCreator", fields: [createdById], references: [id])
+
+  // Optional: School reference if grievance is from a School Admin
+  schoolId String? @map("school_id")
+  school   School? @relation(fields: [schoolId], references: [id])
+
+  // Resolved by Super Admin
+  resolvedById String?   @map("resolved_by_id")
+  resolvedAt   DateTime? @map("resolved_at")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  // Comments/replies on the grievance
+  comments GrievanceComment[]
+
+  @@map("grievances")
+}
+
+model GrievanceComment {
+  id      String @id @default(uuid())
+  content String
+
+  grievanceId String    @map("grievance_id")
+  grievance   Grievance @relation(fields: [grievanceId], references: [id], onDelete: Cascade)
+
+  // The user who wrote the comment
+  authorId String @map("author_id")
+  author   User   @relation("GrievanceCommentAuthor", fields: [authorId], references: [id])
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+
+  @@map("grievance_comments")
+}
+
+model IdCard {
+  id             String @id @default(uuid())
+  schoolId       String @map("school_id")
+  classId        String @map("class_id")
+  studentId      String @map("student_id")
+  idCardConfigId String @map("id_card_config_id")
+  fileId         String @map("file_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("id_cards")
+}
+
+model IdCardCollection {
+  id             String                 @id @default(uuid())
+  schoolId       String                 @map("school_id")
+  classId        String                 @map("class_id")
+  year           Int
+  status         IdCardCollectionStatus @default(NOT_GENERATED)
+  idCardConfigId String?                @map("id_card_config_id")
+  fileId         String?                @map("file_id")
+  generatedAt    DateTime?              @map("generated_at")
+  generatedBy    String?                @map("generated_by")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([schoolId, classId, year])
+  @@map("id_card_collections")
+}
+
+model IdCardConfig {
+  id         String  @id @default(uuid())
+  schoolId   String  @map("school_id")
+  year       Int
+  templateId String  @map("template_id")
+  config     Json
+  sampleId   String? @map("sample_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("id_card_configs")
+}
+
+model Salary {
+  id                String   @id @default(uuid())
+  schoolId          String   @map("school_id")
+  userId            String   @map("teacher_id") // teacher or staff user id
+  salaryStructureId String   @map("salary_structure_id")
+  from              DateTime
+  till              DateTime
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("salaries")
+}
+
+model SalaryStructure {
+  id       String @id @default(uuid())
+  name     String
+  schoolId String @map("school_id")
+
+  grossMonthlyAmount Int
+  netMonthlyAmount   Int // in hand   
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("salary_structures")
+}
+
+model SalaryStructureComponent {
+  id                 String                   @id @default(uuid())
+  salaryStructureId  String?                  @map("salary_structure_id")
+  schoolId           String                   @map("school_id")
+  name               String
+  type               SalaryComponentType
+  value              Int
+  valueType          SalaryComponentValueType @map("value_type")
+  frequency          SalaryComponentFrequency
+  isBasePayComponent Boolean                  @default(false) @map("is_base_pay_component")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("salary_structure_components")
+}
+
+model SalaryPayments {
+  id       String @id @default(uuid())
+  schoolId String @map("school_id")
+  userId   String @map("teacher_id") // teacher or staff user id
+
+  month            String // in format of YYYY-MM
+  totalAmount      Int     @map("total_amount")
+  componentAmounts Json    @map("component_amounts")
+  slipId           String? @map("slip_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("salary_payments")
+}
