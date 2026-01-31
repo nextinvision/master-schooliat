@@ -47,7 +47,7 @@ export default function EditCalendarPage() {
           <p className="text-red-600 mb-4">Item not found</p>
           <button
             onClick={() => router.push("/admin/calendar")}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 hover:shadow-lg hover:shadow-blue-600/30 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 ease-in-out"
           >
             Back to Calendar
           </button>

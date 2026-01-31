@@ -230,7 +230,7 @@ export default function EmployeeDashboardPage() {
               <Store className="w-12 h-12 text-gray-300 mx-auto mb-4" />
               <p className="text-gray-600 mb-4">No vendors yet</p>
               <Link href="/employee/add-vendor">
-                <Button className="bg-green-600 hover:bg-green-700">
+                <Button className="bg-green-600 hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/30 hover:-translate-y-0.5 transition-all duration-300 ease-in-out">
                   Add First Vendor
                 </Button>
               </Link>

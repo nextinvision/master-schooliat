@@ -290,7 +290,7 @@ export default function AddVendorPage() {
           <Button
             type="submit"
             disabled={createVendor.isPending}
-            className="flex-1 bg-green-600 hover:bg-green-700"
+            className="flex-1 bg-green-600 hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/30 hover:-translate-y-0.5 transition-all duration-300 ease-in-out disabled:hover:translate-y-0 disabled:hover:shadow-none"
           >
             {createVendor.isPending ? "Creating..." : "Create Vendor"}
           </Button>

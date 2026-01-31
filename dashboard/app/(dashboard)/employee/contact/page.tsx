@@ -139,7 +139,7 @@ export default function EmployeeContactPage() {
               </p>
               <Button
                 onClick={() => setShowCreateModal(true)}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/30 hover:-translate-y-0.5 transition-all duration-300 ease-in-out"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Submit Grievance

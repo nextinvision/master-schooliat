@@ -111,7 +111,7 @@ export default function EmployeeVendorsPage() {
           <p className="text-gray-600">{vendors.length} total</p>
         </div>
         <Link href="/employee/add-vendor">
-          <Button className="bg-green-600 hover:bg-green-700" size="icon">
+          <Button className="bg-green-600 hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/30 hover:-translate-y-0.5 transition-all duration-300 ease-in-out" size="icon">
             <Plus className="w-5 h-5" />
           </Button>
         </Link>
@@ -177,7 +177,7 @@ export default function EmployeeVendorsPage() {
             </p>
             {!searchQuery && !statusFilter && (
               <Link href="/employee/add-vendor">
-                <Button className="bg-green-600 hover:bg-green-700">
+                <Button className="bg-green-600 hover:bg-green-700 hover:shadow-lg hover:shadow-green-600/30 hover:-translate-y-0.5 transition-all duration-300 ease-in-out">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Vendor
                 </Button>
