@@ -32,11 +32,14 @@ jobs:
           script: |
             set -e
             echo "🚀 Deploying Backend Production..."
-            cd /opt/schooliat/backend/production/current
+            cd /opt/schooliat/repo
+            echo "📥 Pulling latest code from main branch..."
             git fetch origin main
+            git checkout main
             git reset --hard origin/main
             git clean -fd
             echo "📦 Installing dependencies..."
+            cd Backend
             npm ci --production
             echo "🔧 Generating Prisma client..."
             npm run prisma:generate
@@ -60,10 +63,11 @@ jobs:
           script: |
             set -e
             echo "🚀 Deploying Dashboard Production..."
-            cd /opt/schooliat/dashboard/production/current
+            cd /opt/schooliat/repo
+            echo "📥 Ensuring latest code from main branch..."
             git fetch origin main
-            git reset --hard origin/main
-            git clean -fd
+            git checkout main
+            cd dashboard
             echo "📦 Installing dependencies..."
             npm ci --production
             echo "🏗️ Building dashboard..."
@@ -82,10 +86,11 @@ jobs:
           script: |
             set -e
             echo "🚀 Deploying Landing Page..."
-            cd /opt/schooliat/landing/current
+            cd /opt/schooliat/repo
+            echo "📥 Ensuring latest code from main branch..."
             git fetch origin main
-            git reset --hard origin/main
-            git clean -fd
+            git checkout main
+            cd landing
             echo "📦 Installing dependencies..."
             npm ci --production
             echo "🏗️ Building landing page..."
