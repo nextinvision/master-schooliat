@@ -12,7 +12,7 @@ Use this checklist while setting up your Hostinger VPS. Follow the detailed guid
   - [ ] Allow SSH (22)
   - [ ] Allow HTTP (80)
   - [ ] Allow HTTPS (443)
-  - [ ] Allow app ports (3000, 3001) if needed
+  - [ ] Allow app ports (3000, 3001) if neededwetqfwaegfwe
 
 ## Install Services
 
