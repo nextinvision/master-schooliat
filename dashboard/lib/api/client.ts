@@ -1,10 +1,15 @@
 import { getToken } from "@/lib/auth/storage";
 import { apiEvents, API_EVENTS } from "./events";
 
-// API Base URL - must be set in .env.local
-// Production: https://schooliat-backend.onrender.com
-// Development: http://localhost:3000
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://schooliat-backend.onrender.com";
+// API Base URL - must be set in environment variables
+// This variable is REQUIRED and must be set at build time
+if (!process.env.NEXT_PUBLIC_API_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_API_URL environment variable is required. " +
+    "Please set it in your .env file (e.g., NEXT_PUBLIC_API_URL=https://api.schooliat.com)"
+  );
+}
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
 
 /**
  * Custom error class for API errors with status code

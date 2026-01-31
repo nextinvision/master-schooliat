@@ -5,8 +5,14 @@ import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
 import logo from "@/public/images/logo.png";
 
-// Dashboard URL from environment variable, fallback to production
-const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL || "https://app.schooliat.com";
+// Dashboard URL from environment variable - REQUIRED
+if (!process.env.NEXT_PUBLIC_DASHBOARD_URL) {
+  throw new Error(
+    "NEXT_PUBLIC_DASHBOARD_URL environment variable is required. " +
+    "Please set it in your .env file (e.g., NEXT_PUBLIC_DASHBOARD_URL=https://app.schooliat.com)"
+  );
+}
+const DASHBOARD_URL = process.env.NEXT_PUBLIC_DASHBOARD_URL;
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
