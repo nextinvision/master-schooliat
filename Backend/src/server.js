@@ -53,6 +53,9 @@ async function main() {
   // App Config
   const app = express();
 
+  // Trust proxy (required for rate limiting behind Nginx/reverse proxy)
+  app.set("trust proxy", true);
+
   // Security middleware (must be first)
   app.use(securityMiddleware);
 
