@@ -77,8 +77,15 @@ jobs:
             cd dashboard
             echo "📦 Installing dependencies (including devDependencies for build)..."
             npm ci
-            echo "🏗️ Building dashboard..."
-            npm run build
+            echo "🔧 Loading production environment variables for build..."
+            cp /opt/schooliat/dashboard/production/shared/.env .env.production
+            echo "🏗️ Building dashboard with production API URL..."
+            NODE_ENV=production npm run build
+            echo "📤 Copying build to production directory..."
+            rm -rf /opt/schooliat/dashboard/production/.next
+            cp -r .next /opt/schooliat/dashboard/production/
+            cp -r public /opt/schooliat/dashboard/production/ 2>/dev/null || true
+            cp package.json /opt/schooliat/dashboard/production/
             echo "🔄 Restarting PM2 process..."
             pm2 restart schooliat-dashboard-production --update-env
             echo "✅ Dashboard Production deployment complete!"
@@ -104,8 +111,10 @@ jobs:
             cd landing
             echo "📦 Installing dependencies..."
             npm ci --production
-            echo "🏗️ Building landing page..."
-            npm run build
+            echo "🔧 Loading production environment variables for build..."
+            cp /opt/schooliat/landing/production/shared/.env .env.production
+            echo "🏗️ Building landing page with production dashboard URL..."
+            NODE_ENV=production npm run build
             echo "📤 Copying files to web root..."
             cp -r out/* /var/www/schooliat-landing/
             chown -R www-data:www-data /var/www/schooliat-landing

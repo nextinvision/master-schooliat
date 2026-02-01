@@ -73,8 +73,15 @@ jobs:
             cd dashboard
             echo "📦 Installing dependencies (including devDependencies for build)..."
             npm ci
-            echo "🏗️ Building dashboard..."
-            npm run build
+            echo "🔧 Loading staging environment variables for build..."
+            cp /opt/schooliat/dashboard/staging/shared/.env .env.production
+            echo "🏗️ Building dashboard with staging API URL..."
+            NODE_ENV=production npm run build
+            echo "📤 Copying build to staging directory..."
+            rm -rf /opt/schooliat/dashboard/staging/.next
+            cp -r .next /opt/schooliat/dashboard/staging/
+            cp -r public /opt/schooliat/dashboard/staging/ 2>/dev/null || true
+            cp package.json /opt/schooliat/dashboard/staging/
             echo "🔄 Restarting PM2 process..."
             pm2 restart schooliat-dashboard-staging --update-env
             echo "✅ Dashboard Staging deployment complete!"
