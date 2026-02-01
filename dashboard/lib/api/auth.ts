@@ -32,6 +32,19 @@ export async function loginAndSaveToken(
   });
 
   if (!res.ok) {
+    // Try to parse error response for better error messages
+    let errorData = null;
+    try {
+      const errorText = await res.text();
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        // Response was not JSON
+      }
+    } catch {
+      // Could not read response
+    }
+
     // Don't expose response body which might contain sensitive information
     let errorMessage = "Login failed";
     if (res.status === 401) {
@@ -39,11 +52,12 @@ export async function loginAndSaveToken(
     } else if (res.status === 403) {
       errorMessage = "Access denied";
     } else if (res.status === 404) {
-      errorMessage = "Service not found";
+      // Backend returns 404 for "User not found" - treat as invalid credentials
+      errorMessage = errorData?.message || "Invalid email or password";
     } else if (res.status >= 500) {
       errorMessage = "Server error";
     } else {
-      errorMessage = `Login failed (${res.status})`;
+      errorMessage = errorData?.message || `Login failed (${res.status})`;
     }
     throw new Error(errorMessage);
   }
