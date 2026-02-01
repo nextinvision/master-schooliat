@@ -683,44 +683,63 @@ async function seedUsers() {
       if (!existingStudent && classIds.length > 0) {
         const classId = classIds[i % classIds.length];
         const classData = await prisma.class.findUnique({ where: { id: classId } });
-
-        const student = await prisma.user.create({
-          data: {
-            publicUserId: `${school.code}S${String(rollNumber).padStart(4, "0")}`,
-            userType: UserType.SCHOOL,
-            email: studentEmail,
-            password: await hashPassword("Student@123"),
-            firstName: name[0],
-            lastName: name[1],
-            contact: `+91-98765${String(50000 + schoolIndex * 1000 + i).slice(-5)}`,
-            gender: i % 2 === 0 ? Gender.MALE : Gender.FEMALE,
-            dateOfBirth: randomDate(new Date("2010-01-01"), new Date("2015-01-01")),
-            address: school.address,
-            aadhaarId: `5678${String(901234 + schoolIndex * 10000 + i).padStart(6, "0")}`,
-            roleId: studentRoleId,
-            schoolId: schoolId,
-            createdBy: schoolAdminId || "seed",
-            studentProfile: {
-              create: {
-                rollNumber: rollNumber,
-                apaarId: `APAAR${school.code}${String(rollNumber).padStart(6, "0")}`,
-                classId: classId,
-                fatherName: `${name[0]}'s Father`,
-                motherName: `${name[0]}'s Mother`,
-                fatherContact: `+91-98765${String(60000 + schoolIndex * 1000 + i).slice(-5)}`,
-                motherContact: `+91-98765${String(70000 + schoolIndex * 1000 + i).slice(-5)}`,
-                fatherOccupation: ["Engineer", "Doctor", "Teacher", "Business"][i % 4],
-                annualIncome: randomInt(300000, 1500000),
-                accommodationType: i % 3 === 0 ? AccommodationType.HOSTELLER : AccommodationType.DAY_SCHOLAR,
-                bloodGroup: Object.values(BloodGroup)[i % Object.values(BloodGroup).length],
-                createdBy: schoolAdminId || "seed",
-              },
-            },
-          },
+        const apaarId = `APAAR${school.code}${String(rollNumber).padStart(6, "0")}`;
+        
+        // Check if student profile with this apaar_id already exists
+        const existingProfile = await prisma.studentProfile.findFirst({
+          where: { apaarId: apaarId },
         });
-        seedData.users.students[schoolId].push(student.id);
+
+        if (!existingProfile) {
+          try {
+            const student = await prisma.user.create({
+              data: {
+                publicUserId: `${school.code}S${String(rollNumber).padStart(4, "0")}`,
+                userType: UserType.SCHOOL,
+                email: studentEmail,
+                password: await hashPassword("Student@123"),
+                firstName: name[0],
+                lastName: name[1],
+                contact: `+91-98765${String(50000 + schoolIndex * 1000 + i).slice(-5)}`,
+                gender: i % 2 === 0 ? Gender.MALE : Gender.FEMALE,
+                dateOfBirth: randomDate(new Date("2010-01-01"), new Date("2015-01-01")),
+                address: school.address,
+                aadhaarId: `5678${String(901234 + schoolIndex * 10000 + i).padStart(6, "0")}`,
+                roleId: studentRoleId,
+                schoolId: schoolId,
+                createdBy: schoolAdminId || "seed",
+                studentProfile: {
+                  create: {
+                    rollNumber: rollNumber,
+                    apaarId: apaarId,
+                    classId: classId,
+                    fatherName: `${name[0]}'s Father`,
+                    motherName: `${name[0]}'s Mother`,
+                    fatherContact: `+91-98765${String(60000 + schoolIndex * 1000 + i).slice(-5)}`,
+                    motherContact: `+91-98765${String(70000 + schoolIndex * 1000 + i).slice(-5)}`,
+                    fatherOccupation: ["Engineer", "Doctor", "Teacher", "Business"][i % 4],
+                    annualIncome: randomInt(300000, 1500000),
+                    accommodationType: i % 3 === 0 ? AccommodationType.HOSTELLER : AccommodationType.DAY_SCHOLAR,
+                    bloodGroup: Object.values(BloodGroup)[i % Object.values(BloodGroup).length],
+                    createdBy: schoolAdminId || "seed",
+                  },
+                },
+              },
+            });
+            seedData.users.students[schoolId].push(student.id);
+            logger.info(`Created Student: ${studentEmail} / Student@123`);
+          } catch (error) {
+            // Skip if student already exists (unique constraint)
+            if (error.code === 'P2002') {
+              logger.info(`Student with email ${studentEmail} or apaar_id ${apaarId} already exists, skipping...`);
+            } else {
+              throw error;
+            }
+          }
+        } else {
+          logger.info(`Student profile with apaar_id ${apaarId} already exists, skipping...`);
+        }
         rollNumber++;
-        logger.info(`Created Student: ${studentEmail} / Student@123`);
       }
     }
 
@@ -1068,33 +1087,53 @@ async function seedReceipts() {
     const receiptCount = randomInt(5, 10);
 
     for (let i = 0; i < receiptCount; i++) {
-      const baseAmount = randomInt(10000, 100000); // ₹100 to ₹1000
-      const sgstPercent = 9;
-      const cgstPercent = 9;
-      const sgstAmount = Math.floor((baseAmount * sgstPercent) / 100);
-      const cgstAmount = Math.floor((baseAmount * cgstPercent) / 100);
-      const totalGst = sgstAmount + cgstAmount;
-      const amount = baseAmount + totalGst;
-
-      const receipt = await prisma.receipt.create({
-        data: {
-          receiptNumber: `REC${school.code}${String(i + 1).padStart(6, "0")}`,
-          schoolId: schoolId,
-          amount: amount,
-          baseAmount: baseAmount,
-          sgstPercent: sgstPercent,
-          cgstPercent: cgstPercent,
-          sgstAmount: sgstAmount,
-          cgstAmount: cgstAmount,
-          totalGst: totalGst,
-          description: `Payment for services - Receipt ${i + 1}`,
-          paymentMethod: Object.values(PaymentMethod)[i % Object.values(PaymentMethod).length],
-          status: i < 7 ? ReceiptStatus.PAID : ReceiptStatus.PENDING,
-          createdBy: schoolAdminId || "seed",
-        },
+      const receiptNumber = `REC${school.code}${String(i + 1).padStart(6, "0")}`;
+      
+      // Check if receipt already exists
+      const existingReceipt = await prisma.receipt.findUnique({
+        where: { receiptNumber: receiptNumber },
       });
 
-      logger.info(`Created receipt: ${receipt.receiptNumber}`);
+      if (!existingReceipt) {
+        const baseAmount = randomInt(10000, 100000); // ₹100 to ₹1000
+        const sgstPercent = 9;
+        const cgstPercent = 9;
+        const sgstAmount = Math.floor((baseAmount * sgstPercent) / 100);
+        const cgstAmount = Math.floor((baseAmount * cgstPercent) / 100);
+        const totalGst = sgstAmount + cgstAmount;
+        const amount = baseAmount + totalGst;
+
+        try {
+          const receipt = await prisma.receipt.create({
+            data: {
+              receiptNumber: receiptNumber,
+              schoolId: schoolId,
+              amount: amount,
+              baseAmount: baseAmount,
+              sgstPercent: sgstPercent,
+              cgstPercent: cgstPercent,
+              sgstAmount: sgstAmount,
+              cgstAmount: cgstAmount,
+              totalGst: totalGst,
+              description: `Payment for services - Receipt ${i + 1}`,
+              paymentMethod: Object.values(PaymentMethod)[i % Object.values(PaymentMethod).length],
+              status: i < 7 ? ReceiptStatus.PAID : ReceiptStatus.PENDING,
+              createdBy: schoolAdminId || "seed",
+            },
+          });
+
+          logger.info(`Created receipt: ${receipt.receiptNumber}`);
+        } catch (error) {
+          // Skip if receipt already exists (unique constraint)
+          if (error.code === 'P2002') {
+            logger.info(`Receipt with number ${receiptNumber} already exists, skipping...`);
+          } else {
+            throw error;
+          }
+        }
+      } else {
+        logger.info(`Receipt with number ${receiptNumber} already exists, skipping...`);
+      }
     }
   }
 }
