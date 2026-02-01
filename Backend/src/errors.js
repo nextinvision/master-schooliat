@@ -12,8 +12,8 @@ const ApiErrors = {
   FORBIDDEN: new ApiError("SA002", 403, "Forbidden"),
   USER_NOT_FOUND: new ApiError(
     "SA003",
-    404,
-    "User not found! Please check email and password.",
+    401, // Changed from 404 to 401 - authentication failures should return 401 Unauthorized
+    "Invalid email or password.",
   ),
 };
 
