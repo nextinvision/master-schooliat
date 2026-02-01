@@ -41,9 +41,9 @@ jobs:
             git checkout main
             git reset --hard origin/main
             git clean -fd
-            echo "📦 Installing dependencies..."
+            echo "📦 Installing dependencies in repo (for migrations)..."
             cd Backend
-            npm ci --production
+            npm ci
             echo "🔧 Generating Prisma client..."
             npm run prisma:generate
             echo "💾 Creating database backup..."
@@ -52,6 +52,14 @@ jobs:
             echo "🗄️ Running database migrations..."
             export DATABASE_URL="${{ secrets.PRODUCTION_DATABASE_URL }}"
             npm run prisma:migrate:deploy
+            echo "📤 Copying code to deployment directory..."
+            mkdir -p /opt/schooliat/backend/production/current
+            rsync -av --exclude 'node_modules' --exclude '.git' --exclude 'prisma/migrations' /opt/schooliat/repo/Backend/ /opt/schooliat/backend/production/current/
+            echo "📦 Installing dependencies in deployment directory (including devDependencies)..."
+            cd /opt/schooliat/backend/production/current
+            npm ci
+            echo "🔧 Generating Prisma client in deployment directory..."
+            npm run prisma:generate
             echo "🔄 Restarting PM2 process..."
             pm2 restart schooliat-backend-production --update-env
             echo "✅ Backend Production deployment complete!"
