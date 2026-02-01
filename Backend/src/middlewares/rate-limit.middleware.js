@@ -9,7 +9,7 @@ import config from "../config.js";
 // Strict rate limit for authentication endpoints
 export const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  max: config.ENVIRONMENT === "production" ? 10 : 20, // 10 req/15min in prod, 20 in staging/dev
   message: {
     errorCode: "RATE_LIMIT_EXCEEDED",
     message: "Too many authentication attempts. Please try again after 15 minutes.",
