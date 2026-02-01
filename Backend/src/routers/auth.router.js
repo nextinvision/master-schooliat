@@ -48,7 +48,8 @@ router.post(
       permissions: [],
     };
 
-    const platform = req.headers["x-platform"] || null;
+    // Normalize platform header to lowercase for case-insensitive matching
+    const platform = req.headers["x-platform"]?.toLowerCase() || null;
     if (
       !platform ||
       !availablePlatformsForRoles[role.name].includes(platform)
