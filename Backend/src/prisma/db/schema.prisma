@@ -131,6 +131,44 @@ enum Permission {
   UPDATE_GRIEVANCE
   ADD_GRIEVANCE_COMMENT
 
+  // Attendance Related Permissions
+  MARK_ATTENDANCE
+  GET_ATTENDANCE
+  EXPORT_ATTENDANCE
+
+  // Timetable Related Permissions
+  CREATE_TIMETABLE
+  GET_TIMETABLE
+  EDIT_TIMETABLE
+  DELETE_TIMETABLE
+
+  // Homework Related Permissions
+  CREATE_HOMEWORK
+  GET_HOMEWORK
+  EDIT_HOMEWORK
+  DELETE_HOMEWORK
+  SUBMIT_HOMEWORK
+  GRADE_HOMEWORK
+
+  // Marks Related Permissions
+  ENTER_MARKS
+  GET_MARKS
+  EDIT_MARKS
+  PUBLISH_RESULTS
+  GET_RESULTS
+
+  // Leave Related Permissions
+  CREATE_LEAVE_REQUEST
+  GET_LEAVE_REQUESTS
+  APPROVE_LEAVE
+  REJECT_LEAVE
+
+  // Communication Related Permissions
+  SEND_MESSAGE
+  GET_MESSAGES
+  CREATE_ANNOUNCEMENT
+  SEND_NOTIFICATION
+
   @@map("permission")
 }
 
@@ -305,6 +343,55 @@ enum LeadStatus {
   @@map("lead_status")
 }
 
+// Phase 1 Enums
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+
+  @@map("attendance_status")
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  GRADED
+  OVERDUE
+
+  @@map("submission_status")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+
+  @@map("leave_status")
+}
+
+enum ConversationType {
+  DIRECT
+  GROUP
+  CLASS
+  SCHOOL
+
+  @@map("conversation_type")
+}
+
+enum NotificationType {
+  ATTENDANCE
+  HOMEWORK
+  EXAM
+  FEE
+  LEAVE
+  ANNOUNCEMENT
+  GENERAL
+
+  @@map("notification_type")
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -438,7 +525,11 @@ model Class {
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  students StudentProfile[]
+  students    StudentProfile[]
+  attendances Attendance[]
+  timetable   Timetable[]
+  marks       Marks[]
+  results     Result[]
 
   @@unique(name: "subjects_unique_name_school_id", [grade, division, schoolId])
   @@map("classes")
@@ -455,6 +546,10 @@ model Subject {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
+
+  homeworks      Homework[]
+  timetableSlots TimetableSlot[]
+  marks          Marks[]
 
   @@unique(name: "subjects_unique_name_school_id", [name, schoolId])
   @@map("subjects")
@@ -505,6 +600,39 @@ model User {
   // Grievance relations
   createdGrievances Grievance[]        @relation("GrievanceCreator")
   grievanceComments GrievanceComment[] @relation("GrievanceCommentAuthor")
+
+  // Phase 1 Relations
+  // Attendance relations
+  studentAttendances Attendance[] @relation("StudentAttendances")
+  markedAttendances  Attendance[] @relation("MarkedAttendances")
+
+  // Timetable relations
+  teacherTimetableSlots TimetableSlot[] @relation("TeacherTimetableSlots")
+
+  // Homework relations
+  teacherHomeworks           Homework[]           @relation("TeacherHomeworks")
+  studentHomeworkSubmissions HomeworkSubmission[] @relation("StudentHomeworkSubmissions")
+
+  // Leave relations
+  leaveRequests         LeaveRequest[] @relation("UserLeaveRequests")
+  approvedLeaveRequests LeaveRequest[] @relation("ApprovedLeaveRequests")
+  leaveBalances         LeaveBalance[] @relation("UserLeaveBalances")
+
+  // Marks relations
+  studentMarks     Marks[]  @relation("StudentMarks")
+  studentResults   Result[] @relation("StudentResults")
+  publishedResults Result[] @relation("PublishedResults")
+
+  // Communication relations
+  sentMessages      Message[]      @relation("SentMessages")
+  userNotifications Notification[] @relation("UserNotifications")
+
+  // Parent-Child relations
+  parentLinks ParentChildLink[] @relation("ParentLinks")
+  childLinks  ParentChildLink[] @relation("ChildLinks")
+
+  // Password reset relations
+  passwordResetToken PasswordResetToken? @relation("PasswordResetTokens")
 
   // Performance indexes for frequently queried fields
   @@index([schoolId, deletedAt], name: "users_school_id_deleted_at_idx")
@@ -822,6 +950,10 @@ model Exam {
   name     String
   type     ExamType
 
+  marks   Marks[]
+  results Result[]
+
+  @@index([schoolId, year, type], name: "exams_school_year_type_idx")
   @@map("exams")
 }
 
@@ -1056,4 +1188,514 @@ model SalaryPayments {
   deletedAt DateTime? @map("deleted_at")
 
   @@map("salary_payments")
+}
+
+// ============================================
+// PHASE 1 MODELS
+// ============================================
+
+// Attendance Models
+model AttendancePeriod {
+  id        String @id @default(uuid())
+  name      String // "Period 1", "Period 2", etc.
+  startTime String @map("start_time") // Time format HH:MM
+  endTime   String @map("end_time") // Time format HH:MM
+  schoolId  String @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  attendances Attendance[]
+
+  @@unique(name: "attendance_periods_unique_name_school", [name, schoolId])
+  @@index([schoolId, deletedAt], name: "attendance_periods_school_id_deleted_at_idx")
+  @@map("attendance_periods")
+}
+
+model Attendance {
+  id              String           @id @default(uuid())
+  studentId       String           @map("student_id")
+  classId         String           @map("class_id")
+  date            DateTime
+  status          AttendanceStatus
+  periodId        String?          @map("period_id")
+  lateArrivalTime DateTime?        @map("late_arrival_time")
+  absenceReason   String?          @map("absence_reason")
+  markedBy        String           @map("marked_by") // Teacher/Staff User ID
+  schoolId        String           @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  student      User              @relation("StudentAttendances", fields: [studentId], references: [id])
+  class        Class             @relation(fields: [classId], references: [id])
+  period       AttendancePeriod? @relation(fields: [periodId], references: [id])
+  markedByUser User              @relation("MarkedAttendances", fields: [markedBy], references: [id])
+
+  @@unique(name: "attendance_unique_student_class_date_period", [studentId, classId, date, periodId])
+  @@index([studentId, date, deletedAt], name: "attendance_student_id_date_deleted_at_idx")
+  @@index([classId, date, deletedAt], name: "attendance_class_id_date_deleted_at_idx")
+  @@index([schoolId, date, deletedAt], name: "attendance_school_id_date_deleted_at_idx")
+  @@index([markedBy, date, deletedAt], name: "attendance_marked_by_date_deleted_at_idx")
+  @@map("attendances")
+}
+
+// Timetable Models
+model Timetable {
+  id            String    @id @default(uuid())
+  name          String
+  classId       String?   @map("class_id")
+  schoolId      String    @map("school_id")
+  effectiveFrom DateTime  @map("effective_from")
+  effectiveTill DateTime? @map("effective_till")
+  isActive      Boolean   @default(true) @map("is_active")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  class Class?          @relation(fields: [classId], references: [id])
+  slots TimetableSlot[]
+
+  @@index([schoolId, classId, deletedAt], name: "timetables_school_class_deleted_at_idx")
+  @@index([schoolId, isActive, deletedAt], name: "timetables_school_active_deleted_at_idx")
+  @@map("timetables")
+}
+
+model TimetableSlot {
+  id           String  @id @default(uuid())
+  timetableId  String  @map("timetable_id")
+  dayOfWeek    Int     @map("day_of_week") // 0-6 (Sunday-Saturday)
+  periodNumber Int     @map("period_number")
+  subjectId    String  @map("subject_id")
+  teacherId    String  @map("teacher_id")
+  room         String?
+  startTime    String  @map("start_time") // Time format HH:MM
+  endTime      String  @map("end_time") // Time format HH:MM
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  timetable Timetable @relation(fields: [timetableId], references: [id], onDelete: Cascade)
+  subject   Subject   @relation(fields: [subjectId], references: [id])
+  teacher   User      @relation("TeacherTimetableSlots", fields: [teacherId], references: [id])
+
+  @@unique(name: "timetable_slots_unique_timetable_day_period", [timetableId, dayOfWeek, periodNumber])
+  @@index([timetableId, dayOfWeek, deletedAt], name: "timetable_slots_timetable_day_deleted_at_idx")
+  @@index([teacherId, dayOfWeek, deletedAt], name: "timetable_slots_teacher_day_deleted_at_idx")
+  @@map("timetable_slots")
+}
+
+// Homework Models
+model Homework {
+  id          String   @id @default(uuid())
+  title       String
+  description String // Rich text
+  classIds    String[] @map("class_ids") // Multiple classes
+  subjectId   String   @map("subject_id")
+  teacherId   String   @map("teacher_id")
+  dueDate     DateTime @map("due_date")
+  isMCQ       Boolean  @default(false) @map("is_mcq")
+  attachments String[] // File IDs
+  schoolId    String   @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  subject      Subject              @relation(fields: [subjectId], references: [id])
+  teacher      User                 @relation("TeacherHomeworks", fields: [teacherId], references: [id])
+  submissions  HomeworkSubmission[]
+  mcqQuestions MCQQuestion[]
+
+  @@index([schoolId, subjectId, deletedAt], name: "homeworks_school_subject_deleted_at_idx")
+  @@index([teacherId, dueDate, deletedAt], name: "homeworks_teacher_due_date_deleted_at_idx")
+  @@index([schoolId, dueDate, deletedAt], name: "homeworks_school_due_date_deleted_at_idx")
+  @@map("homeworks")
+}
+
+model HomeworkSubmission {
+  id            String           @id @default(uuid())
+  homeworkId    String           @map("homework_id")
+  studentId     String           @map("student_id")
+  submittedAt   DateTime?        @map("submitted_at")
+  status        SubmissionStatus
+  files         String[] // File IDs
+  feedback      String?
+  grade         String?
+  marksObtained Int?             @map("marks_obtained")
+  totalMarks    Int?             @map("total_marks")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  homework   Homework    @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  student    User        @relation("StudentHomeworkSubmissions", fields: [studentId], references: [id])
+  mcqAnswers MCQAnswer[]
+
+  @@unique(name: "homework_submissions_unique_homework_student", [homeworkId, studentId])
+  @@index([homeworkId, status, deletedAt], name: "homework_submissions_homework_status_deleted_at_idx")
+  @@index([studentId, deletedAt], name: "homework_submissions_student_deleted_at_idx")
+  @@map("homework_submissions")
+}
+
+model MCQQuestion {
+  id            String   @id @default(uuid())
+  homeworkId    String   @map("homework_id")
+  question      String
+  options       String[] // Array of options
+  correctAnswer Int      @map("correct_answer") // Index of correct option
+  marks         Int
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  homework Homework    @relation(fields: [homeworkId], references: [id], onDelete: Cascade)
+  answers  MCQAnswer[]
+
+  @@index([homeworkId, deletedAt], name: "mcq_questions_homework_deleted_at_idx")
+  @@map("mcq_questions")
+}
+
+model MCQAnswer {
+  id             String  @id @default(uuid())
+  submissionId   String  @map("submission_id")
+  questionId     String  @map("question_id")
+  selectedAnswer Int     @map("selected_answer")
+  isCorrect      Boolean @map("is_correct")
+  marksObtained  Int     @map("marks_obtained")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  submission HomeworkSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  question   MCQQuestion        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique(name: "mcq_answers_unique_submission_question", [submissionId, questionId])
+  @@index([submissionId, deletedAt], name: "mcq_answers_submission_deleted_at_idx")
+  @@map("mcq_answers")
+}
+
+// Leave Models
+model LeaveType {
+  id        String @id @default(uuid())
+  name      String // CASUAL, SICK, EARNED, etc.
+  maxLeaves Int?   @map("max_leaves")
+  schoolId  String @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  leaveRequests LeaveRequest[]
+  leaveBalances LeaveBalance[]
+
+  @@unique(name: "leave_types_unique_name_school", [name, schoolId])
+  @@index([schoolId, deletedAt], name: "leave_types_school_deleted_at_idx")
+  @@map("leave_types")
+}
+
+model LeaveRequest {
+  id              String      @id @default(uuid())
+  userId          String      @map("user_id")
+  leaveTypeId     String      @map("leave_type_id")
+  startDate       DateTime    @map("start_date")
+  endDate         DateTime    @map("end_date")
+  reason          String
+  status          LeaveStatus @default(PENDING)
+  approvedBy      String?     @map("approved_by")
+  approvedAt      DateTime?   @map("approved_at")
+  rejectionReason String?     @map("rejection_reason")
+  schoolId        String      @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user      User      @relation("UserLeaveRequests", fields: [userId], references: [id])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+  approver  User?     @relation("ApprovedLeaveRequests", fields: [approvedBy], references: [id])
+
+  @@index([userId, status, deletedAt], name: "leave_requests_user_status_deleted_at_idx")
+  @@index([schoolId, status, deletedAt], name: "leave_requests_school_status_deleted_at_idx")
+  @@index([approvedBy, deletedAt], name: "leave_requests_approved_by_deleted_at_idx")
+  @@map("leave_requests")
+}
+
+model LeaveBalance {
+  id              String @id @default(uuid())
+  userId          String @map("user_id")
+  leaveTypeId     String @map("leave_type_id")
+  totalLeaves     Int    @map("total_leaves")
+  usedLeaves      Int    @default(0) @map("used_leaves")
+  remainingLeaves Int    @map("remaining_leaves")
+  year            Int
+  schoolId        String @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user      User      @relation("UserLeaveBalances", fields: [userId], references: [id])
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id])
+
+  @@unique(name: "leave_balances_unique_user_type_year", [userId, leaveTypeId, year])
+  @@index([userId, year, deletedAt], name: "leave_balances_user_year_deleted_at_idx")
+  @@index([schoolId, deletedAt], name: "leave_balances_school_deleted_at_idx")
+  @@map("leave_balances")
+}
+
+// Marks Models
+model Marks {
+  id            String  @id @default(uuid())
+  examId        String  @map("exam_id")
+  studentId     String  @map("student_id")
+  subjectId     String  @map("subject_id")
+  classId       String  @map("class_id")
+  marksObtained Decimal @map("marks_obtained") @db.Decimal(10, 2)
+  maxMarks      Decimal @map("max_marks") @db.Decimal(10, 2)
+  percentage    Decimal @db.Decimal(5, 2)
+  grade         String?
+  schoolId      String  @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  exam    Exam    @relation(fields: [examId], references: [id])
+  student User    @relation("StudentMarks", fields: [studentId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id])
+  class   Class   @relation(fields: [classId], references: [id])
+
+  @@unique(name: "marks_unique_exam_student_subject", [examId, studentId, subjectId])
+  @@index([examId, studentId, deletedAt], name: "marks_exam_student_deleted_at_idx")
+  @@index([studentId, deletedAt], name: "marks_student_deleted_at_idx")
+  @@index([schoolId, examId, deletedAt], name: "marks_school_exam_deleted_at_idx")
+  @@map("marks")
+}
+
+model Result {
+  id            String    @id @default(uuid())
+  examId        String    @map("exam_id")
+  studentId     String    @map("student_id")
+  classId       String    @map("class_id")
+  totalMarks    Decimal   @map("total_marks") @db.Decimal(10, 2)
+  maxTotalMarks Decimal   @map("max_total_marks") @db.Decimal(10, 2)
+  percentage    Decimal   @db.Decimal(5, 2)
+  cgpa          Decimal?  @db.Decimal(4, 2)
+  grade         String
+  rank          Int?
+  isPass        Boolean   @map("is_pass")
+  publishedAt   DateTime? @map("published_at")
+  publishedBy   String?   @map("published_by")
+  schoolId      String    @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  exam      Exam  @relation(fields: [examId], references: [id])
+  student   User  @relation("StudentResults", fields: [studentId], references: [id])
+  class     Class @relation(fields: [classId], references: [id])
+  publisher User? @relation("PublishedResults", fields: [publishedBy], references: [id])
+
+  @@unique(name: "results_unique_exam_student", [examId, studentId])
+  @@index([examId, isPass, deletedAt], name: "results_exam_pass_deleted_at_idx")
+  @@index([studentId, deletedAt], name: "results_student_deleted_at_idx")
+  @@index([schoolId, examId, deletedAt], name: "results_school_exam_deleted_at_idx")
+  @@map("results")
+}
+
+// Communication Models
+model Conversation {
+  id           String           @id @default(uuid())
+  participants String[] // User IDs
+  type         ConversationType
+  title        String?
+  schoolId     String?          @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  messages Message[]
+
+  @@index([schoolId, deletedAt], name: "conversations_school_deleted_at_idx")
+  @@map("conversations")
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  conversationId String   @map("conversation_id")
+  senderId       String   @map("sender_id")
+  content        String
+  attachments    String[] // File IDs
+  readBy         String[] // User IDs who read
+  sentAt         DateTime @default(now()) @map("sent_at")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation("SentMessages", fields: [senderId], references: [id])
+
+  @@index([conversationId, sentAt, deletedAt], name: "messages_conversation_sent_deleted_at_idx")
+  @@index([senderId, deletedAt], name: "messages_sender_deleted_at_idx")
+  @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  title     String
+  content   String
+  type      NotificationType
+  isRead    Boolean          @default(false) @map("is_read")
+  actionUrl String?          @map("action_url")
+  schoolId  String?          @map("school_id")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  user User @relation("UserNotifications", fields: [userId], references: [id])
+
+  @@index([userId, isRead, deletedAt], name: "notifications_user_read_deleted_at_idx")
+  @@index([schoolId, deletedAt], name: "notifications_school_deleted_at_idx")
+  @@index([userId, createdAt, deletedAt], name: "notifications_user_created_deleted_at_idx")
+  @@map("notifications")
+}
+
+// Parent-Child Link
+model ParentChildLink {
+  id           String  @id @default(uuid())
+  parentId     String  @map("parent_id") // User ID (Parent role)
+  childId      String  @map("child_id") // User ID (Student role)
+  relationship String // FATHER, MOTHER, GUARDIAN
+  isPrimary    Boolean @default(false) @map("is_primary")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  parent User @relation("ParentLinks", fields: [parentId], references: [id])
+  child  User @relation("ChildLinks", fields: [childId], references: [id])
+
+  @@unique(name: "parent_child_links_unique_parent_child", [parentId, childId])
+  @@index([parentId, deletedAt], name: "parent_child_links_parent_deleted_at_idx")
+  @@index([childId, deletedAt], name: "parent_child_links_child_deleted_at_idx")
+  @@map("parent_child_links")
+}
+
+// Audit Log
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  action       String // CREATE, UPDATE, DELETE
+  entityType   String   @map("entity_type") // User, Student, etc.
+  entityId     String   @map("entity_id")
+  ipAddress    String   @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  changes      Json? // Before/after values
+  result       String // SUCCESS, FAILURE
+  errorMessage String?  @map("error_message")
+  timestamp    DateTime @default(now())
+
+  @@index([userId, timestamp], name: "audit_logs_user_timestamp_idx")
+  @@index([entityType, entityId, timestamp], name: "audit_logs_entity_timestamp_idx")
+  @@index([action, timestamp], name: "audit_logs_action_timestamp_idx")
+  @@map("audit_logs")
+}
+
+// OTP Model for authentication and verification
+model OTP {
+  id        String   @id @default(uuid())
+  email     String
+  otp       String
+  purpose   String // verification, password-reset, login, deletion
+  expiresAt DateTime @map("expires_at")
+  isUsed    Boolean  @default(false) @map("is_used")
+  attempts  Int      @default(0) // Track failed verification attempts
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  @@index([email, purpose, isUsed, expiresAt], name: "otps_email_purpose_status_expires_idx")
+  @@index([email, expiresAt], name: "otps_email_expires_idx")
+  @@map("otps")
+}
+
+// Password Reset Token
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String   @unique @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  isUsed    Boolean  @default(false) @map("is_used")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  usedAt    DateTime? @map("used_at")
+
+  user User @relation("PasswordResetTokens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token, expiresAt, isUsed], name: "password_reset_tokens_token_expires_used_idx")
+  @@map("password_reset_tokens")
 }
