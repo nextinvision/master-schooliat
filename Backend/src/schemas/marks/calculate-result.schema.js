@@ -20,11 +20,11 @@ const calculateResultSchema = z
           calculateRank: z.boolean().optional().default(false),
         }).optional().default({}),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default calculateResultSchema;
 

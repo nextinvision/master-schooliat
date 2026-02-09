@@ -7,11 +7,11 @@ const changePasswordSchema = z
         currentPassword: z.string().min(1, "Current password is required"),
         newPassword: z.string().min(8, "Password must be at least 8 characters"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default changePasswordSchema;
 

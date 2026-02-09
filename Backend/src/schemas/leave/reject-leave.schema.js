@@ -7,11 +7,11 @@ const rejectLeaveSchema = z
         leaveRequestId: z.string().uuid("Invalid leave request ID"),
         rejectionReason: z.string().max(500, "Rejection reason too long").optional().nullable(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default rejectLeaveSchema;
 

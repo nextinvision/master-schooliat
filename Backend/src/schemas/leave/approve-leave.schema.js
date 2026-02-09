@@ -6,11 +6,11 @@ const approveLeaveSchema = z
       .object({
         leaveRequestId: z.string().uuid("Invalid leave request ID"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default approveLeaveSchema;
 

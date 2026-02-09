@@ -10,14 +10,14 @@ const addCommentSchema = z
           .min(1, "Comment content is required")
           .max(2000, "Comment must be at most 2000 characters"),
       })
-      .strip(),
-    query: z.object({}).strip(),
+      ,
+    query: z.object({}),
     params: z
       .object({
         id: z.string().uuid("Grievance ID must be a valid UUID"),
       })
-      .strip(),
+      ,
   })
-  .strip();
+  ;
 
 export default addCommentSchema;

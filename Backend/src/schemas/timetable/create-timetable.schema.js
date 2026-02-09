@@ -20,11 +20,11 @@ const createTimetableSchema = z
         effectiveTill: z.string().datetime().or(z.date()).optional().nullable(),
         slots: z.array(timetableSlotSchema).min(1, "At least one slot is required"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default createTimetableSchema;
 

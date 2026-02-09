@@ -42,12 +42,10 @@ const createHomeworkSchema = z
       }, {
         message: "Correct answer index must be within options range",
         path: ["mcqQuestions"],
-      })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
-  })
-  .strip();
+      }),
+    query: z.object({}),
+    params: z.object({}),
+  });
 
 export default createHomeworkSchema;
 

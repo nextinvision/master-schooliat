@@ -9,11 +9,11 @@ const createAnnouncementSchema = z
         targetUserIds: z.array(z.string().uuid("Invalid user ID")).optional().default([]),
         targetRoles: z.array(z.string()).optional().default([]),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default createAnnouncementSchema;
 

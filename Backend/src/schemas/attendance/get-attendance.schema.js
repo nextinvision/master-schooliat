@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const getAttendanceSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         studentId: z.string().uuid("Invalid student ID").optional(),
@@ -13,10 +13,10 @@ const getAttendanceSchema = z
         page: z.string().regex(/^\d+$/).transform(Number).optional().default("1"),
         limit: z.string().regex(/^\d+$/).transform(Number).optional().default("20"),
       })
-      .strip(),
-    params: z.object({}).strip(),
+      ,
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getAttendanceSchema;
 

@@ -18,11 +18,11 @@ const enterBulkMarksSchema = z
       .object({
         marks: z.array(marksItemSchema).min(1, "At least one marks record required"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default enterBulkMarksSchema;
 

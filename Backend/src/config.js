@@ -49,6 +49,10 @@ const config = {
   REDIS_PASSWORD: process.env.REDIS_PASSWORD,
   REDIS_DB: parseInt(process.env.REDIS_DB) || 0,
 
+  // Admin IP Whitelist (comma-separated IPs or CIDR ranges)
+  // Example: "192.168.1.1,10.0.0.0/8,172.16.0.0/12"
+  ADMIN_IP_WHITELIST: process.env.ADMIN_IP_WHITELIST?.split(",").map((ip) => ip.trim()) || [],
+
   // Puppeteer Config
   PUPPETEER_POOL_SIZE: parseInt(process.env.PUPPETEER_POOL_SIZE) || 1,
 };

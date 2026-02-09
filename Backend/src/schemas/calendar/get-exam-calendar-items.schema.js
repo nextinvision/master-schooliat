@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const getExamCalendarItemsSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         examCalendarId: z
@@ -26,9 +26,9 @@ const getExamCalendarItemsSchema = z
             "Page size must be a positive integer",
           ),
       })
-      .strip(),
-    params: z.object({}).strip(),
+      ,
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getExamCalendarItemsSchema;

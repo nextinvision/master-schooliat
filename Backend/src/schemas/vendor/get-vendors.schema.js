@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const getVendorsSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         employeeId: z
@@ -15,9 +15,9 @@ const getVendorsSchema = z
           .optional(),
         search: z.string().optional(),
       })
-      .strip(),
-    params: z.object({}).strip(),
+      ,
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getVendorsSchema;

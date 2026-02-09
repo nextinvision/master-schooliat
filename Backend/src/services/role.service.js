@@ -64,6 +64,7 @@ const createDefaultRoles = async () => {
       Permission.GET_ID_CARDS,
       Permission.GET_FEES,
       Permission.GET_SETTINGS,
+      Permission.VIEW_AUDIT_LOGS,
     ],
     [RoleName.EMPLOYEE]: [
       Permission.GET_SCHOOLS,
@@ -128,6 +129,7 @@ const createDefaultRoles = async () => {
       Permission.GET_MY_GRIEVANCES,
       Permission.ADD_GRIEVANCE_COMMENT,
       Permission.GET_DASHBOARD_STATS,
+      Permission.VIEW_AUDIT_LOGS,
     ],
     [RoleName.STUDENT]: [
       Permission.GET_MY_SCHOOL,

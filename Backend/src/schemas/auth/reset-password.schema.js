@@ -8,11 +8,11 @@ const resetPasswordSchema = z
         password: z.string().min(8, "Password must be at least 8 characters"),
         otp: z.string().length(6, "OTP must be 6 digits").optional(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default resetPasswordSchema;
 

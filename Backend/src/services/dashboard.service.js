@@ -16,6 +16,14 @@ const getDashboard = async (currentUser) => {
     return await getSuperAdminDashboard();
   } else if (roleName === RoleName.SCHOOL_ADMIN) {
     return await getSchoolAdminDashboard(currentUser);
+  } else if (roleName === RoleName.TEACHER) {
+    return await getTeacherDashboard(currentUser);
+  } else if (roleName === RoleName.STAFF) {
+    return await getStaffDashboard(currentUser);
+  } else if (roleName === RoleName.STUDENT) {
+    return await getStudentDashboard(currentUser);
+  } else if (roleName === RoleName.PARENT) {
+    return await getParentDashboard(currentUser);
   }
 
   return {};
@@ -311,12 +319,412 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
   };
 };
 
+// Teacher Dashboard
+const getTeacherDashboard = async (currentUser) => {
+  const schoolId = currentUser?.schoolId;
+  const teacherId = currentUser?.id;
+
+  if (!schoolId || !teacherId) {
+    return {};
+  }
+
+  const cacheKey = `dashboard:teacher:${teacherId}`;
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      return await getTeacherDashboardData(schoolId, teacherId);
+    },
+    5 * 60 * 1000, // 5 minutes TTL
+  );
+};
+
+const getTeacherDashboardData = async (schoolId, teacherId) => {
+  const currentDate = new Date();
+  const startOfWeek = new Date(currentDate);
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  const [
+    timetableSlots,
+    pendingHomeworks,
+    submittedHomeworks,
+    upcomingExams,
+    recentNotices,
+  ] = await Promise.all([
+    prisma.timetableSlot.findMany({
+      where: {
+        teacherId,
+        deletedAt: null,
+      },
+      include: {
+        timetable: {
+          include: {
+            class: true,
+          },
+        },
+        subject: true,
+      },
+      orderBy: [
+        { dayOfWeek: "asc" },
+        { periodNumber: "asc" },
+      ],
+    }),
+    prisma.homework.findMany({
+      where: {
+        teacherId,
+        dueDate: { gte: currentDate },
+        deletedAt: null,
+      },
+      include: {
+        subject: true,
+        _count: {
+          select: {
+            submissions: {
+              where: {
+                status: "PENDING",
+                deletedAt: null,
+              },
+            },
+          },
+        },
+      },
+      take: 5,
+      orderBy: {
+        dueDate: "asc",
+      },
+    }),
+    prisma.homeworkSubmission.findMany({
+      where: {
+        homework: {
+          teacherId,
+          deletedAt: null,
+        },
+        status: "SUBMITTED",
+        deletedAt: null,
+      },
+      include: {
+        homework: {
+          include: {
+            subject: true,
+          },
+        },
+        student: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+      },
+      take: 10,
+      orderBy: {
+        submittedAt: "desc",
+      },
+    }),
+    prisma.exam.findMany({
+      where: {
+        schoolId,
+        startDate: { gte: currentDate },
+        deletedAt: null,
+      },
+      include: {
+        examCalendar: true,
+      },
+      take: 5,
+      orderBy: {
+        startDate: "asc",
+      },
+    }),
+    prisma.notice.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        visibleFrom: { lte: currentDate },
+        visibleTill: { gte: currentDate },
+      },
+      take: 5,
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+  ]);
+
+  return {
+    timetableSlots,
+    pendingHomeworks,
+    submittedHomeworks,
+    upcomingExams,
+    recentNotices,
+  };
+};
+
+// Staff Dashboard
+const getStaffDashboard = async (currentUser) => {
+  const schoolId = currentUser?.schoolId;
+  const staffId = currentUser?.id;
+
+  if (!schoolId || !staffId) {
+    return {};
+  }
+
+  const cacheKey = `dashboard:staff:${staffId}`;
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      return await getStaffDashboardData(schoolId, staffId);
+    },
+    5 * 60 * 1000, // 5 minutes TTL
+  );
+};
+
+const getStaffDashboardData = async (schoolId, staffId) => {
+  const currentDate = new Date();
+
+  const [
+    recentNotices,
+    upcomingEvents,
+    recentCirculars,
+  ] = await Promise.all([
+    prisma.notice.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        visibleFrom: { lte: currentDate },
+        visibleTill: { gte: currentDate },
+      },
+      take: 5,
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    prisma.event.findMany({
+      where: {
+        schoolId,
+        startDate: { gte: currentDate },
+        deletedAt: null,
+      },
+      take: 5,
+      orderBy: {
+        startDate: "asc",
+      },
+    }),
+    prisma.circular.findMany({
+      where: {
+        schoolId,
+        status: "PUBLISHED",
+        deletedAt: null,
+      },
+      take: 5,
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+  ]);
+
+  return {
+    recentNotices,
+    upcomingEvents,
+    recentCirculars,
+  };
+};
+
+// Student Dashboard
+const getStudentDashboard = async (currentUser) => {
+  const schoolId = currentUser?.schoolId;
+  const studentId = currentUser?.id;
+
+  if (!schoolId || !studentId) {
+    return {};
+  }
+
+  const cacheKey = `dashboard:student:${studentId}`;
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      return await getStudentDashboardData(schoolId, studentId);
+    },
+    5 * 60 * 1000, // 5 minutes TTL
+  );
+};
+
+const getStudentDashboardData = async (schoolId, studentId) => {
+  const currentDate = new Date();
+  const startOfWeek = new Date(currentDate);
+  startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  // Get student profile to get class
+  const studentProfile = await prisma.studentProfile.findUnique({
+    where: { userId: studentId },
+    include: {
+      class: true,
+    },
+  });
+
+  const classId = studentProfile?.classId;
+
+  const [
+    recentAttendance,
+    pendingHomeworks,
+    upcomingExams,
+    recentResults,
+    timetable,
+    recentNotices,
+    feeStatus,
+  ] = await Promise.all([
+    prisma.attendance.findMany({
+      where: {
+        studentId,
+        deletedAt: null,
+      },
+      take: 7,
+      orderBy: {
+        date: "desc",
+      },
+    }),
+    prisma.homeworkSubmission.findMany({
+      where: {
+        studentId,
+        status: "PENDING",
+        deletedAt: null,
+      },
+      include: {
+        homework: {
+          include: {
+            subject: true,
+          },
+        },
+      },
+      take: 5,
+      orderBy: {
+        homework: {
+          dueDate: "asc",
+        },
+      },
+    }),
+    prisma.exam.findMany({
+      where: {
+        schoolId,
+        startDate: { gte: currentDate },
+        deletedAt: null,
+      },
+      include: {
+        examCalendar: true,
+      },
+      take: 5,
+      orderBy: {
+        startDate: "asc",
+      },
+    }),
+    prisma.result.findMany({
+      where: {
+        studentId,
+        deletedAt: null,
+      },
+      take: 5,
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    classId ? prisma.timetable.findFirst({
+      where: {
+        classId,
+        schoolId,
+        isActive: true,
+        deletedAt: null,
+      },
+      include: {
+        slots: {
+          include: {
+            subject: true,
+            teacher: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+          },
+          orderBy: [
+            { dayOfWeek: "asc" },
+            { periodNumber: "asc" },
+          ],
+        },
+      },
+    }) : null,
+    prisma.notice.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        visibleFrom: { lte: currentDate },
+        visibleTill: { gte: currentDate },
+      },
+      take: 5,
+      orderBy: {
+        createdAt: "desc",
+      },
+    }),
+    prisma.feeInstallements.findMany({
+      where: {
+        studentId,
+        paymentStatus: { in: ["PENDING", "PARTIALLY_PAID"] },
+        deletedAt: null,
+      },
+      include: {
+        fee: true,
+      },
+      take: 5,
+      orderBy: {
+        dueDate: "asc",
+      },
+    }),
+  ]);
+
+  return {
+    recentAttendance,
+    pendingHomeworks,
+    upcomingExams,
+    recentResults,
+    timetable,
+    recentNotices,
+    feeStatus,
+    class: studentProfile?.class,
+  };
+};
+
+// Parent Dashboard
+const getParentDashboard = async (currentUser) => {
+  const parentId = currentUser?.id;
+
+  if (!parentId) {
+    return {};
+  }
+
+  const cacheKey = `dashboard:parent:${parentId}`;
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      // Use parent service for consolidated dashboard
+      const parentService = (await import("./parent.service.js")).default;
+      return await parentService.getConsolidatedDashboard(parentId);
+    },
+    5 * 60 * 1000, // 5 minutes TTL
+  );
+};
+
 // Invalidate dashboard cache when data changes
-const invalidateDashboardCache = (schoolId = null) => {
+const invalidateDashboardCache = async (schoolId = null, userId = null, roleName = null) => {
   if (schoolId) {
-    cacheService.delete(`dashboard:school_admin:${schoolId}`);
-  } else {
-    cacheService.delete("dashboard:super_admin");
+    await cacheService.delete(`dashboard:school_admin:${schoolId}`);
+  }
+  if (userId && roleName) {
+    await cacheService.delete(`dashboard:${roleName.toLowerCase()}:${userId}`);
+  }
+  if (!schoolId && !userId) {
+    await cacheService.delete("dashboard:super_admin");
   }
 };
 
@@ -324,6 +732,10 @@ const dashboardService = {
   getDashboard,
   getSuperAdminDashboard,
   getSchoolAdminDashboard,
+  getTeacherDashboard,
+  getStaffDashboard,
+  getStudentDashboard,
+  getParentDashboard,
   invalidateDashboardCache,
 };
 

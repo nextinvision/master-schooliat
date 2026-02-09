@@ -34,10 +34,10 @@ const createHolidaySchema = z
             "Visible till date must be a valid date",
           ),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default createHolidaySchema;

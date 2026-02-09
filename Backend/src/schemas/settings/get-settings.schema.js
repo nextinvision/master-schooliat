@@ -3,9 +3,9 @@ import { z } from "zod";
 const getSettingsSchema = z
   .object({
     request: z.object({}).strip().optional(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getSettingsSchema;

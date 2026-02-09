@@ -3,6 +3,7 @@ import config from "../config.js";
 import { ApiErrors } from "../errors.js";
 import logger from "../config/logger.js";
 import prisma from "../prisma/client.js";
+import tokenBlacklistService from "../services/token-blacklist.service.js";
 
 /**
  * Authorization middleware
@@ -23,6 +24,13 @@ const authorize = async (req, res, next) => {
 
   const token = authHeader.split(" ")[1];
   if (!token) {
+    throw ApiErrors.UNAUTHORIZED;
+  }
+
+  // Check if token is blacklisted
+  const isBlacklisted = await tokenBlacklistService.isBlacklisted(token);
+  if (isBlacklisted) {
+    logger.warn({ token: token.substring(0, 20) + "..." }, "Blacklisted token attempted");
     throw ApiErrors.UNAUTHORIZED;
   }
 

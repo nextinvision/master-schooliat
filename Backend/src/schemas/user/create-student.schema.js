@@ -78,10 +78,10 @@ const createStudentSchema = z
           .uuid("ID photo ID must be a valid UUID")
           .optional(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default createStudentSchema;

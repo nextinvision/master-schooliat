@@ -20,11 +20,11 @@ const updateTimetableSchema = z
         isActive: z.boolean().optional(),
         slots: z.array(timetableSlotSchema).optional(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default updateTimetableSchema;
 

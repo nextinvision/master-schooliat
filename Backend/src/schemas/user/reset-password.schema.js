@@ -7,10 +7,10 @@ const resetPasswordSchema = z
         userId: z.string().uuid("User ID must be a valid UUID"),
         newPassword: z.string().trim().min(1, "New password is required"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default resetPasswordSchema;

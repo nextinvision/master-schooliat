@@ -2,8 +2,8 @@ import { z } from "zod";
 
 const getCalendarSchema = z
   .object({
-    request: z.object({}).strip(),
-    query: z.object({}).strip(),
+    request: z.object({}),
+    query: z.object({}),
     params: z
       .object({
         date: z
@@ -18,8 +18,8 @@ const getCalendarSchema = z
             return !isNaN(date.getTime());
           }, "Date must be in YYYY-MM-DD format (e.g., 2025-12-31)"),
       })
-      .strip(),
+      ,
   })
-  .strip();
+  ;
 
 export default getCalendarSchema;
