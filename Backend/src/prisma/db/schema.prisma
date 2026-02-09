@@ -169,6 +169,10 @@ enum Permission {
   CREATE_ANNOUNCEMENT
   SEND_NOTIFICATION
 
+  // Audit & Security Related Permissions
+  VIEW_AUDIT_LOGS
+  REQUEST_DELETION_OTP
+
   @@map("permission")
 }
 
@@ -490,16 +494,18 @@ model School {
   certificateLink String?  @map("certificate_link")
   logoId          String?  @map("logoId")
 
-  users            User[]
-  receipts         Receipt[]
-  grievances       Grievance[]
-  gstNumber        String?     @map("gst_number")
-  principalName    String?     @map("principal_name")
-  principalEmail   String?     @map("principal_email")
-  principalPhone   String?     @map("principal_phone")
-  establishedYear  Int?        @map("established_year")
-  boardAffiliation String?     @map("board_affiliation")
-  studentStrength  Int?        @map("student_strength")
+  users                   User[]
+  receipts                Receipt[]
+  grievances              Grievance[]
+  schoolTCs               TransferCertificate[] @relation("SchoolTCs")
+  schoolEmergencyContacts EmergencyContact[]    @relation("SchoolEmergencyContacts")
+  gstNumber               String?               @map("gst_number")
+  principalName           String?               @map("principal_name")
+  principalEmail          String?               @map("principal_email")
+  principalPhone          String?               @map("principal_phone")
+  establishedYear         Int?                  @map("established_year")
+  boardAffiliation        String?               @map("board_affiliation")
+  studentStrength         Int?                  @map("student_strength")
 
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
@@ -633,6 +639,13 @@ model User {
 
   // Password reset relations
   passwordResetToken PasswordResetToken? @relation("PasswordResetTokens")
+
+  // Audit relations
+  auditLogs AuditLog[] @relation("AuditLogs")
+
+  // TC & Emergency Contact relations
+  studentTCs               TransferCertificate[] @relation("StudentTCs")
+  studentEmergencyContacts EmergencyContact[]    @relation("StudentEmergencyContacts")
 
   // Performance indexes for frequently queried fields
   @@index([schoolId, deletedAt], name: "users_school_id_deleted_at_idx")
@@ -1659,6 +1672,8 @@ model AuditLog {
   errorMessage String?  @map("error_message")
   timestamp    DateTime @default(now())
 
+  user User @relation("AuditLogs", fields: [userId], references: [id])
+
   @@index([userId, timestamp], name: "audit_logs_user_timestamp_idx")
   @@index([entityType, entityId, timestamp], name: "audit_logs_entity_timestamp_idx")
   @@index([action, timestamp], name: "audit_logs_action_timestamp_idx")
@@ -1698,4 +1713,68 @@ model PasswordResetToken {
 
   @@index([token, expiresAt, isUsed], name: "password_reset_tokens_token_expires_used_idx")
   @@map("password_reset_tokens")
+}
+
+// Transfer Certificate (TC)
+enum TCStatus {
+  ISSUED
+  COLLECTED
+  CANCELLED
+
+  @@map("tc_status")
+}
+
+model TransferCertificate {
+  id                String   @id @default(uuid())
+  studentId         String   @map("student_id")
+  schoolId          String   @map("school_id")
+  tcNumber          String   @unique @map("tc_number")
+  reason            String
+  transferDate      DateTime @map("transfer_date")
+  destinationSchool String?  @map("destination_school")
+  remarks           String?  @db.Text
+  status            TCStatus @default(ISSUED)
+
+  student User   @relation("StudentTCs", fields: [studentId], references: [id])
+  school  School @relation("SchoolTCs", fields: [schoolId], references: [id])
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([schoolId, deletedAt], name: "tcs_school_id_deleted_at_idx")
+  @@index([studentId, deletedAt], name: "tcs_student_id_deleted_at_idx")
+  @@index([status, deletedAt], name: "tcs_status_deleted_at_idx")
+  @@map("transfer_certificates")
+}
+
+// Emergency Contact
+model EmergencyContact {
+  id               String  @id @default(uuid())
+  studentId        String  @map("student_id")
+  schoolId         String  @map("school_id")
+  name             String
+  relationship     String // FATHER, MOTHER, GUARDIAN, RELATIVE, OTHER
+  contact          String
+  alternateContact String? @map("alternate_contact")
+  address          String? @db.Text
+  isPrimary        Boolean @default(false) @map("is_primary")
+
+  student User   @relation("StudentEmergencyContacts", fields: [studentId], references: [id], onDelete: Cascade)
+  school  School @relation("SchoolEmergencyContacts", fields: [schoolId], references: [id])
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([studentId, deletedAt], name: "emergency_contacts_student_id_deleted_at_idx")
+  @@index([schoolId, deletedAt], name: "emergency_contacts_school_id_deleted_at_idx")
+  @@index([isPrimary, deletedAt], name: "emergency_contacts_primary_deleted_at_idx")
+  @@map("emergency_contacts")
 }

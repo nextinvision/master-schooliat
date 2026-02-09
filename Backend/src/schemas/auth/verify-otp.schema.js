@@ -8,11 +8,11 @@ const verifyOTPSchema = z
         otp: z.string().length(6, "OTP must be 6 digits"),
         purpose: z.enum(["verification", "password-reset", "login", "deletion"]).optional().default("verification"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default verifyOTPSchema;
 

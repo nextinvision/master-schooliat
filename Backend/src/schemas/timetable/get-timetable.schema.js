@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const getTimetableSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         classId: z.string().uuid("Invalid class ID").optional(),
@@ -11,10 +11,10 @@ const getTimetableSchema = z
         date: z.string().datetime().or(z.date()).optional(),
         timetableId: z.string().uuid("Invalid timetable ID").optional(),
       })
-      .strip(),
-    params: z.object({}).strip(),
+      ,
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getTimetableSchema;
 

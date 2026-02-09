@@ -15,11 +15,11 @@ const enterMarksSchema = z
         message: "Marks obtained cannot exceed maximum marks",
         path: ["marksObtained"],
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default enterMarksSchema;
 

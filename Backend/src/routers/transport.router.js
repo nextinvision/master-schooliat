@@ -7,6 +7,9 @@ import createTransportSchema from "../schemas/transport/create-transport.schema.
 import updateTransportSchema from "../schemas/transport/update-transport.schema.js";
 import getTransportsSchema from "../schemas/transport/get-transports.schema.js";
 import deleteTransportSchema from "../schemas/transport/delete-transport.schema.js";
+import transportEnhancedService from "../services/transport-enhanced.service.js";
+import createRouteSchema from "../schemas/transport/create-route.schema.js";
+import addStopSchema from "../schemas/transport/add-stop.schema.js";
 
 const router = Router();
 
@@ -164,6 +167,331 @@ router.delete(
     });
 
     return res.json({ message: "Transport deleted!" });
+  },
+);
+
+// ============================================
+// PHASE 2: Transport Enhancements
+// ============================================
+
+// Create route
+router.post(
+  "/routes",
+  withPermission(Permission.MANAGE_ROUTES),
+  validateRequest(createRouteSchema),
+  async (req, res) => {
+    try {
+      const request = req.body.request;
+      const currentUser = req.context.user;
+
+      const route = await transportEnhancedService.createRoute({
+        ...request,
+        schoolId: currentUser.schoolId,
+        createdBy: currentUser.id,
+      });
+
+      return res.status(201).json({
+        message: "Route created successfully",
+        data: route,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to create route",
+      });
+    }
+  },
+);
+
+// Get routes
+router.get(
+  "/routes",
+  withPermission(Permission.GET_ROUTES),
+  async (req, res) => {
+    try {
+      const query = req.query;
+      const currentUser = req.context.user;
+
+      const result = await transportEnhancedService.getRoutes(
+        currentUser.schoolId,
+        {
+          transportId: query.transportId,
+          isActive: query.isActive !== undefined ? query.isActive === "true" : undefined,
+        },
+        {
+          page: parseInt(query.page) || 1,
+          limit: parseInt(query.limit) || 20,
+        },
+      );
+
+      return res.status(200).json({
+        message: "Routes fetched successfully",
+        data: result.routes,
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch routes",
+      });
+    }
+  },
+);
+
+// Update route
+router.put(
+  "/routes/:id",
+  withPermission(Permission.MANAGE_ROUTES),
+  validateRequest(createRouteSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const request = req.body.request;
+      const currentUser = req.context.user;
+
+      const route = await transportEnhancedService.updateRoute(id, {
+        ...request,
+        updatedBy: currentUser.id,
+      });
+
+      return res.status(200).json({
+        message: "Route updated successfully",
+        data: route,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to update route",
+      });
+    }
+  },
+);
+
+// Delete route
+router.delete(
+  "/routes/:id",
+  withPermission(Permission.MANAGE_ROUTES),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      await prisma.route.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.status(200).json({
+        message: "Route deleted successfully",
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to delete route",
+      });
+    }
+  },
+);
+
+// Add route stop
+router.post(
+  "/routes/stops",
+  withPermission(Permission.MANAGE_ROUTES),
+  validateRequest(addStopSchema),
+  async (req, res) => {
+    try {
+      const request = req.body.request;
+      const currentUser = req.context.user;
+
+      const stop = await transportEnhancedService.addRouteStop({
+        ...request,
+        schoolId: currentUser.schoolId,
+        createdBy: currentUser.id,
+      });
+
+      return res.status(201).json({
+        message: "Route stop added successfully",
+        data: stop,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to add route stop",
+      });
+    }
+  },
+);
+
+// Update route stop
+router.put(
+  "/routes/stops/:id",
+  withPermission(Permission.MANAGE_ROUTES),
+  validateRequest(addStopSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const request = req.body.request;
+      const currentUser = req.context.user;
+
+      const stop = await transportEnhancedService.updateRouteStop(id, {
+        ...request,
+        updatedBy: currentUser.id,
+      });
+
+      return res.status(200).json({
+        message: "Route stop updated successfully",
+        data: stop,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to update route stop",
+      });
+    }
+  },
+);
+
+// Delete route stop
+router.delete(
+  "/routes/stops/:id",
+  withPermission(Permission.MANAGE_ROUTES),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      await prisma.routeStop.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.status(200).json({
+        message: "Route stop deleted successfully",
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to delete route stop",
+      });
+    }
+  },
+);
+
+// Assign student to route
+router.post(
+  "/routes/:routeId/students/:studentId",
+  withPermission(Permission.ASSIGN_STUDENTS_TO_ROUTE),
+  async (req, res) => {
+    try {
+      const { routeId, studentId } = req.params;
+
+      await transportEnhancedService.assignStudentToRoute(routeId, studentId);
+
+      return res.status(200).json({
+        message: "Student assigned to route successfully",
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to assign student to route",
+      });
+    }
+  },
+);
+
+// Get route students
+router.get(
+  "/routes/:routeId/students",
+  withPermission(Permission.GET_ROUTES),
+  async (req, res) => {
+    try {
+      const { routeId } = req.params;
+
+      const students = await transportEnhancedService.getRouteStudents(routeId);
+
+      return res.status(200).json({
+        message: "Route students fetched successfully",
+        data: students,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch route students",
+      });
+    }
+  },
+);
+
+// Create maintenance record
+router.post(
+  "/:transportId/maintenance",
+  withPermission(Permission.EDIT_TRANSPORT),
+  async (req, res) => {
+    try {
+      const { transportId } = req.params;
+      const {
+        maintenanceType,
+        description,
+        cost,
+        maintenanceDate,
+        nextMaintenanceDate,
+        serviceProvider,
+        odometerReading,
+      } = req.body.request || {};
+      const currentUser = req.context.user;
+
+      if (!maintenanceType || !maintenanceDate) {
+        return res.status(400).json({
+          message: "Maintenance type and date are required",
+        });
+      }
+
+      const maintenance = await transportEnhancedService.createMaintenance({
+        transportId,
+        maintenanceType,
+        description,
+        cost,
+        maintenanceDate,
+        nextMaintenanceDate,
+        serviceProvider,
+        odometerReading,
+        schoolId: currentUser.schoolId,
+        createdBy: currentUser.id,
+      });
+
+      return res.status(201).json({
+        message: "Maintenance record created successfully",
+        data: maintenance,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to create maintenance record",
+      });
+    }
+  },
+);
+
+// Get maintenance history
+router.get(
+  "/:transportId/maintenance",
+  withPermission(Permission.GET_TRANSPORTS),
+  async (req, res) => {
+    try {
+      const { transportId } = req.params;
+      const query = req.query;
+
+      const result = await transportEnhancedService.getMaintenanceHistory(transportId, {
+        page: parseInt(query.page) || 1,
+        limit: parseInt(query.limit) || 20,
+      });
+
+      return res.status(200).json({
+        message: "Maintenance history fetched successfully",
+        data: result.maintenance,
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch maintenance history",
+      });
+    }
   },
 );
 

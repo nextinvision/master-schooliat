@@ -17,11 +17,11 @@ const markBulkAttendanceSchema = z
       .object({
         attendances: z.array(attendanceItemSchema).min(1, "At least one attendance record required"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default markBulkAttendanceSchema;
 

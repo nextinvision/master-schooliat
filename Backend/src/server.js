@@ -50,12 +50,37 @@ import homeworkRouter from "./routers/homework.router.js";
 import marksRouter from "./routers/marks.router.js";
 import leaveRouter from "./routers/leave.router.js";
 import communicationRouter from "./routers/communication.router.js";
+import libraryRouter from "./routers/library.router.js";
+import notesRouter from "./routers/notes.router.js";
+import galleryRouter from "./routers/gallery.router.js";
+import circularRouter from "./routers/circular.router.js";
+import parentRouter from "./routers/parent.router.js";
+import reportsRouter from "./routers/reports.router.js";
+import aiRouter from "./routers/ai.router.js";
+import auditRouter from "./routers/audit.router.js";
+import deletionOtpRouter from "./routers/deletion-otp.router.js";
+import tcRouter from "./routers/tc.router.js";
+import emergencyContactRouter from "./routers/emergency-contact.router.js";
 import roleService from "./services/role.service.js";
 import userService from "./services/user.service.js";
 import logRequestStart from "./middlewares/log-request-start.middleware.js";
 import templateLoaderService from "./services/template-loader.service.js";
+import auditMiddleware from "./middlewares/audit.middleware.js";
+import ipWhitelistMiddleware from "./middlewares/ip-whitelist.middleware.js";
+import { initializeRedis, isRedisConnected } from "./config/redis.client.js";
 
 async function main() {
+  // Initialize Redis connection (non-blocking)
+  try {
+    await initializeRedis();
+    if (isRedisConnected()) {
+      logger.info("✅ Redis cache enabled");
+    } else {
+      logger.info("⚠️ Redis not available, using in-memory cache");
+    }
+  } catch (error) {
+    logger.warn({ error }, "Redis initialization failed, using in-memory cache");
+  }
   // App Config
   const app = express();
 
@@ -144,6 +169,12 @@ async function main() {
   // Authorization middleware for all protected routes
   app.use(authorize);
 
+  // IP whitelist middleware for admin access
+  app.use(ipWhitelistMiddleware);
+
+  // Audit logging middleware (after authorization to have user context)
+  app.use(auditMiddleware);
+
   // API versioning - all routes under /api/v1
   const apiRouter = express.Router();
   
@@ -214,6 +245,19 @@ function addRouters(app) {
   app.use("/marks", marksRouter);
   app.use("/leave", leaveRouter);
   app.use("/communication", communicationRouter);
+  // Phase 2 Routers
+  app.use("/library", libraryRouter);
+  app.use("/notes", notesRouter);
+  app.use("/gallery", galleryRouter);
+  app.use("/circulars", circularRouter);
+  app.use("/parent", parentRouter);
+  app.use("/reports", reportsRouter);
+  app.use("/ai", aiRouter);
+  // Phase 3 Routers
+  app.use("/audit", auditRouter);
+  app.use("/deletion-otp", deletionOtpRouter);
+  app.use("/transfer-certificates", tcRouter);
+  app.use("/emergency-contacts", emergencyContactRouter);
 }
 
 async function setupData() {

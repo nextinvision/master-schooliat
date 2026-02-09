@@ -56,10 +56,10 @@ const createTransportSchema = z
         licenseNumber: z.string().trim().min(1, "License number is required"),
         vehicleNumber: z.string().trim().optional().nullable(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default createTransportSchema;

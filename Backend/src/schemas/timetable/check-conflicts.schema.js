@@ -18,11 +18,11 @@ const checkConflictsSchema = z
         classId: z.string().uuid("Invalid class ID").optional().nullable(),
         excludeTimetableId: z.string().uuid("Invalid timetable ID").optional().nullable(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default checkConflictsSchema;
 

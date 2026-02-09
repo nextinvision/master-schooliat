@@ -6,11 +6,11 @@ const forgotPasswordSchema = z
       .object({
         email: z.string().trim().email("Invalid email format"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default forgotPasswordSchema;
 

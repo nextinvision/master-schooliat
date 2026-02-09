@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const getGrievancesSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         status: z
@@ -12,9 +12,9 @@ const getGrievancesSchema = z
         page: z.coerce.number().positive().optional().default(1),
         limit: z.coerce.number().positive().max(100).optional().default(20),
       })
-      .strip(),
-    params: z.object({}).strip(),
+      ,
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getGrievancesSchema;

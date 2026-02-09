@@ -6,10 +6,10 @@ const createRegionSchema = z
       .object({
         name: z.string().trim().min(1, "Region name is required"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default createRegionSchema;

@@ -10,11 +10,11 @@ const gradeHomeworkSchema = z
         marksObtained: z.number().int().min(0).optional().nullable(),
         totalMarks: z.number().int().min(1).optional().nullable(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default gradeHomeworkSchema;
 

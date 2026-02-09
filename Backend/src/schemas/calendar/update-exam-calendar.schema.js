@@ -34,14 +34,14 @@ const updateExamCalendarSchema = z
           .optional(),
         items: z.array(examCalendarItemSchema).optional(),
       })
-      .strip(),
-    query: z.object({}).strip(),
+      ,
+    query: z.object({}),
     params: z
       .object({
         id: z.string().uuid("ID must be a valid UUID"),
       })
-      .strip(),
+      ,
   })
-  .strip();
+  ;
 
 export default updateExamCalendarSchema;

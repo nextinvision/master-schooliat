@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const getTeachersSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         pageNumber: z
@@ -22,9 +22,9 @@ const getTeachersSchema = z
             "Page size must be a positive integer",
           ),
       })
-      .strip(),
-    params: z.object({}).strip(),
+      ,
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getTeachersSchema;

@@ -13,11 +13,11 @@ const createLeaveRequestSchema = z
         message: "End date must be after or equal to start date",
         path: ["endDate"],
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default createLeaveRequestSchema;
 

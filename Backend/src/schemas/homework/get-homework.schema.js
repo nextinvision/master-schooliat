@@ -3,7 +3,7 @@ import { SubmissionStatus } from "../../prisma/generated/index.js";
 
 const getHomeworkSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         homeworkId: z.string().uuid("Invalid homework ID").optional(),
@@ -14,10 +14,10 @@ const getHomeworkSchema = z
         page: z.string().regex(/^\d+$/).transform(Number).optional().default("1"),
         limit: z.string().regex(/^\d+$/).transform(Number).optional().default("20"),
       })
-      .strip(),
-    params: z.object({}).strip(),
+      ,
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getHomeworkSchema;
 

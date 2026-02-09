@@ -8,11 +8,11 @@ const sendMessageSchema = z
         content: z.string().min(1, "Message content is required").max(5000, "Message too long"),
         attachments: z.array(z.string().uuid("Invalid file ID")).optional().default([]),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default sendMessageSchema;
 

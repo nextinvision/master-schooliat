@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const getHolidaysSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         pageNumber: z
@@ -51,8 +51,8 @@ const getHolidaysSchema = z
         (data) => !(data.month && data.date),
         "Cannot provide both 'month' and 'date' parameters. Use only one.",
       ),
-    params: z.object({}).strip(),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getHolidaysSchema;

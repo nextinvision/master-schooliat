@@ -9,11 +9,11 @@ const createConversationSchema = z
         type: z.nativeEnum(ConversationType),
         title: z.string().max(200, "Title too long").optional().nullable(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default createConversationSchema;
 

@@ -13,11 +13,11 @@ const markAttendanceSchema = z
         lateArrivalTime: z.string().datetime().or(z.date()).optional().nullable(),
         absenceReason: z.string().max(500, "Absence reason too long").optional().nullable(),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default markAttendanceSchema;
 

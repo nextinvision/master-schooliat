@@ -7,11 +7,11 @@ const requestOTPSchema = z
         email: z.string().trim().email("Invalid email format"),
         purpose: z.enum(["verification", "password-reset", "login", "deletion"]).optional().default("verification"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default requestOTPSchema;
 

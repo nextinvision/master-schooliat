@@ -7,10 +7,10 @@ const authenticateSchema = z
         email: z.string().trim().email("Invalid email format"),
         password: z.string().min(1, "Password is required"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default authenticateSchema;

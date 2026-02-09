@@ -8,19 +8,19 @@ const createAttendancePeriodSchema = z
         startTime: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
         endTime: z.string().regex(/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
       })
-      .strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+      ,
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 const getAttendancePeriodsSchema = z
   .object({
-    request: z.object({}).strip(),
-    query: z.object({}).strip(),
-    params: z.object({}).strip(),
+    request: z.object({}),
+    query: z.object({}),
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export { createAttendancePeriodSchema, getAttendancePeriodsSchema };
 

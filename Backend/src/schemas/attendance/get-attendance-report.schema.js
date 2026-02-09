@@ -3,7 +3,7 @@ import { AttendanceStatus } from "../../prisma/generated/index.js";
 
 const getAttendanceReportSchema = z
   .object({
-    request: z.object({}).strip(),
+    request: z.object({}),
     query: z
       .object({
         studentId: z.string().uuid("Invalid student ID").optional(),
@@ -14,10 +14,10 @@ const getAttendanceReportSchema = z
         status: z.nativeEnum(AttendanceStatus).optional(),
         format: z.enum(["json", "pdf", "excel"]).optional().default("json"),
       })
-      .strip(),
-    params: z.object({}).strip(),
+      ,
+    params: z.object({}),
   })
-  .strip();
+  ;
 
 export default getAttendanceReportSchema;
 
