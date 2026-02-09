@@ -40,14 +40,22 @@ jobs:
             git checkout develop
             git reset --hard origin/develop
             git clean -fd
-            echo "📦 Installing dependencies..."
+            echo "📦 Installing dependencies in repo (for migrations)..."
             cd Backend
-            npm ci --production
+            npm ci
             echo "🔧 Generating Prisma client..."
             npm run prisma:generate
             echo "🗄️ Running database migrations..."
             export DATABASE_URL="${{ secrets.STAGING_DATABASE_URL }}"
             npm run prisma:migrate:deploy
+            echo "📤 Copying code to deployment directory..."
+            mkdir -p /opt/schooliat/backend/staging/current
+            rsync -av --exclude 'node_modules' --exclude '.git' --exclude 'prisma/migrations' /opt/schooliat/repo/Backend/ /opt/schooliat/backend/staging/current/
+            echo "📦 Installing dependencies in deployment directory (including devDependencies)..."
+            cd /opt/schooliat/backend/staging/current
+            npm ci
+            echo "🔧 Generating Prisma client in deployment directory..."
+            npm run prisma:generate
             echo "🔄 Restarting PM2 process..."
             pm2 restart schooliat-backend-staging --update-env
             echo "✅ Backend Staging deployment complete!"
@@ -73,8 +81,15 @@ jobs:
             cd dashboard
             echo "📦 Installing dependencies (including devDependencies for build)..."
             npm ci
-            echo "🏗️ Building dashboard..."
-            npm run build
+            echo "🔧 Loading staging environment variables for build..."
+            cp /opt/schooliat/dashboard/staging/shared/.env .env.production
+            echo "🏗️ Building dashboard with staging API URL..."
+            NODE_ENV=production npm run build
+            echo "📤 Copying build to staging directory..."
+            rm -rf /opt/schooliat/dashboard/staging/.next
+            cp -r .next /opt/schooliat/dashboard/staging/
+            cp -r public /opt/schooliat/dashboard/staging/ 2>/dev/null || true
+            cp package.json /opt/schooliat/dashboard/staging/
             echo "🔄 Restarting PM2 process..."
             pm2 restart schooliat-dashboard-staging --update-env
             echo "✅ Dashboard Staging deployment complete!"
