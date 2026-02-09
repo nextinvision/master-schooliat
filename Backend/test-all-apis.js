@@ -220,6 +220,41 @@ const runTests = async () => {
   await testEndpoint("GET", "/salaries", null, authHeaders);
   console.log("");
 
+  // 21. Attendance Management (Phase 1)
+  console.log("📋 Testing Attendance Management...");
+  await testEndpoint("GET", "/attendance/reports/daily", null, authHeaders);
+  console.log("");
+
+  // 22. Timetable Management (Phase 1)
+  console.log("📋 Testing Timetable Management...");
+  await testEndpoint("GET", "/timetables", null, authHeaders);
+  console.log("");
+
+  // 23. Homework & Assignments (Phase 1)
+  console.log("📋 Testing Homework & Assignments...");
+  await testEndpoint("GET", "/homework", null, authHeaders);
+  console.log("");
+
+  // 24. Marks & Results (Phase 1)
+  console.log("📋 Testing Marks & Results...");
+  await testEndpoint("GET", "/marks", null, authHeaders);
+  await testEndpoint("GET", "/marks/results", null, authHeaders);
+  console.log("");
+
+  // 25. Leave Management (Phase 1)
+  console.log("📋 Testing Leave Management...");
+  await testEndpoint("GET", "/leave/balance", null, authHeaders);
+  await testEndpoint("GET", "/leave/history", null, authHeaders);
+  await testEndpoint("GET", "/leave/types", null, authHeaders);
+  console.log("");
+
+  // 26. Communication & Notifications (Phase 1)
+  console.log("📋 Testing Communication & Notifications...");
+  await testEndpoint("GET", "/communication/conversations", null, authHeaders);
+  await testEndpoint("GET", "/communication/notifications", null, authHeaders);
+  await testEndpoint("GET", "/communication/notifications/unread-count", null, authHeaders);
+  console.log("");
+
   // Summary
   console.log("\n" + "=".repeat(60));
   console.log("📊 COMPREHENSIVE TEST SUMMARY");

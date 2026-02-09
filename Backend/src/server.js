@@ -44,6 +44,12 @@ import salaryStructureRouter, {
   paymentRouter,
   salaryAssignmentRouter,
 } from "./routers/salary.router.js";
+import attendanceRouter from "./routers/attendance.router.js";
+import timetableRouter from "./routers/timetable.router.js";
+import homeworkRouter from "./routers/homework.router.js";
+import marksRouter from "./routers/marks.router.js";
+import leaveRouter from "./routers/leave.router.js";
+import communicationRouter from "./routers/communication.router.js";
 import roleService from "./services/role.service.js";
 import userService from "./services/user.service.js";
 import logRequestStart from "./middlewares/log-request-start.middleware.js";
@@ -202,6 +208,12 @@ function addRouters(app) {
   app.use("/salary-structures", salaryStructureRouter);
   app.use("/salary-payments", paymentRouter);
   app.use("/salaries", salaryAssignmentRouter);
+  app.use("/attendance", attendanceRouter);
+  app.use("/timetables", timetableRouter);
+  app.use("/homework", homeworkRouter);
+  app.use("/marks", marksRouter);
+  app.use("/leave", leaveRouter);
+  app.use("/communication", communicationRouter);
 }
 
 async function setupData() {

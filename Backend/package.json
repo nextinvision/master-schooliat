@@ -23,7 +23,15 @@
     "prisma:migrate:create": "prisma migrate dev --create-only --schema=src/prisma/db/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema=src/prisma/db/schema.prisma",
     "prisma:format": "prisma format --schema=src/prisma/db/schema.prisma",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "test:phase1": "node test-phase1-apis.js",
+    "test:all": "node test-all-apis.js",
+    "test:staging": "bash scripts/test-staging-apis.sh",
+    "test:production": "bash scripts/test-production-apis.sh",
+    "migrate:phase1": "bash scripts/run-migration.sh",
+    "migrate:staging": "bash scripts/migrate-staging.sh",
+    "migrate:production": "bash scripts/migrate-production.sh",
+    "migrate:status": "bash scripts/check-migration-status.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
@@ -41,6 +49,7 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.0.2",
+    "nodemailer": "^8.0.1",
     "pg": "^8.16.3",
     "pino": "^9.6.0",
     "puppeteer": "^24.32.0",
