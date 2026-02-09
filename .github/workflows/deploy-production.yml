@@ -117,8 +117,8 @@ jobs:
             git fetch origin main
             git checkout main
             cd landing
-            echo "📦 Installing dependencies..."
-            npm ci --production
+            echo "📦 Installing dependencies (including devDependencies for build)..."
+            npm ci
             echo "🔧 Loading production environment variables for build..."
             cp /opt/schooliat/landing/production/shared/.env .env.production
             echo "🏗️ Building landing page with production dashboard URL..."
