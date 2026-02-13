@@ -74,9 +74,9 @@ async function main() {
   try {
     await initializeRedis();
     if (isRedisConnected()) {
-      logger.info("✅ Redis cache enabled");
+      logger.info("Redis cache enabled");
     } else {
-      logger.info("⚠️ Redis not available, using in-memory cache");
+      logger.info("Redis not available, using in-memory cache");
     }
   } catch (error) {
     logger.warn({ error }, "Redis initialization failed, using in-memory cache");

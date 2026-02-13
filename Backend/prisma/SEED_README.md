@@ -27,6 +27,22 @@ The seed file (`prisma/seed.js`) creates a complete dataset including:
 - **Settings**: School-specific settings
 - **Grievances**: Sample grievances with comments
 - **Salaries**: Salary structures and payment records
+- **Phase 1 - Academic & Administrative Modules**:
+  - **Attendance**: Attendance periods and 30 days of attendance records per student
+  - **Timetables**: Complete timetables with slots for each class
+  - **Homeworks**: Homework assignments with MCQ questions and student submissions
+  - **Marks & Results**: Exam marks for all subjects and calculated results
+  - **Leave Management**: Leave types, leave requests, and leave balances
+  - **Communication**: Conversations, messages, and notifications
+- **Phase 2 - Supporting Modules**:
+  - **Library**: (Placeholder - models not yet in schema)
+  - **Notes & Syllabus**: (Placeholder - models not yet in schema)
+  - **Gallery**: (Placeholder - models not yet in schema)
+  - **Circulars**: (Placeholder - models not yet in schema)
+- **Phase 3 - Additional Features**:
+  - **Parent-Child Links**: (Note: Parent role not yet in schema)
+  - **Transfer Certificates**: Sample TCs for students
+  - **Emergency Contacts**: Emergency contact information for students
 
 ## Prerequisites
 
@@ -109,6 +125,15 @@ After seeding, you can use these credentials to log in:
 - Students have fee installments (12 per year)
 - Transport vehicles are assigned to schools
 - Exams and calendars are created for each school
+- Attendance records are created for the last 30 days
+- Timetables are created for each class with daily slots
+- Homeworks are assigned to classes with MCQ questions
+- Marks and results are calculated for all exams
+- Leave requests and balances are tracked for teachers and staff
+- Conversations and messages link teachers and students
+- Notifications are sent to students for various events
+- Transfer certificates are issued for some students
+- Emergency contacts are linked to students
 
 ## Important Notes
 
@@ -121,6 +146,10 @@ After seeding, you can use these credentials to log in:
 4. **Dates**: Most dates are set relative to the current year for realistic data.
 
 5. **Unique Constraints**: The seed handles unique constraints (emails, codes, etc.) by checking for existing records.
+
+6. **Phase 2 & 3 Models**: Some models (Library, Gallery, Circular, Notes, Syllabus) may not be in the schema yet. The seed file includes placeholders that will be activated when these models are added.
+
+7. **Parent Role**: The Parent role is not yet in the schema. Parent-child links will be created when the Parent role is added.
 
 ## Troubleshooting
 

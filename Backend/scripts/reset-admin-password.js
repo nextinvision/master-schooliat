@@ -38,7 +38,7 @@ async function resetAdminPassword() {
       data: { password: hashedPassword },
     });
 
-    logger.info(`✅ Admin password reset successfully for ${ADMIN_EMAIL} in ${config.ENVIRONMENT}`);
+    logger.info(`Admin password reset successfully for ${ADMIN_EMAIL} in ${config.ENVIRONMENT}`);
     
     // Verify the password
     const updatedUser = await prisma.user.findUnique({
@@ -47,9 +47,9 @@ async function resetAdminPassword() {
     
     const passwordMatches = await bcryptjs.compare(ADMIN_PASSWORD, updatedUser.password);
     if (passwordMatches) {
-      logger.info(`✅ Password verification successful`);
+      logger.info(`Password verification successful`);
     } else {
-      logger.error(`❌ Password verification failed`);
+      logger.error(`Password verification failed`);
       process.exit(1);
     }
     

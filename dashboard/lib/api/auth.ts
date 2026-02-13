@@ -3,13 +3,8 @@ import { post } from "./client";
 
 // API Base URL - must be set in environment variables
 // This variable is REQUIRED and must be set at build time
-if (!process.env.NEXT_PUBLIC_API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL environment variable is required. " +
-    "Please set it in your .env file (e.g., NEXT_PUBLIC_API_URL=https://api.schooliat.com)"
-  );
-}
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+// API Base URL - use placeholder during build, will be set at runtime
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
 
 export async function loginAndSaveToken(
   email: string,

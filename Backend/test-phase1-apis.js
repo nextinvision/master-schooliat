@@ -22,7 +22,7 @@ const logResult = (endpoint, method, status, message, data = null) => {
     timestamp: new Date().toISOString(),
   };
   testResults.push(result);
-  const statusIcon = status >= 200 && status < 300 ? "✅" : status >= 400 && status < 500 ? "⚠️" : "❌";
+  const statusIcon = status >= 200 && status < 300 ? "[PASS]" : status >= 400 && status < 500 ? "[WARN]" : "[FAIL]";
   console.log(
     `${statusIcon} ${method} ${endpoint} - ${status} - ${message}`,
   );
@@ -61,16 +61,16 @@ const testEndpoint = async (method, endpoint, body = null, headers = {}) => {
 };
 
 const runTests = async () => {
-  console.log("🚀 Starting Phase 1 API Tests...\n");
+  console.log(" Starting Phase 1 API Tests...\n");
   console.log(`Base URL: ${BASE_URL}\n`);
 
   // 1. Health Check
-  console.log("📋 Testing Health Endpoint...");
+  console.log(" Testing Health Endpoint...");
   await testEndpoint("GET", "/");
   console.log("");
 
   // 2. Authentication
-  console.log("📋 Testing Authentication Endpoints...");
+  console.log(" Testing Authentication Endpoints...");
   try {
     // Test OTP request
     await testEndpoint("POST", "/auth/request-otp", {
@@ -108,9 +108,9 @@ const runTests = async () => {
 
     if (authData.token) {
       authToken = authData.token;
-      console.log("✅ Authentication successful!\n");
+      console.log("[PASS] Authentication successful!\n");
     } else {
-      console.log("⚠️  Authentication failed - some tests will fail\n");
+      console.log("[WARN]  Authentication failed - some tests will fail\n");
     }
   } catch (error) {
     logResult("/auth/authenticate", "POST", 0, `Error: ${error.message}`);
@@ -150,10 +150,10 @@ const runTests = async () => {
     createdResources.examId = examsRes.data.data[0].id;
   }
 
-  console.log("\n📋 Testing Phase 1 Modules...\n");
+  console.log("\n Testing Phase 1 Modules...\n");
 
   // 3. Attendance Management
-  console.log("📋 Testing Attendance Management...");
+  console.log(" Testing Attendance Management...");
   if (createdResources.studentId && createdResources.classId) {
     const today = new Date().toISOString().split("T")[0];
     await testEndpoint("POST", "/attendance", {
@@ -170,12 +170,12 @@ const runTests = async () => {
     await testEndpoint("GET", `/attendance/class/${createdResources.classId}?date=${today}`, null, authHeaders);
     await testEndpoint("GET", `/attendance/reports/daily?date=${today}`, null, authHeaders);
   } else {
-    console.log("⚠️  Skipping attendance tests - missing studentId or classId");
+    console.log("[WARN]  Skipping attendance tests - missing studentId or classId");
   }
   console.log("");
 
   // 4. Timetable Management
-  console.log("📋 Testing Timetable Management...");
+  console.log(" Testing Timetable Management...");
   if (createdResources.classId && createdResources.subjectId && createdResources.teacherId) {
     // Check conflicts
     await testEndpoint("POST", "/timetables/check-conflicts", {
@@ -198,12 +198,12 @@ const runTests = async () => {
     await testEndpoint("GET", `/timetables?classId=${createdResources.classId}`, null, authHeaders);
     await testEndpoint("GET", `/timetables?teacherId=${createdResources.teacherId}`, null, authHeaders);
   } else {
-    console.log("⚠️  Skipping timetable tests - missing classId, subjectId, or teacherId");
+    console.log("[WARN]  Skipping timetable tests - missing classId, subjectId, or teacherId");
   }
   console.log("");
 
   // 5. Homework & Assignments
-  console.log("📋 Testing Homework & Assignments...");
+  console.log(" Testing Homework & Assignments...");
   if (createdResources.classId && createdResources.subjectId) {
     // Create homework
     const homeworkRes = await testEndpoint("POST", "/homework", {
@@ -245,12 +245,12 @@ const runTests = async () => {
       },
     }, authHeaders);
   } else {
-    console.log("⚠️  Skipping homework tests - missing classId or subjectId");
+    console.log("[WARN]  Skipping homework tests - missing classId or subjectId");
   }
   console.log("");
 
   // 6. Marks & Results
-  console.log("📋 Testing Marks & Results...");
+  console.log(" Testing Marks & Results...");
   if (createdResources.examId && createdResources.studentId && createdResources.subjectId && createdResources.classId) {
     // Enter marks
     await testEndpoint("POST", "/marks", {
@@ -283,12 +283,12 @@ const runTests = async () => {
     // Get results
     await testEndpoint("GET", `/marks/results?studentId=${createdResources.studentId}`, null, authHeaders);
   } else {
-    console.log("⚠️  Skipping marks tests - missing examId, studentId, subjectId, or classId");
+    console.log("[WARN]  Skipping marks tests - missing examId, studentId, subjectId, or classId");
   }
   console.log("");
 
   // 7. Leave Management
-  console.log("📋 Testing Leave Management...");
+  console.log(" Testing Leave Management...");
   // Get leave types
   const leaveTypesRes = await testEndpoint("GET", "/leave/types", null, authHeaders);
   if (leaveTypesRes.data?.data?.[0]?.id) {
@@ -339,7 +339,7 @@ const runTests = async () => {
   console.log("");
 
   // 8. Communication & Notifications
-  console.log("📋 Testing Communication & Notifications...");
+  console.log(" Testing Communication & Notifications...");
   
   // Get conversations
   await testEndpoint("GET", "/communication/conversations", null, authHeaders);
@@ -360,7 +360,7 @@ const runTests = async () => {
   console.log("");
 
   // 9. Fees (Enhanced)
-  console.log("📋 Testing Enhanced Fee Management...");
+  console.log(" Testing Enhanced Fee Management...");
   if (createdResources.studentId) {
     // Get fee installments
     await testEndpoint("GET", `/fees/installments?studentId=${createdResources.studentId}`, null, authHeaders);
@@ -384,13 +384,13 @@ const runTests = async () => {
     .length;
 
   console.log(`Total Tests: ${total}`);
-  console.log(`✅ Passed: ${passed}`);
-  console.log(`⚠️  Warnings (4xx): ${warnings}`);
-  console.log(`❌ Failed (5xx/Errors): ${failed}`);
+  console.log(`[PASS] Passed: ${passed}`);
+  console.log(`[WARN]  Warnings (4xx): ${warnings}`);
+  console.log(`[FAIL] Failed (5xx/Errors): ${failed}`);
 
   // Failed tests details
   if (failed > 0) {
-    console.log("\n❌ Failed Tests (Need Fixing):");
+    console.log("\n[FAIL] Failed Tests (Need Fixing):");
     testResults
       .filter((r) => r.status === 0 || r.status >= 500)
       .forEach((r) => {
@@ -400,7 +400,7 @@ const runTests = async () => {
 
   // Warning tests details
   if (warnings > 0) {
-    console.log("\n⚠️  Warning Tests (May be expected):");
+    console.log("\n[WARN]  Warning Tests (May be expected):");
     const warningTests = testResults.filter((r) => r.status >= 400 && r.status < 500);
     const uniqueWarnings = new Map();
     warningTests.forEach((r) => {
@@ -415,7 +415,7 @@ const runTests = async () => {
   }
 
   // Module coverage
-  console.log("\n📋 Module Coverage:");
+  console.log("\n Module Coverage:");
   const modules = {
     "Authentication": testResults.filter((r) => r.endpoint.includes("/auth")).length,
     "Attendance": testResults.filter((r) => r.endpoint.includes("/attendance")).length,

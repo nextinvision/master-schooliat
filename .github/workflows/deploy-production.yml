@@ -34,35 +34,35 @@ jobs:
           debug: true
           script: |
             set -e
-            echo "🚀 Deploying Backend Production..."
+            echo "Deploying Backend Production..."
             cd /opt/schooliat/repo
-            echo "📥 Pulling latest code from main branch..."
+            echo "Pulling latest code from main branch..."
             git fetch origin main
             git checkout main
             git reset --hard origin/main
             git clean -fd
-            echo "📦 Installing dependencies in repo (for migrations)..."
+            echo "Installing dependencies in repo (for migrations)..."
             cd Backend
             npm ci
-            echo "🔧 Generating Prisma client..."
+            echo "Generating Prisma client..."
             npm run prisma:generate
-            echo "💾 Creating database backup..."
+            echo "Creating database backup..."
             mkdir -p /opt/schooliat/shared/backups
-            pg_dump -U schooliat_user schooliat_production > /opt/schooliat/shared/backups/pre-migration-$(date +%Y%m%d-%H%M%S).sql || echo "⚠️ Backup failed, continuing..."
-            echo "🗄️ Running database migrations..."
+            pg_dump -U schooliat_user schooliat_production > /opt/schooliat/shared/backups/pre-migration-$(date +%Y%m%d-%H%M%S).sql || echo "WARNING: Backup failed, continuing..."
+            echo "Running database migrations..."
             export DATABASE_URL="${{ secrets.PRODUCTION_DATABASE_URL }}"
             npm run prisma:migrate:deploy
-            echo "📤 Copying code to deployment directory..."
+            echo "Copying code to deployment directory..."
             mkdir -p /opt/schooliat/backend/production/current
             rsync -av --exclude 'node_modules' --exclude '.git' --exclude 'prisma/migrations' /opt/schooliat/repo/Backend/ /opt/schooliat/backend/production/current/
-            echo "📦 Installing dependencies in deployment directory (including devDependencies)..."
+            echo "Installing dependencies in deployment directory (including devDependencies)..."
             cd /opt/schooliat/backend/production/current
             npm ci
-            echo "🔧 Generating Prisma client in deployment directory..."
+            echo "Generating Prisma client in deployment directory..."
             npm run prisma:generate
-            echo "🔄 Restarting PM2 process..."
+            echo "Restarting PM2 process..."
             pm2 restart schooliat-backend-production --update-env
-            echo "✅ Backend Production deployment complete!"
+            echo "Backend Production deployment complete!"
       
       # Deploy Dashboard Production
       - name: Deploy Dashboard Production
@@ -77,26 +77,26 @@ jobs:
           debug: true
           script: |
             set -e
-            echo "🚀 Deploying Dashboard Production..."
+            echo "Deploying Dashboard Production..."
             cd /opt/schooliat/repo
-            echo "📥 Ensuring latest code from main branch..."
+            echo "Ensuring latest code from main branch..."
             git fetch origin main
             git checkout main
             cd dashboard
-            echo "📦 Installing dependencies (including devDependencies for build)..."
+            echo "Installing dependencies (including devDependencies for build)..."
             npm ci
-            echo "🔧 Loading production environment variables for build..."
+            echo "Loading production environment variables for build..."
             cp /opt/schooliat/dashboard/production/shared/.env .env.production
-            echo "🏗️ Building dashboard with production API URL..."
+            echo "Building dashboard with production API URL..."
             NODE_ENV=production npm run build
-            echo "📤 Copying build to production directory..."
+            echo "Copying build to production directory..."
             rm -rf /opt/schooliat/dashboard/production/.next
             cp -r .next /opt/schooliat/dashboard/production/
             cp -r public /opt/schooliat/dashboard/production/ 2>/dev/null || true
             cp package.json /opt/schooliat/dashboard/production/
-            echo "🔄 Restarting PM2 process..."
+            echo "Restarting PM2 process..."
             pm2 restart schooliat-dashboard-production --update-env
-            echo "✅ Dashboard Production deployment complete!"
+            echo "Dashboard Production deployment complete!"
       
       # Deploy Landing
       - name: Deploy Landing
@@ -111,21 +111,21 @@ jobs:
           debug: true
           script: |
             set -e
-            echo "🚀 Deploying Landing Page..."
+            echo "Deploying Landing Page..."
             cd /opt/schooliat/repo
-            echo "📥 Ensuring latest code from main branch..."
+            echo "Ensuring latest code from main branch..."
             git fetch origin main
             git checkout main
             cd landing
-            echo "📦 Installing dependencies (including devDependencies for build)..."
+            echo "Installing dependencies (including devDependencies for build)..."
             npm ci
-            echo "🔧 Loading production environment variables for build..."
+            echo "Loading production environment variables for build..."
             cp /opt/schooliat/landing/production/shared/.env .env.production
-            echo "🏗️ Building landing page with production dashboard URL..."
+            echo "Building landing page with production dashboard URL..."
             NODE_ENV=production npm run build
-            echo "📤 Copying files to web root..."
+            echo "Copying files to web root..."
             cp -r out/* /var/www/schooliat-landing/
             chown -R www-data:www-data /var/www/schooliat-landing
-            echo "🔄 Reloading Nginx..."
+            echo "Reloading Nginx..."
             systemctl reload nginx
-            echo "✅ Landing Page deployment complete!"
+            echo "Landing Page deployment complete!"

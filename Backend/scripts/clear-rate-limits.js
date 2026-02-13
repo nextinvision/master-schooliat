@@ -15,20 +15,20 @@ async function clearRateLimits() {
     // Clear authentication rate limit store
     if (authRateLimitStore && typeof authRateLimitStore.resetAll === "function") {
       authRateLimitStore.resetAll();
-      logger.info("✅ Authentication rate limit store cleared");
+      logger.info("Authentication rate limit store cleared");
     } else {
-      logger.warn("⚠️  Authentication rate limit store does not support resetAll");
+      logger.warn("Authentication rate limit store does not support resetAll");
     }
     
     // Clear API rate limit store
     if (apiRateLimitStore && typeof apiRateLimitStore.resetAll === "function") {
       apiRateLimitStore.resetAll();
-      logger.info("✅ API rate limit store cleared");
+      logger.info("API rate limit store cleared");
     } else {
-      logger.warn("⚠️  API rate limit store does not support resetAll");
+      logger.warn("API rate limit store does not support resetAll");
     }
     
-    logger.info("✅ Rate limits cleared successfully");
+    logger.info("Rate limits cleared successfully");
     process.exit(0);
   } catch (error) {
     logger.error({ error }, "Failed to clear rate limits");

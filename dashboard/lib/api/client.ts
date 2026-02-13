@@ -2,14 +2,8 @@ import { getToken } from "@/lib/auth/storage";
 import { apiEvents, API_EVENTS } from "./events";
 
 // API Base URL - must be set in environment variables
-// This variable is REQUIRED and must be set at build time
-if (!process.env.NEXT_PUBLIC_API_URL) {
-  throw new Error(
-    "NEXT_PUBLIC_API_URL environment variable is required. " +
-    "Please set it in your .env file (e.g., NEXT_PUBLIC_API_URL=https://api.schooliat.com)"
-  );
-}
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL;
+// During build time, use a placeholder if not set (will be replaced at runtime)
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
 
 /**
  * Custom error class for API errors with status code
@@ -76,9 +70,21 @@ async function request(
   path: string,
   { method = "GET", query, body, headers }: RequestOptions = {}
 ): Promise<any> {
+  // Check for API URL at runtime (not during build)
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || BASE_URL;
+  if (!apiUrl || apiUrl === "https://api.schooliat.com") {
+    // Only throw in browser/client context, not during SSR/build
+    if (typeof window !== "undefined") {
+      throw new Error(
+        "NEXT_PUBLIC_API_URL environment variable is required. " +
+        "Please set it in your .env file (e.g., NEXT_PUBLIC_API_URL=https://api.schooliat.com)"
+      );
+    }
+  }
+
   // Ensure path starts with / and BASE_URL doesn't end with /
   const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
+  const cleanBaseUrl = apiUrl.endsWith("/") ? apiUrl.slice(0, -1) : apiUrl;
   const url = new URL(cleanBaseUrl + cleanPath);
 
   if (query) {
@@ -206,8 +212,9 @@ export async function uploadFile(file: File | Blob): Promise<any> {
   const formData = new FormData();
   formData.append("file", file);
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || BASE_URL;
   // Ensure BASE_URL doesn't end with / and path starts with /
-  const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
+  const cleanBaseUrl = apiUrl.endsWith("/") ? apiUrl.slice(0, -1) : apiUrl;
   const res = await fetch(`${cleanBaseUrl}/files`, {
     method: "POST",
     headers: {
@@ -227,8 +234,9 @@ export async function uploadFile(file: File | Blob): Promise<any> {
 export async function getFile(fileId: string): Promise<{ url: string; blob: Blob }> {
   const token = await getToken();
 
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || BASE_URL;
   // Ensure BASE_URL doesn't end with / and path starts with /
-  const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
+  const cleanBaseUrl = apiUrl.endsWith("/") ? apiUrl.slice(0, -1) : apiUrl;
   const res = await fetch(`${cleanBaseUrl}/files/${fileId}`, {
     method: "GET",
     headers: {
