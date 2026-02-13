@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useRequestDeletionOTP, useVerifyOTPAndDelete } from "@/lib/hooks/use-deletion-otp";
+import { useRequestDeletionOTP, useDeleteWithOTP } from "@/lib/hooks/use-deletion-otp";
 import { toast } from "sonner";
 import { Loader2, ShieldAlert } from "lucide-react";
 
@@ -41,7 +41,8 @@ export function DeletionOTPModal({
   const [countdown, setCountdown] = useState(0);
 
   const requestOTP = useRequestDeletionOTP();
-  const verifyAndDelete = useVerifyOTPAndDelete();
+  const deleteWithOTP = useDeleteWithOTP();
+  const [otpId, setOtpId] = useState<string>("");
 
   useEffect(() => {
     if (open && step === "request") {
@@ -59,10 +60,12 @@ export function DeletionOTPModal({
 
   const handleRequestOTP = async () => {
     try {
-      await requestOTP.mutateAsync({
+      const result = await requestOTP.mutateAsync({
         entityType,
         entityId,
       });
+      // Store otpId from response
+      setOtpId(result?.data?.otpId || "");
       setOtpSent(true);
       setStep("verify");
       setCountdown(600); // 10 minutes
@@ -78,22 +81,33 @@ export function DeletionOTPModal({
       return;
     }
 
+    if (!otpId) {
+      toast.error("OTP session expired. Please request a new OTP.");
+      return;
+    }
+
     try {
-      await verifyAndDelete.mutateAsync({
+      await deleteWithOTP.mutateAsync({
         entityType,
         entityId,
-        otp: otp.trim(),
+        otpId,
+        otpCode: otp.trim(),
       });
       toast.success("Deleted successfully");
       onSuccess();
       handleClose();
     } catch (error: any) {
-      toast.error(error?.message || "Invalid OTP or deletion failed");
+      if (error?.status === 403 && error?.data?.requiresOTP) {
+        toast.error("Invalid OTP. Please try again.");
+      } else {
+        toast.error(error?.message || "Invalid OTP or deletion failed");
+      }
     }
   };
 
   const handleClose = () => {
     setOtp("");
+    setOtpId("");
     setStep("request");
     setOtpSent(false);
     setCountdown(0);
@@ -186,16 +200,16 @@ export function DeletionOTPModal({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={handleCancel} disabled={verifyAndDelete.isPending}>
+          <Button variant="outline" onClick={handleCancel} disabled={deleteWithOTP.isPending}>
             Cancel
           </Button>
           {step === "verify" && (
             <Button
               variant="destructive"
               onClick={handleVerifyAndDelete}
-              disabled={verifyAndDelete.isPending || !otp.trim() || countdown === 0}
+              disabled={deleteWithOTP.isPending || !otp.trim() || countdown === 0 || !otpId}
             >
-              {verifyAndDelete.isPending ? (
+              {deleteWithOTP.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Deleting...

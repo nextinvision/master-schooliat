@@ -33,7 +33,17 @@ import {
   Image as ImageIcon,
 } from "lucide-react";
 import { clearToken } from "@/lib/auth/storage";
-import { MENU_ITEMS, SUPER_ADMIN_MENU_ITEMS, FINANCE_SUBMENU, MenuItem, SubMenuItem } from "@/lib/config/menu-items";
+import {
+  MENU_ITEMS,
+  SUPER_ADMIN_MENU_ITEMS,
+  FINANCE_SUBMENU,
+  ATTENDANCE_SUBMENU,
+  LEAVE_SUBMENU,
+  LIBRARY_SUBMENU,
+  RESULTS_SUBMENU,
+  MenuItem,
+  SubMenuItem,
+} from "@/lib/config/menu-items";
 import { cn } from "@/lib/utils";
 
 const iconMap: Record<string, LucideIcon> = {
@@ -94,10 +104,20 @@ export function Sidebar() {
   };
 
   const getSubmenuItems = (menuName: string): SubMenuItem[] => {
-    if (menuName === "Finance") {
-      return FINANCE_SUBMENU;
+    switch (menuName) {
+      case "Finance":
+        return FINANCE_SUBMENU;
+      case "Attendance":
+        return ATTENDANCE_SUBMENU;
+      case "Leave Management":
+        return LEAVE_SUBMENU;
+      case "Library":
+        return LIBRARY_SUBMENU;
+      case "Result Management":
+        return RESULTS_SUBMENU;
+      default:
+        return [];
     }
-    return [];
   };
 
   const isMenuExpanded = (menuName: string) => {

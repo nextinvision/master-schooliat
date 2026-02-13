@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { TeachersTable } from "@/components/teachers/teachers-table";
 import { useTeachersPage, useDeleteTeacher } from "@/lib/hooks/use-teachers";
+import { DeletionOTPModal } from "@/components/common/deletion-otp-modal";
 import { useToast } from "@/hooks/use-toast";
 
 export default function TeachersPage() {
@@ -21,6 +22,14 @@ export default function TeachersPage() {
   const teachers = data?.data ?? [];
   const totalPages = data?.totalPages ?? 1;
 
+  // OTP Modal state
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [entityToDelete, setEntityToDelete] = useState<{
+    id: string;
+    name: string;
+    type: string;
+  } | null>(null);
+
   const handleAddNew = useCallback(() => {
     router.push("/admin/teachers/add");
   }, [router]);
@@ -36,17 +45,30 @@ export default function TeachersPage() {
 
   const handleDelete = useCallback(
     async (teacherId: string) => {
-      if (!confirm("Are you sure you want to delete this teacher?")) {
-        return;
+      const teacher = teachers.find((t: any) => t.id === teacherId);
+      if (teacher) {
+        setEntityToDelete({
+          id: teacherId,
+          name: `${teacher.firstName} ${teacher.lastName}`,
+          type: "teacher",
+        });
+        setOtpModalOpen(true);
       }
+    },
+    [teachers]
+  );
 
+  const handleDeleteConfirmed = useCallback(
+    async () => {
+      if (!entityToDelete) return;
       try {
-        await deleteTeacher.mutateAsync(teacherId);
+        await deleteTeacher.mutateAsync(entityToDelete.id);
         toast({
           title: "Success",
           description: "Teacher deleted successfully!",
           variant: "default",
         });
+        refetch();
       } catch (error: any) {
         console.error("Delete teacher failed:", error);
         toast({
@@ -56,7 +78,7 @@ export default function TeachersPage() {
         });
       }
     },
-    [deleteTeacher, toast]
+    [entityToDelete, deleteTeacher, toast, refetch]
   );
 
   const handleBulkDelete = useCallback(
@@ -126,6 +148,19 @@ export default function TeachersPage() {
         loading={isFetching}
         onRefresh={refetch}
       />
+
+      {/* Deletion OTP Modal */}
+      {entityToDelete && (
+        <DeletionOTPModal
+          open={otpModalOpen}
+          onOpenChange={setOtpModalOpen}
+          entityType={entityToDelete.type}
+          entityId={entityToDelete.id}
+          entityName={entityToDelete.name}
+          onSuccess={handleDeleteConfirmed}
+          onCancel={() => setEntityToDelete(null)}
+        />
+      )}
     </div>
   );
 }
