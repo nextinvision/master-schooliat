@@ -43,6 +43,12 @@ import {
   SalaryComponentType,
   SalaryComponentValueType,
   SalaryComponentFrequency,
+  AttendanceStatus,
+  SubmissionStatus,
+  LeaveStatus,
+  ConversationType,
+  NotificationType,
+  TCStatus,
 } from "../src/prisma/generated/index.js";
 import logger from "../src/config/logger.js";
 
@@ -86,6 +92,13 @@ const seedData = {
   transports: {},
   exams: {},
   settings: {},
+  attendancePeriods: {},
+  timetables: {},
+  homeworks: {},
+  leaveTypes: {},
+  libraryBooks: {},
+  galleries: {},
+  parents: {},
 };
 
 /**
@@ -1441,6 +1454,891 @@ async function seedSalaries() {
   }
 }
 
+// ============================================
+// PHASE 1: ACADEMIC & ADMINISTRATIVE MODULES
+// ============================================
+
+/**
+ * Seed Attendance Periods
+ */
+async function seedAttendancePeriods() {
+  logger.info("Seeding attendance periods...");
+  
+  for (const schoolId of seedData.schools) {
+    const periods = [
+      { name: "Period 1", startTime: "08:00", endTime: "08:45" },
+      { name: "Period 2", startTime: "08:45", endTime: "09:30" },
+      { name: "Period 3", startTime: "09:30", endTime: "10:15" },
+      { name: "Period 4", startTime: "10:15", endTime: "11:00" },
+      { name: "Period 5", startTime: "11:15", endTime: "12:00" },
+      { name: "Period 6", startTime: "12:00", endTime: "12:45" },
+      { name: "Period 7", startTime: "12:45", endTime: "13:30" },
+    ];
+
+    seedData.attendancePeriods[schoolId] = {};
+    let createdCount = 0;
+
+    for (const period of periods) {
+      const existing = await prisma.attendancePeriod.findFirst({
+        where: {
+          name: period.name,
+          schoolId: schoolId,
+          deletedAt: null,
+        },
+      });
+
+      if (!existing) {
+        const created = await prisma.attendancePeriod.create({
+          data: {
+            name: period.name,
+            startTime: period.startTime,
+            endTime: period.endTime,
+            schoolId: schoolId,
+            createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+          },
+        });
+
+        seedData.attendancePeriods[schoolId][created.id] = created;
+        createdCount++;
+      }
+    }
+
+    logger.info(`Created ${createdCount} attendance periods for school: ${schoolId}`);
+  }
+}
+
+/**
+ * Seed Attendance Records
+ */
+async function seedAttendance() {
+  logger.info("Seeding attendance records...");
+
+  for (const schoolId of seedData.schools) {
+    const students = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.STUDENT },
+        deletedAt: null,
+      },
+      take: 10, // Limit to 10 students per school
+    });
+
+    if (students.length === 0) continue;
+
+    const classes = await prisma.class.findMany({
+      where: { schoolId: schoolId, deletedAt: null },
+      take: 3,
+    });
+
+    if (classes.length === 0) continue;
+
+    const teachers = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.TEACHER },
+        deletedAt: null,
+      },
+      take: 2,
+    });
+
+    if (teachers.length === 0) continue;
+
+    // Create attendance for last 30 days
+    const today = new Date();
+    const attendanceStatuses = ["PRESENT", "ABSENT", "LATE", "HALF_DAY"];
+
+    for (let day = 0; day < 30; day++) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - day);
+
+      // Skip weekends
+      if (date.getDay() === 0 || date.getDay() === 6) continue;
+
+      for (const student of students) {
+        const studentClass = classes[Math.floor(Math.random() * classes.length)];
+        const teacher = teachers[Math.floor(Math.random() * teachers.length)];
+        const status = attendanceStatuses[Math.floor(Math.random() * attendanceStatuses.length)];
+
+        await prisma.attendance.create({
+          data: {
+            studentId: student.id,
+            classId: studentClass.id,
+            date: date,
+            status: status,
+            markedBy: teacher.id,
+            schoolId: schoolId,
+            lateArrivalTime: status === "LATE" ? new Date(date.setHours(8, 30)) : null,
+            absenceReason: status === "ABSENT" ? "Sick" : null,
+            createdBy: teacher.id,
+          },
+        });
+      }
+    }
+
+    logger.info(`Created attendance records for ${students.length} students over 30 days for school: ${schoolId}`);
+  }
+}
+
+/**
+ * Seed Timetables
+ */
+async function seedTimetables() {
+  logger.info("Seeding timetables...");
+
+  for (const schoolId of seedData.schools) {
+    const classes = await prisma.class.findMany({
+      where: { schoolId: schoolId, deletedAt: null },
+      take: 3,
+    });
+
+    if (classes.length === 0) continue;
+
+    const subjects = await prisma.subject.findMany({
+      where: { schoolId: schoolId, deletedAt: null },
+      take: 5,
+    });
+
+    if (subjects.length === 0) continue;
+
+    const teachers = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.TEACHER },
+        deletedAt: null,
+      },
+      take: 5,
+    });
+
+    if (teachers.length === 0) continue;
+
+    for (const classItem of classes) {
+      const effectiveFrom = new Date();
+      effectiveFrom.setMonth(effectiveFrom.getMonth() - 1);
+
+      const timetable = await prisma.timetable.create({
+        data: {
+          name: `Timetable - ${classItem.name}`,
+          classId: classItem.id,
+          schoolId: schoolId,
+          effectiveFrom: effectiveFrom,
+          isActive: true,
+          createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+        },
+      });
+
+      // Create slots for each day (Monday to Friday, 0-4)
+      const days = [1, 2, 3, 4, 5]; // Monday to Friday
+      const periods = [
+        { number: 1, startTime: "08:00", endTime: "08:45" },
+        { number: 2, startTime: "08:45", endTime: "09:30" },
+        { number: 3, startTime: "09:30", endTime: "10:15" },
+        { number: 4, startTime: "10:15", endTime: "11:00" },
+        { number: 5, startTime: "11:15", endTime: "12:00" },
+        { number: 6, startTime: "12:00", endTime: "12:45" },
+        { number: 7, startTime: "12:45", endTime: "13:30" },
+      ];
+
+      for (const day of days) {
+        for (const period of periods) {
+          const subject = subjects[Math.floor(Math.random() * subjects.length)];
+          const teacher = teachers[Math.floor(Math.random() * teachers.length)];
+
+          await prisma.timetableSlot.create({
+            data: {
+              timetableId: timetable.id,
+              dayOfWeek: day,
+              periodNumber: period.number,
+              subjectId: subject.id,
+              teacherId: teacher.id,
+              room: `Room ${Math.floor(Math.random() * 20) + 1}`,
+              startTime: period.startTime,
+              endTime: period.endTime,
+              createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+            },
+          });
+        }
+      }
+
+      logger.info(`Created timetable with ${days.length * periods.length} slots for class: ${classItem.name}`);
+    }
+  }
+}
+
+/**
+ * Seed Homeworks
+ */
+async function seedHomeworks() {
+  logger.info("Seeding homeworks...");
+
+  for (const schoolId of seedData.schools) {
+    const classes = await prisma.class.findMany({
+      where: { schoolId: schoolId, deletedAt: null },
+      take: 3,
+    });
+
+    if (classes.length === 0) continue;
+
+    const subjects = await prisma.subject.findMany({
+      where: { schoolId: schoolId, deletedAt: null },
+      take: 5,
+    });
+
+    if (subjects.length === 0) continue;
+
+    const teachers = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.TEACHER },
+        deletedAt: null,
+      },
+      take: 3,
+    });
+
+    if (teachers.length === 0) continue;
+
+    const homeworkTitles = [
+      "Complete Chapter 5 Exercises",
+      "Write an essay on Environmental Conservation",
+      "Solve Math Problems 1-20",
+      "Read Chapter 3 and answer questions",
+      "Prepare presentation on History",
+    ];
+
+    for (let i = 0; i < 5; i++) {
+      const classIds = [classes[Math.floor(Math.random() * classes.length)].id];
+      const subject = subjects[Math.floor(Math.random() * subjects.length)];
+      const teacher = teachers[Math.floor(Math.random() * teachers.length)];
+      const dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + Math.floor(Math.random() * 7) + 1);
+
+      const isMCQ = Math.random() > 0.5;
+
+      const homework = await prisma.homework.create({
+        data: {
+          title: homeworkTitles[i % homeworkTitles.length],
+          description: `Complete the assigned work for ${subject.name}. Submit before the due date.`,
+          classIds: classIds,
+          subjectId: subject.id,
+          teacherId: teacher.id,
+          dueDate: dueDate,
+          isMCQ: isMCQ,
+          attachments: [],
+          schoolId: schoolId,
+          createdBy: teacher.id,
+        },
+      });
+
+      // Create MCQ questions if it's an MCQ homework
+      if (isMCQ) {
+        for (let q = 0; q < 5; q++) {
+          await prisma.mCQQuestion.create({
+            data: {
+              homeworkId: homework.id,
+              question: `MCQ Question ${q + 1}: What is the answer?`,
+              options: ["Option A", "Option B", "Option C", "Option D"],
+              correctAnswer: Math.floor(Math.random() * 4),
+              marks: 2,
+              createdBy: teacher.id,
+            },
+          });
+        }
+      }
+
+      // Create submissions for some students
+      const students = await prisma.user.findMany({
+        where: {
+          schoolId: schoolId,
+          role: { name: RoleName.STUDENT },
+          deletedAt: null,
+        },
+        take: 5,
+      });
+
+      for (const student of students) {
+        const status = Math.random() > 0.3 ? "SUBMITTED" : "PENDING";
+        const submittedAt = status === "SUBMITTED" ? new Date() : null;
+
+        await prisma.homeworkSubmission.create({
+          data: {
+            homeworkId: homework.id,
+            studentId: student.id,
+            submittedAt: submittedAt,
+            status: status,
+            files: [],
+            feedback: status === "SUBMITTED" && Math.random() > 0.5 ? "Good work!" : null,
+            grade: status === "SUBMITTED" && Math.random() > 0.5 ? "A" : null,
+            createdBy: student.id,
+          },
+        });
+      }
+
+      logger.info(`Created homework: ${homework.title}`);
+    }
+  }
+}
+
+/**
+ * Seed Marks and Results
+ */
+async function seedMarks() {
+  logger.info("Seeding marks and results...");
+
+  for (const schoolId of seedData.schools) {
+    const exams = await prisma.exam.findMany({
+      where: { schoolId: schoolId },
+      take: 2,
+    });
+
+    if (exams.length === 0) continue;
+
+    const students = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.STUDENT },
+        deletedAt: null,
+      },
+      take: 10,
+    });
+
+    if (students.length === 0) continue;
+
+    const subjects = await prisma.subject.findMany({
+      where: { schoolId: schoolId, deletedAt: null },
+      take: 5,
+    });
+
+    if (subjects.length === 0) continue;
+
+    const classes = await prisma.class.findMany({
+      where: { schoolId: schoolId, deletedAt: null },
+      take: 3,
+    });
+
+    if (classes.length === 0) continue;
+
+    for (const exam of exams) {
+      for (const student of students) {
+        const studentClass = classes[Math.floor(Math.random() * classes.length)];
+        let totalMarks = 0;
+        let maxTotalMarks = 0;
+
+        // Create marks for each subject
+        for (const subject of subjects) {
+          // Check if marks already exist
+          const existingMarks = await prisma.marks.findFirst({
+            where: {
+              examId: exam.id,
+              studentId: student.id,
+              subjectId: subject.id,
+              deletedAt: null,
+            },
+          });
+
+          if (existingMarks) {
+            totalMarks += Number(existingMarks.marksObtained);
+            maxTotalMarks += Number(existingMarks.maxMarks);
+            continue;
+          }
+
+          const maxMarks = 100;
+          const marksObtained = Math.floor(Math.random() * maxMarks) + 20; // 20-100
+          const percentage = (marksObtained / maxMarks) * 100;
+          let grade = "F";
+          if (percentage >= 90) grade = "A+";
+          else if (percentage >= 80) grade = "A";
+          else if (percentage >= 70) grade = "B";
+          else if (percentage >= 60) grade = "C";
+          else if (percentage >= 50) grade = "D";
+
+          await prisma.marks.create({
+            data: {
+              examId: exam.id,
+              studentId: student.id,
+              subjectId: subject.id,
+              classId: studentClass.id,
+              marksObtained: marksObtained,
+              maxMarks: maxMarks,
+              percentage: percentage,
+              grade: grade,
+              schoolId: schoolId,
+              createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+            },
+          });
+
+          totalMarks += marksObtained;
+          maxTotalMarks += maxMarks;
+        }
+
+        // Create result (check if it already exists)
+        const existingResult = await prisma.result.findFirst({
+          where: {
+            examId: exam.id,
+            studentId: student.id,
+            deletedAt: null,
+          },
+        });
+
+        if (!existingResult && maxTotalMarks > 0) {
+          const totalPercentage = (totalMarks / maxTotalMarks) * 100;
+          const cgpa = totalPercentage / 10;
+          let grade = "F";
+          if (totalPercentage >= 90) grade = "A+";
+          else if (totalPercentage >= 80) grade = "A";
+          else if (totalPercentage >= 70) grade = "B";
+          else if (totalPercentage >= 60) grade = "C";
+          else if (totalPercentage >= 50) grade = "D";
+
+          await prisma.result.create({
+            data: {
+              examId: exam.id,
+              studentId: student.id,
+              classId: studentClass.id,
+              totalMarks: totalMarks,
+              maxTotalMarks: maxTotalMarks,
+              percentage: totalPercentage,
+              cgpa: cgpa,
+              grade: grade,
+              isPass: totalPercentage >= 50,
+              publishedAt: new Date(),
+              publishedBy: seedData.users.schoolAdmins[schoolId] || "seed",
+              schoolId: schoolId,
+              createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+            },
+          });
+        }
+      }
+
+      logger.info(`Created marks and results for exam: ${exam.name}`);
+    }
+  }
+}
+
+/**
+ * Seed Leave Types
+ */
+async function seedLeaveTypes() {
+  logger.info("Seeding leave types...");
+
+  const leaveTypes = [
+    { name: "Casual Leave", maxLeaves: 12 },
+    { name: "Sick Leave", maxLeaves: 10 },
+    { name: "Earned Leave", maxLeaves: 15 },
+    { name: "Emergency Leave", maxLeaves: 5 },
+  ];
+
+  for (const schoolId of seedData.schools) {
+    let createdCount = 0;
+    for (const leaveType of leaveTypes) {
+      const existing = await prisma.leaveType.findFirst({
+        where: {
+          name: leaveType.name,
+          schoolId: schoolId,
+          deletedAt: null,
+        },
+      });
+
+      if (!existing) {
+        await prisma.leaveType.create({
+          data: {
+            name: leaveType.name,
+            maxLeaves: leaveType.maxLeaves,
+            schoolId: schoolId,
+            createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+          },
+        });
+        createdCount++;
+      }
+    }
+
+    logger.info(`Processed ${leaveTypes.length} leave types (${createdCount} created) for school: ${schoolId}`);
+  }
+}
+
+/**
+ * Seed Leave Requests
+ */
+async function seedLeaveRequests() {
+  logger.info("Seeding leave requests...");
+
+  for (const schoolId of seedData.schools) {
+    const teachers = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.TEACHER },
+        deletedAt: null,
+      },
+      take: 3,
+    });
+
+    const staff = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.STAFF },
+        deletedAt: null,
+      },
+      take: 2,
+    });
+
+    const users = [...teachers, ...staff];
+    if (users.length === 0) continue;
+
+    const leaveTypes = await prisma.leaveType.findMany({
+      where: { schoolId: schoolId, deletedAt: null },
+    });
+
+    if (leaveTypes.length === 0) continue;
+
+    const schoolAdmin = await prisma.user.findFirst({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.SCHOOL_ADMIN },
+        deletedAt: null,
+      },
+    });
+
+    for (const user of users) {
+      const leaveType = leaveTypes[Math.floor(Math.random() * leaveTypes.length)];
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() + Math.floor(Math.random() * 30));
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + Math.floor(Math.random() * 3) + 1);
+
+      const statuses = ["PENDING", "APPROVED", "REJECTED"];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+
+      await prisma.leaveRequest.create({
+        data: {
+          userId: user.id,
+          leaveTypeId: leaveType.id,
+          startDate: startDate,
+          endDate: endDate,
+          reason: "Personal work",
+          status: status,
+          approvedBy: status === "APPROVED" ? (schoolAdmin?.id || "seed") : null,
+          approvedAt: status === "APPROVED" ? new Date() : null,
+          schoolId: schoolId,
+          createdBy: user.id,
+        },
+      });
+
+      // Create leave balance (check if it exists)
+      const year = new Date().getFullYear();
+      const existingBalance = await prisma.leaveBalance.findFirst({
+        where: {
+          userId: user.id,
+          leaveTypeId: leaveType.id,
+          year: year,
+          deletedAt: null,
+        },
+      });
+
+      if (!existingBalance) {
+        await prisma.leaveBalance.create({
+          data: {
+            userId: user.id,
+            leaveTypeId: leaveType.id,
+            totalLeaves: leaveType.maxLeaves || 10,
+            usedLeaves: Math.floor(Math.random() * 5),
+            remainingLeaves: (leaveType.maxLeaves || 10) - Math.floor(Math.random() * 5),
+            year: year,
+            schoolId: schoolId,
+            createdBy: user.id,
+          },
+        });
+      }
+    }
+
+    logger.info(`Created leave requests for ${users.length} users for school: ${schoolId}`);
+  }
+}
+
+/**
+ * Seed Communication (Conversations, Messages, Notifications)
+ */
+async function seedCommunication() {
+  logger.info("Seeding communication data...");
+
+  for (const schoolId of seedData.schools) {
+    const teachers = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.TEACHER },
+        deletedAt: null,
+      },
+      take: 2,
+    });
+
+    const students = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.STUDENT },
+        deletedAt: null,
+      },
+      take: 3,
+    });
+
+    if (teachers.length === 0 || students.length === 0) continue;
+
+    // Create direct conversations
+    for (const teacher of teachers) {
+      for (const student of students.slice(0, 2)) {
+        const conversation = await prisma.conversation.create({
+          data: {
+            participants: [teacher.id, student.id],
+            type: "DIRECT",
+            schoolId: schoolId,
+            createdBy: teacher.id,
+          },
+        });
+
+        // Create messages
+        for (let i = 0; i < 3; i++) {
+          await prisma.message.create({
+            data: {
+              conversationId: conversation.id,
+              senderId: i % 2 === 0 ? teacher.id : student.id,
+              content: `Message ${i + 1} in conversation`,
+              attachments: [],
+              readBy: i < 2 ? [teacher.id, student.id] : [],
+              sentAt: new Date(Date.now() - (3 - i) * 3600000),
+              createdBy: i % 2 === 0 ? teacher.id : student.id,
+            },
+          });
+        }
+      }
+    }
+
+    // Create notifications
+    for (const student of students) {
+      const notificationTypes = ["ATTENDANCE", "HOMEWORK", "EXAM", "FEE", "ANNOUNCEMENT"];
+      for (let i = 0; i < 5; i++) {
+        await prisma.notification.create({
+          data: {
+            userId: student.id,
+            title: `Notification ${i + 1}`,
+            content: `This is a ${notificationTypes[i % notificationTypes.length]} notification`,
+            type: notificationTypes[i % notificationTypes.length],
+            isRead: Math.random() > 0.5,
+            schoolId: schoolId,
+            createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+          },
+        });
+      }
+    }
+
+    logger.info(`Created communication data for school: ${schoolId}`);
+  }
+}
+
+// ============================================
+// PHASE 2: SUPPORTING MODULES
+// ============================================
+
+/**
+ * Seed Library (Note: Library models may not exist yet, so this is a placeholder)
+ */
+async function seedLibrary() {
+  logger.info("Seeding library data...");
+  // Library models (LibraryBook, LibraryIssue, LibraryReservation) may not be in schema yet
+  // This is a placeholder for when they are added
+  logger.info("Library models not found in schema, skipping...");
+}
+
+/**
+ * Seed Notes and Syllabus (Note: These models may not exist yet)
+ */
+async function seedNotesAndSyllabus() {
+  logger.info("Seeding notes and syllabus...");
+  // Note and Syllabus models may not be in schema yet
+  // This is a placeholder for when they are added
+  logger.info("Notes and Syllabus models not found in schema, skipping...");
+}
+
+/**
+ * Seed Gallery (Note: Gallery models may not exist yet)
+ */
+async function seedGallery() {
+  logger.info("Seeding gallery data...");
+  // Gallery models may not be in schema yet
+  // This is a placeholder for when they are added
+  logger.info("Gallery models not found in schema, skipping...");
+}
+
+/**
+ * Seed Circulars (Note: Circular model may not exist yet)
+ */
+async function seedCirculars() {
+  logger.info("Seeding circulars...");
+  // Circular model may not be in schema yet
+  // This is a placeholder for when it is added
+  logger.info("Circular model not found in schema, skipping...");
+}
+
+// ============================================
+// PHASE 3: ADDITIONAL FEATURES
+// ============================================
+
+/**
+ * Seed Parent-Child Links
+ */
+async function seedParentChildLinks() {
+  logger.info("Seeding parent-child links...");
+
+  for (const schoolId of seedData.schools) {
+    const students = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.STUDENT },
+        deletedAt: null,
+      },
+      take: 10,
+    });
+
+    if (students.length === 0) continue;
+
+    // Note: Parent role may not exist in schema yet
+    // For now, we'll skip creating parent users if the role doesn't exist
+    // This will be updated when Parent role is added to the schema
+    logger.info("Parent role not found in schema, skipping parent user creation...");
+    
+    // If Parent role exists, uncomment the following:
+    /*
+    const relationships = ["FATHER", "MOTHER", "GUARDIAN"];
+    const parents = [];
+
+    for (let i = 0; i < Math.min(5, students.length); i++) {
+      const relationship = relationships[i % relationships.length];
+      const parentEmail = `parent${i + 1}@${schoolId}.edu`;
+      
+      const parent = await prisma.user.create({
+        data: {
+          email: parentEmail,
+          password: await bcryptjs.hash("Parent@123", 10),
+          name: `${relationship} ${i + 1}`,
+          userType: UserType.SCHOOL,
+          schoolId: schoolId,
+          role: {
+            connect: { name: RoleName.PARENT },
+          },
+          createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+        },
+      });
+
+      parents.push({ parent, relationship });
+    }
+    */
+    
+    const parents = []; // Empty for now
+
+    // Link parents to students (if parents exist)
+    if (parents.length > 0) {
+      for (let i = 0; i < students.length; i++) {
+        const parentData = parents[i % parents.length];
+        await prisma.parentChildLink.create({
+          data: {
+            parentId: parentData.parent.id,
+            childId: students[i].id,
+            relationship: parentData.relationship,
+            isPrimary: i % 2 === 0,
+            createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+          },
+        });
+      }
+      logger.info(`Created ${parents.length} parent accounts and linked them to students for school: ${schoolId}`);
+    } else {
+      logger.info(`Skipping parent-child links for school: ${schoolId} (Parent role not available)`);
+    }
+  }
+}
+
+/**
+ * Seed Transfer Certificates
+ */
+async function seedTransferCertificates() {
+  logger.info("Seeding transfer certificates...");
+
+  for (const schoolId of seedData.schools) {
+    const students = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.STUDENT },
+        deletedAt: null,
+      },
+      take: 2, // Only a few students have TCs
+    });
+
+    if (students.length === 0) continue;
+
+    for (const student of students) {
+      const tcNumber = `TC-${schoolId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const statuses = ["ISSUED", "COLLECTED", "CANCELLED"];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+
+      await prisma.transferCertificate.create({
+        data: {
+          studentId: student.id,
+          schoolId: schoolId,
+          tcNumber: tcNumber,
+          reason: "Transfer to another school",
+          transferDate: new Date(),
+          destinationSchool: "Another School Name",
+          remarks: "Student transferred successfully",
+          status: status,
+          createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+        },
+      });
+    }
+
+    logger.info(`Created transfer certificates for ${students.length} students for school: ${schoolId}`);
+  }
+}
+
+/**
+ * Seed Emergency Contacts
+ */
+async function seedEmergencyContacts() {
+  logger.info("Seeding emergency contacts...");
+
+  for (const schoolId of seedData.schools) {
+    const students = await prisma.user.findMany({
+      where: {
+        schoolId: schoolId,
+        role: { name: RoleName.STUDENT },
+        deletedAt: null,
+      },
+      take: 10,
+    });
+
+    if (students.length === 0) continue;
+
+    const relationships = ["FATHER", "MOTHER", "GUARDIAN", "RELATIVE", "OTHER"];
+
+    for (const student of students) {
+      // Create 2-3 emergency contacts per student
+      const numContacts = Math.floor(Math.random() * 2) + 2;
+      
+      for (let i = 0; i < numContacts; i++) {
+        const relationship = relationships[i % relationships.length];
+        await prisma.emergencyContact.create({
+          data: {
+            studentId: student.id,
+            schoolId: schoolId,
+            name: `${relationship} of ${student.name}`,
+            relationship: relationship,
+            contact: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+            alternateContact: i === 0 ? `+91${Math.floor(Math.random() * 9000000000) + 1000000000}` : null,
+            address: `Address for ${relationship}`,
+            isPrimary: i === 0,
+            createdBy: seedData.users.schoolAdmins[schoolId] || "seed",
+          },
+        });
+      }
+    }
+
+    logger.info(`Created emergency contacts for ${students.length} students for school: ${schoolId}`);
+  }
+}
+
 /**
  * Main seed function
  */
@@ -1464,6 +2362,87 @@ async function main() {
     await seedSettings();
     await seedGrievances();
     await seedSalaries();
+    
+    // Phase 1: Academic & Administrative Modules
+    try {
+      await seedAttendancePeriods();
+    } catch (error) {
+      logger.warn(`Skipping attendance periods: ${error.message}`);
+    }
+    try {
+      await seedAttendance();
+    } catch (error) {
+      logger.warn(`Skipping attendance: ${error.message}`);
+    }
+    try {
+      await seedTimetables();
+    } catch (error) {
+      logger.warn(`Skipping timetables: ${error.message}`);
+    }
+    try {
+      await seedHomeworks();
+    } catch (error) {
+      logger.warn(`Skipping homeworks: ${error.message}`);
+    }
+    try {
+      await seedMarks();
+    } catch (error) {
+      logger.warn(`Skipping marks: ${error.message}`);
+    }
+    try {
+      await seedLeaveTypes();
+    } catch (error) {
+      logger.warn(`Skipping leave types: ${error.message}`);
+    }
+    try {
+      await seedLeaveRequests();
+    } catch (error) {
+      logger.warn(`Skipping leave requests: ${error.message}`);
+    }
+    try {
+      await seedCommunication();
+    } catch (error) {
+      logger.warn(`Skipping communication: ${error.message}`);
+    }
+    
+    // Phase 2: Supporting Modules
+    try {
+      await seedLibrary();
+    } catch (error) {
+      logger.warn(`Skipping library: ${error.message}`);
+    }
+    try {
+      await seedNotesAndSyllabus();
+    } catch (error) {
+      logger.warn(`Skipping notes and syllabus: ${error.message}`);
+    }
+    try {
+      await seedGallery();
+    } catch (error) {
+      logger.warn(`Skipping gallery: ${error.message}`);
+    }
+    try {
+      await seedCirculars();
+    } catch (error) {
+      logger.warn(`Skipping circulars: ${error.message}`);
+    }
+    
+    // Phase 3: Additional Features
+    try {
+      await seedParentChildLinks();
+    } catch (error) {
+      logger.warn(`Skipping parent-child links: ${error.message}`);
+    }
+    try {
+      await seedTransferCertificates();
+    } catch (error) {
+      logger.warn(`Skipping transfer certificates: ${error.message}`);
+    }
+    try {
+      await seedEmergencyContacts();
+    } catch (error) {
+      logger.warn(`Skipping emergency contacts: ${error.message}`);
+    }
 
     logger.info("=".repeat(60));
     logger.info("Database seeding completed successfully!");

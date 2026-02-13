@@ -29,6 +29,8 @@ import {
   ChevronDown,
   LogOut,
   LucideIcon,
+  BookOpen,
+  Image as ImageIcon,
 } from "lucide-react";
 import { clearToken } from "@/lib/auth/storage";
 import { MENU_ITEMS, SUPER_ADMIN_MENU_ITEMS, FINANCE_SUBMENU, MenuItem, SubMenuItem } from "@/lib/config/menu-items";
@@ -55,6 +57,8 @@ const iconMap: Record<string, LucideIcon> = {
   Store,
   Info,
   MessageSquare,
+  BookOpen,
+  Image: ImageIcon,
 };
 
 export function Sidebar() {

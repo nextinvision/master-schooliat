@@ -38,6 +38,21 @@ export const MENU_ITEMS: MenuItem[] = [
     route: "/admin/students",
   },
   {
+    name: "Attendance",
+    icon: "UserCheck",
+    route: "/admin/attendance",
+  },
+  {
+    name: "Homework",
+    icon: "FileText",
+    route: "/admin/homework",
+  },
+  {
+    name: "Leave Management",
+    icon: "Calendar",
+    route: "/admin/leave",
+  },
+  {
     name: "Finance",
     icon: "DollarSign",
     route: "/admin/finance",
@@ -57,6 +72,21 @@ export const MENU_ITEMS: MenuItem[] = [
     name: "Transport",
     icon: "Bus",
     route: "/admin/transport",
+  },
+  {
+    name: "Library",
+    icon: "BookOpen",
+    route: "/admin/library",
+  },
+  {
+    name: "Notes & Syllabus",
+    icon: "FileText",
+    route: "/admin/notes",
+  },
+  {
+    name: "Gallery",
+    icon: "Image",
+    route: "/admin/gallery",
   },
   {
     name: "Inventory",

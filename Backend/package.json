@@ -26,12 +26,15 @@
     "seed": "node prisma/seed.js",
     "test:phase1": "node test-phase1-apis.js",
     "test:all": "node test-all-apis.js",
+    "test:comprehensive": "node test-comprehensive-apis.js",
     "test:staging": "bash scripts/test-staging-apis.sh",
     "test:production": "bash scripts/test-production-apis.sh",
     "migrate:phase1": "bash scripts/run-migration.sh",
     "migrate:staging": "bash scripts/migrate-staging.sh",
     "migrate:production": "bash scripts/migrate-production.sh",
-    "migrate:status": "bash scripts/check-migration-status.sh"
+    "migrate:status": "bash scripts/check-migration-status.sh",
+    "migrate:seed": "bash scripts/migrate-and-seed.sh",
+    "migrate:seed:production": "bash scripts/migrate-and-seed-production.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",

@@ -15,7 +15,7 @@ const logResult = (endpoint, method, status, message, data = null) => {
     timestamp: new Date().toISOString(),
   };
   testResults.push(result);
-  const statusIcon = status >= 200 && status < 300 ? "✅" : status >= 400 && status < 500 ? "⚠️" : "❌";
+  const statusIcon = status >= 200 && status < 300 ? "[PASS]" : status >= 400 && status < 500 ? "[WARN]" : "[FAIL]";
   console.log(
     `${statusIcon} ${method} ${endpoint} - ${status} - ${message}`,
   );
@@ -54,16 +54,16 @@ const testEndpoint = async (method, endpoint, body = null, headers = {}) => {
 };
 
 const runTests = async () => {
-  console.log("🚀 Starting Comprehensive API Tests...\n");
+  console.log("Starting Comprehensive API Tests...\n");
   console.log(`Base URL: ${BASE_URL}\n`);
 
   // 1. Health Check
-  console.log("📋 Testing Health Endpoint...");
+  console.log(" Testing Health Endpoint...");
   await testEndpoint("GET", "/health");
   console.log("");
 
   // 2. Authentication
-  console.log("📋 Testing Authentication...");
+  console.log(" Testing Authentication...");
   try {
     const authOptions = {
       method: "POST",
@@ -92,9 +92,9 @@ const runTests = async () => {
 
     if (authData.token) {
       authToken = authData.token;
-      console.log("✅ Authentication successful!\n");
+      console.log("[PASS] Authentication successful!\n");
     } else {
-      console.log("⚠️  Authentication failed - some tests will fail\n");
+      console.log("[WARN]  Authentication failed - some tests will fail\n");
     }
   } catch (error) {
     logResult("/auth/authenticate", "POST", 0, `Error: ${error.message}`);
@@ -105,7 +105,7 @@ const runTests = async () => {
     : {};
 
   // 3. User Endpoints
-  console.log("📋 Testing User Endpoints...");
+  console.log(" Testing User Endpoints...");
   await testEndpoint("GET", "/users/students", null, authHeaders);
   await testEndpoint("GET", "/users/teachers", null, authHeaders);
   await testEndpoint("GET", "/users/employees", null, authHeaders);
@@ -113,7 +113,7 @@ const runTests = async () => {
   console.log("");
 
   // 4. School Endpoints
-  console.log("📋 Testing School Endpoints...");
+  console.log(" Testing School Endpoints...");
   const schoolsRes = await testEndpoint("GET", "/schools", null, authHeaders);
   if (schoolsRes.data?.data?.[0]?.id) {
     createdResources.schoolId = schoolsRes.data.data[0].id;
@@ -123,7 +123,7 @@ const runTests = async () => {
   console.log("");
 
   // 5. Region Endpoints
-  console.log("📋 Testing Region Endpoints...");
+  console.log(" Testing Region Endpoints...");
   const regionsRes = await testEndpoint("GET", "/regions", null, authHeaders);
   if (regionsRes.data?.data?.[0]?.id) {
     createdResources.regionId = regionsRes.data.data[0].id;
@@ -131,35 +131,35 @@ const runTests = async () => {
   console.log("");
 
   // 6. Vendor Endpoints
-  console.log("📋 Testing Vendor Endpoints...");
+  console.log(" Testing Vendor Endpoints...");
   await testEndpoint("GET", "/vendors/stats", null, authHeaders);
   await testEndpoint("GET", "/vendors", null, authHeaders);
   console.log("");
 
   // 7. Transport Endpoints
-  console.log("📋 Testing Transport Endpoints...");
+  console.log(" Testing Transport Endpoints...");
   await testEndpoint("GET", "/transports", null, authHeaders);
   console.log("");
 
   // 8. License Endpoints
-  console.log("📋 Testing License Endpoints...");
+  console.log(" Testing License Endpoints...");
   await testEndpoint("GET", "/licenses", null, authHeaders);
   console.log("");
 
   // 9. Receipt Endpoints
-  console.log("📋 Testing Receipt Endpoints...");
+  console.log(" Testing Receipt Endpoints...");
   await testEndpoint("GET", "/receipts", null, authHeaders);
   console.log("");
 
   // 10. Statistics Endpoints
-  console.log("📋 Testing Statistics Endpoints...");
+  console.log(" Testing Statistics Endpoints...");
   await testEndpoint("GET", "/statistics", null, authHeaders);
   await testEndpoint("GET", "/statistics/schools", null, authHeaders);
   await testEndpoint("GET", "/statistics/dashboard", null, authHeaders);
   console.log("");
 
   // 11. Location Endpoints
-  console.log("📋 Testing Location Endpoints...");
+  console.log(" Testing Location Endpoints...");
   await testEndpoint("GET", "/locations", null, authHeaders);
   if (createdResources.regionId) {
     await testEndpoint("GET", `/locations?regionId=${createdResources.regionId}`, null, authHeaders);
@@ -167,12 +167,12 @@ const runTests = async () => {
   console.log("");
 
   // 12. Letterhead Endpoints
-  console.log("📋 Testing Letterhead Endpoints...");
+  console.log(" Testing Letterhead Endpoints...");
   await testEndpoint("GET", "/letterhead", null, authHeaders);
   console.log("");
 
   // 13. Calendar Endpoints
-  console.log("📋 Testing Calendar Endpoints...");
+  console.log(" Testing Calendar Endpoints...");
   await testEndpoint("GET", "/calendar/events", null, authHeaders);
   await testEndpoint("GET", "/calendar/holidays", null, authHeaders);
   await testEndpoint("GET", "/calendar/exam-calendars", null, authHeaders);
@@ -182,74 +182,74 @@ const runTests = async () => {
   console.log("");
 
   // 14. Exam Endpoints
-  console.log("📋 Testing Exam Endpoints...");
+  console.log(" Testing Exam Endpoints...");
   await testEndpoint("GET", "/exams", null, authHeaders);
   console.log("");
 
   // 15. ID Card Endpoints
-  console.log("📋 Testing ID Card Endpoints...");
+  console.log(" Testing ID Card Endpoints...");
   await testEndpoint("GET", "/id-cards", null, authHeaders);
   await testEndpoint("GET", "/id-cards/status", null, authHeaders);
   await testEndpoint("GET", "/id-cards/config", null, authHeaders);
   console.log("");
 
   // 16. Template Endpoints
-  console.log("📋 Testing Template Endpoints...");
+  console.log(" Testing Template Endpoints...");
   await testEndpoint("GET", "/templates", null, authHeaders);
   console.log("");
 
   // 17. Settings Endpoints
-  console.log("📋 Testing Settings Endpoints...");
+  console.log(" Testing Settings Endpoints...");
   await testEndpoint("GET", "/settings", null, authHeaders);
   console.log("");
 
   // 18. Fee Endpoints
-  console.log("📋 Testing Fee Endpoints...");
+  console.log(" Testing Fee Endpoints...");
   await testEndpoint("GET", "/fees", null, authHeaders);
   console.log("");
 
   // 19. Grievance Endpoints
-  console.log("📋 Testing Grievance Endpoints...");
+  console.log(" Testing Grievance Endpoints...");
   await testEndpoint("GET", "/grievances", null, authHeaders);
   console.log("");
 
   // 20. Salary Endpoints
-  console.log("📋 Testing Salary Endpoints...");
+  console.log(" Testing Salary Endpoints...");
   await testEndpoint("GET", "/salary-structures", null, authHeaders);
   await testEndpoint("GET", "/salary-payments", null, authHeaders);
   await testEndpoint("GET", "/salaries", null, authHeaders);
   console.log("");
 
   // 21. Attendance Management (Phase 1)
-  console.log("📋 Testing Attendance Management...");
+  console.log(" Testing Attendance Management...");
   await testEndpoint("GET", "/attendance/reports/daily", null, authHeaders);
   console.log("");
 
   // 22. Timetable Management (Phase 1)
-  console.log("📋 Testing Timetable Management...");
+  console.log(" Testing Timetable Management...");
   await testEndpoint("GET", "/timetables", null, authHeaders);
   console.log("");
 
   // 23. Homework & Assignments (Phase 1)
-  console.log("📋 Testing Homework & Assignments...");
+  console.log(" Testing Homework & Assignments...");
   await testEndpoint("GET", "/homework", null, authHeaders);
   console.log("");
 
   // 24. Marks & Results (Phase 1)
-  console.log("📋 Testing Marks & Results...");
+  console.log(" Testing Marks & Results...");
   await testEndpoint("GET", "/marks", null, authHeaders);
   await testEndpoint("GET", "/marks/results", null, authHeaders);
   console.log("");
 
   // 25. Leave Management (Phase 1)
-  console.log("📋 Testing Leave Management...");
+  console.log(" Testing Leave Management...");
   await testEndpoint("GET", "/leave/balance", null, authHeaders);
   await testEndpoint("GET", "/leave/history", null, authHeaders);
   await testEndpoint("GET", "/leave/types", null, authHeaders);
   console.log("");
 
   // 26. Communication & Notifications (Phase 1)
-  console.log("📋 Testing Communication & Notifications...");
+  console.log(" Testing Communication & Notifications...");
   await testEndpoint("GET", "/communication/conversations", null, authHeaders);
   await testEndpoint("GET", "/communication/notifications", null, authHeaders);
   await testEndpoint("GET", "/communication/notifications/unread-count", null, authHeaders);
@@ -269,13 +269,13 @@ const runTests = async () => {
     .length;
 
   console.log(`Total Tests: ${total}`);
-  console.log(`✅ Passed: ${passed}`);
-  console.log(`⚠️  Warnings (4xx): ${warnings}`);
-  console.log(`❌ Failed (5xx/Errors): ${failed}`);
+  console.log(`[PASS] Passed: ${passed}`);
+  console.log(`[WARN]  Warnings (4xx): ${warnings}`);
+  console.log(`[FAIL] Failed (5xx/Errors): ${failed}`);
 
   // Failed tests details
   if (failed > 0) {
-    console.log("\n❌ Failed Tests (Need Fixing):");
+    console.log("\n[FAIL] Failed Tests (Need Fixing):");
     testResults
       .filter((r) => r.status === 0 || r.status >= 500)
       .forEach((r) => {
@@ -285,7 +285,7 @@ const runTests = async () => {
 
   // Warning tests (expected for school-specific endpoints)
   if (warnings > 0) {
-    console.log("\n⚠️  Warning Tests (May be expected):");
+    console.log("\n[WARN]  Warning Tests (May be expected):");
     const warningTests = testResults.filter((r) => r.status >= 400 && r.status < 500);
     const uniqueWarnings = new Map();
     warningTests.forEach((r) => {
