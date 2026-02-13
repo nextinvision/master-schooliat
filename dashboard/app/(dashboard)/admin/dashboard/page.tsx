@@ -4,7 +4,11 @@ import { useDashboard } from "@/lib/hooks/use-dashboard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, GraduationCap, UserCheck, Briefcase } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { CalendarWidget } from "@/components/dashboard/calendar-widget";
+import { NoticeBoardWidget } from "@/components/dashboard/notice-board-widget";
+import { FinancialOverviewWidget } from "@/components/dashboard/financial-overview-widget";
+import { FeeStatusWidget } from "@/components/dashboard/fee-status-widget";
 
 export default function AdminDashboardPage() {
   const { data, isLoading } = useDashboard();
@@ -14,6 +18,9 @@ export default function AdminDashboardPage() {
   const userCounts = stats.userCounts || {};
   const students = userCounts.students || { total: 0, boys: 0, girls: 0 };
   const notices = stats.notices || [];
+  const installments = stats.installments || {};
+  const financial = stats.financial || {};
+  const calendar = stats.calendar || {};
 
   const totalStudents = students.total || 0;
   const boysCount = students.boys || 0;
@@ -26,13 +33,20 @@ export default function AdminDashboardPage() {
     { name: "Girls", value: girlsCount, color: "#f59e0b" },
   ];
 
-  const earningsData = [
-    { month: "Jan", income: 4000, expense: 2400 },
-    { month: "Feb", income: 3000, expense: 1398 },
-    { month: "Mar", income: 2000, expense: 9800 },
-    { month: "Apr", income: 2780, expense: 3908 },
-    { month: "May", income: 1890, expense: 4800 },
-    { month: "Jun", income: 2390, expense: 3800 },
+  // Use real earnings data from API
+  const earningsData = financial.monthlyEarnings || [
+    { month: "Jan", income: 0, expense: 0 },
+    { month: "Feb", income: 0, expense: 0 },
+    { month: "Mar", income: 0, expense: 0 },
+    { month: "Apr", income: 0, expense: 0 },
+    { month: "May", income: 0, expense: 0 },
+    { month: "Jun", income: 0, expense: 0 },
+    { month: "Jul", income: 0, expense: 0 },
+    { month: "Aug", income: 0, expense: 0 },
+    { month: "Sep", income: 0, expense: 0 },
+    { month: "Oct", income: 0, expense: 0 },
+    { month: "Nov", income: 0, expense: 0 },
+    { month: "Dec", income: 0, expense: 0 },
   ];
 
   if (isLoading) {
@@ -132,6 +146,34 @@ export default function AdminDashboardPage() {
         </Card>
       </div>
 
+      {/* Second Row: Calendar and Notice Board */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CalendarWidget
+          events={calendar.events || []}
+          currentMonth={calendar.currentMonth}
+          currentYear={calendar.currentYear}
+        />
+        <NoticeBoardWidget notices={notices} />
+      </div>
+
+      {/* Third Row: Financial Overview and Fee Status */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <FinancialOverviewWidget
+          totalIncome={financial.totalIncome}
+          totalSalary={financial.totalSalary}
+          incomeChangePercent={financial.incomeChangePercent}
+          salaryChangePercent={financial.salaryChangePercent}
+          currentYear={installments.currentYear}
+        />
+        <FeeStatusWidget
+          paid={installments.paid}
+          pending={installments.pending}
+          partiallyPaid={installments.partiallyPaid}
+          currentYear={installments.currentYear}
+          currentInstallmentNumber={installments.currentInstallmentNumber}
+        />
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Earnings Chart */}
@@ -146,17 +188,22 @@ export default function AdminDashboardPage() {
                 <XAxis dataKey="month" />
                 <YAxis />
                 <Tooltip />
+                <Legend />
                 <Line
                   type="monotone"
                   dataKey="income"
                   stroke="#84cc16"
                   strokeWidth={2}
+                  name="Income"
+                  dot={{ fill: "#84cc16", r: 4 }}
                 />
                 <Line
                   type="monotone"
                   dataKey="expense"
                   stroke="#bbf7d0"
                   strokeWidth={2}
+                  name="Expense"
+                  dot={{ fill: "#bbf7d0", r: 4 }}
                 />
               </LineChart>
             </ResponsiveContainer>
