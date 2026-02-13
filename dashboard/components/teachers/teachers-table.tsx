@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Edit, Trash2, Key, Plus } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Eye, Edit, Trash2, Key, Plus, SlidersHorizontal } from "lucide-react";
+import { useClassFilters } from "@/lib/hooks/use-class-filters";
 import { searchTeachersByName } from "@/lib/utils/search-utils";
 import {
   Select,
@@ -60,6 +62,25 @@ interface TeachersTableProps {
   onRefresh: () => void;
 }
 
+// Format phone number for display
+const formatPhoneNumber = (phone: string | null | undefined): string => {
+  if (!phone) return "N/A";
+  // Remove all non-digit characters
+  const cleaned = phone.replace(/\D/g, "");
+  // Format as Indian phone number: XXXXX XXXXX
+  if (cleaned.length === 10) {
+    return `${cleaned.slice(0, 5)} ${cleaned.slice(5)}`;
+  }
+  return phone;
+};
+
+// Get initials for avatar fallback
+const getInitials = (firstName: string, lastName?: string): string => {
+  const first = firstName?.charAt(0)?.toUpperCase() || "";
+  const last = lastName?.charAt(0)?.toUpperCase() || "";
+  return `${first}${last}` || "T";
+};
+
 export function TeachersTable({
   teachers,
   onAddNew,
@@ -71,7 +92,10 @@ export function TeachersTable({
   serverTotalPages,
   loading,
 }: TeachersTableProps) {
+  const { classFilter, divisionFilter } = useClassFilters();
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedClass, setSelectedClass] = useState(classFilter.defaultValue);
+  const [selectedDivision, setSelectedDivision] = useState(divisionFilter.defaultValue);
   const [selectedSubject, setSelectedSubject] = useState("All Subjects");
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [modalVisible, setModalVisible] = useState(false);
@@ -84,6 +108,27 @@ export function TeachersTable({
 
   if (searchQuery.trim()) {
     filteredTeachers = searchTeachersByName(filteredTeachers, searchQuery);
+  }
+
+  if (selectedClass !== classFilter.defaultValue) {
+    filteredTeachers = filteredTeachers.filter((teacher) => {
+      const teacherClass = teacher.class || "";
+      if (!teacherClass) return false;
+      // Check if class string contains the selected class
+      const classStr = teacherClass.toLowerCase();
+      const selectedClassStr = selectedClass.toLowerCase();
+      return classStr.includes(selectedClassStr) || 
+             classStr.includes(selectedClassStr.split("-")[0] || "");
+    });
+  }
+
+  if (selectedDivision !== divisionFilter.defaultValue) {
+    filteredTeachers = filteredTeachers.filter((teacher) => {
+      const teacherClass = teacher.class || "";
+      if (!teacherClass) return false;
+      // Check if class string contains the selected division
+      return teacherClass.toLowerCase().includes(selectedDivision.toLowerCase());
+    });
   }
 
   if (selectedSubject !== "All Subjects") {
@@ -105,6 +150,11 @@ export function TeachersTable({
   const handlePasswordResetClose = () => {
     setResetTeacher(null);
     setPasswordResetVisible(false);
+  };
+
+  const handleAllClasses = () => {
+    setSelectedClass(classFilter.defaultValue);
+    setSelectedDivision(divisionFilter.defaultValue);
   };
 
   const toggleRowSelection = (teacherId: string) => {
@@ -139,7 +189,10 @@ export function TeachersTable({
     <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-semibold">Teachers</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Teachers</h1>
+          <p className="text-sm text-gray-600 mt-1">All Teachers List</p>
+        </div>
         <Button onClick={onAddNew} className="gap-2">
           <Plus className="w-4 h-4" />
           Add New
@@ -147,8 +200,55 @@ export function TeachersTable({
       </div>
 
       {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
+        <div className="flex items-center gap-2">
+          <SlidersHorizontal className="h-5 w-5 text-gray-500" />
+          <Select value={selectedClass} onValueChange={setSelectedClass}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Class" />
+            </SelectTrigger>
+            <SelectContent>
+              {classFilter.options.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedDivision} onValueChange={setSelectedDivision}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Division" />
+            </SelectTrigger>
+            <SelectContent>
+              {divisionFilter.options.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Subject" />
+            </SelectTrigger>
+            <SelectContent>
+              {SUBJECT_OPTIONS.map((subject) => (
+                <SelectItem key={subject} value={subject}>
+                  {subject}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAllClasses}
+            className="whitespace-nowrap"
+          >
+            All Classes
+          </Button>
+        </div>
+        <div className="flex-1 max-w-md">
           <Input
             placeholder="Search by Name"
             value={searchQuery}
@@ -156,18 +256,6 @@ export function TeachersTable({
             className="w-full"
           />
         </div>
-        <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-          <SelectTrigger className="w-full sm:w-[180px]">
-            <SelectValue placeholder="Subject" />
-          </SelectTrigger>
-          <SelectContent>
-            {SUBJECT_OPTIONS.map((subject) => (
-              <SelectItem key={subject} value={subject}>
-                {subject}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Bulk Actions */}
@@ -192,16 +280,17 @@ export function TeachersTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
+              <TableRow className="bg-green-600 hover:bg-green-600">
+                <TableHead className="w-12 text-white">
                   <Checkbox
                     checked={allSelected}
                     onCheckedChange={toggleSelectAll}
                     aria-label="Select all"
+                    className="border-white data-[state=checked]:bg-white data-[state=checked]:text-green-600"
                   />
                 </TableHead>
                 {TEACHER_COLUMNS.map((column) => (
-                  <TableHead key={column.key} className={column.width}>
+                  <TableHead key={column.key} className={cn(column.width, "text-white font-semibold")}>
                     {column.title}
                   </TableHead>
                 ))}
@@ -223,6 +312,12 @@ export function TeachersTable({
               ) : (
                 filteredTeachers.map((teacher, index) => {
                   const isSelected = selectedRows.has(teacher.id);
+                  const registrationPhotoUrl = teacher.registrationPhotoUrl || null;
+                  const attendancePercentage = teacher.attendance?.percentage;
+                  const attendanceDisplay = attendancePercentage !== null && attendancePercentage !== undefined
+                    ? `${attendancePercentage}%`
+                    : "N/A";
+                  
                   return (
                     <TableRow
                       key={teacher.id}
@@ -239,19 +334,27 @@ export function TeachersTable({
                         />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {String(index + 1).padStart(2, "0")}
+                        {String((page * 15) + index + 1).padStart(2, "0")}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">
-                          {teacher.firstName} {teacher.lastName}
+                        <div className="flex items-center gap-3">
+                          <Avatar size="sm">
+                            {registrationPhotoUrl ? (
+                              <AvatarImage src={registrationPhotoUrl} alt={`${teacher.firstName} ${teacher.lastName}`} />
+                            ) : null}
+                            <AvatarFallback className="bg-green-100 text-green-700">
+                              {getInitials(teacher.firstName, teacher.lastName)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-medium">
+                            {teacher.firstName} {teacher.lastName}
+                          </span>
                         </div>
                       </TableCell>
                       <TableCell>{teacher.publicUserId || "N/A"}</TableCell>
                       <TableCell>{teacher.class || "N/A"}</TableCell>
                       <TableCell>{teacher.subjects || "N/A"}</TableCell>
-                      <TableCell>
-                        {teacher.attendance?.percentage || "N/A"}
-                      </TableCell>
+                      <TableCell>{attendanceDisplay}</TableCell>
                       <TableCell>{teacher.transport || "N/A"}</TableCell>
                       <TableCell>
                         <Badge
@@ -266,7 +369,7 @@ export function TeachersTable({
                           {teacher.salary || "N/A"}
                         </Badge>
                       </TableCell>
-                      <TableCell>{teacher.contact || "N/A"}</TableCell>
+                      <TableCell>{formatPhoneNumber(teacher.contact)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Button
@@ -361,4 +464,3 @@ export function TeachersTable({
     </div>
   );
 }
-

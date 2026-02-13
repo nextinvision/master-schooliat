@@ -334,21 +334,98 @@ router.get(
       ...paginateUtil.getPaginationParams(req),
     });
 
-    users.forEach((user) => {
-      user.attendance = {
-        percentage: 0,
-      };
-      // current month's salary status
-      user.salary = "PAID";
-      // fetch a class with classTeacherId as current teacher, if not present, it can be null
-      user.class = "Class";
-      // fetch subjects from timetable
-      user.subjects = "Maths, Science";
-    });
+    // Get current month for salary status
+    const currentDate = new Date();
+    const currentMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
 
-    users = await userService.attachFileURLs(users);
+    // Fetch real data for each teacher
+    const usersWithData = await Promise.all(
+      users.map(async (user) => {
+        // Get classes where this teacher is the class teacher
+        const classes = await prisma.class.findMany({
+          where: {
+            classTeacherId: user.id,
+            schoolId: schoolId || null,
+            deletedAt: null,
+          },
+          select: {
+            grade: true,
+            division: true,
+          },
+        });
 
-    return res.json({ message: "Teachers fetched!", data: users });
+        // Format classes as "12 - A, 7-B" format
+        const classStrings = classes.map((cls) => {
+          const division = cls.division ? ` - ${cls.division}` : "";
+          return `${cls.grade}${division}`;
+        });
+        const classDisplay = classStrings.length > 0 ? classStrings.join(", ") : null;
+
+        // Get subjects from timetable slots
+        const timetableSlots = await prisma.timetableSlot.findMany({
+          where: {
+            teacherId: user.id,
+            deletedAt: null,
+          },
+          include: {
+            subject: {
+              select: {
+                name: true,
+              },
+            },
+            timetable: {
+              where: {
+                schoolId: schoolId || null,
+                isActive: true,
+                deletedAt: null,
+              },
+            },
+          },
+        });
+
+        // Get unique subject names
+        const subjectNames = [
+          ...new Set(
+            timetableSlots
+              .filter((slot) => slot.timetable)
+              .map((slot) => slot.subject.name)
+          ),
+        ];
+        const subjectsDisplay = subjectNames.length > 0 ? subjectNames.join(", ") : null;
+
+        // Get transport status from teacher profile
+        const transportStatus = user.teacherProfile?.transportId ? "Yes" : "No";
+
+        // Get salary status for current month
+        const salaryPayment = await prisma.salaryPayments.findFirst({
+          where: {
+            userId: user.id,
+            schoolId: schoolId || null,
+            month: currentMonth,
+            deletedAt: null,
+          },
+        });
+        const salaryStatus = salaryPayment ? "PAID" : "DUE";
+
+        // Teacher attendance - not available in schema, return N/A
+        const attendancePercentage = null;
+
+        return {
+          ...user,
+          attendance: {
+            percentage: attendancePercentage,
+          },
+          salary: salaryStatus,
+          class: classDisplay,
+          subjects: subjectsDisplay,
+          transport: transportStatus,
+        };
+      })
+    );
+
+    const usersWithFileURLs = await userService.attachFileURLs(usersWithData);
+
+    return res.json({ message: "Teachers fetched!", data: usersWithFileURLs });
   },
 );
 
