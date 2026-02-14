@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useExams, useEnterMarks, useEnterBulkMarks } from "@/lib/hooks/use-marks";
 import { useClassesContext } from "@/lib/context/classes-context";
 import { useStudentsPage } from "@/lib/hooks/use-students";
+import { useSubjects } from "@/lib/hooks/use-subjects";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,9 @@ export default function MarksEntryPage() {
     classId: selectedClassId || undefined,
   });
   const { data: studentsData, isLoading: studentsLoading } = useStudentsPage(1, 1000);
+  const { data: subjectsData, isLoading: subjectsLoading } = useSubjects({
+    classId: selectedClassId || undefined,
+  });
 
   const enterMarks = useEnterMarks();
   const enterBulkMarks = useEnterBulkMarks();
@@ -159,17 +163,22 @@ export default function MarksEntryPage() {
             </div>
             <div className="space-y-2">
               <Label>Subject</Label>
-              <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* TODO: Fetch subjects from API */}
-                  <SelectItem value="sub1">Mathematics</SelectItem>
-                  <SelectItem value="sub2">Science</SelectItem>
-                  <SelectItem value="sub3">English</SelectItem>
-                </SelectContent>
-              </Select>
+              {subjectsLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Subject" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(subjectsData?.data || []).map((subject: any) => (
+                      <SelectItem key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
             <div className="space-y-2">
               <Label>Max Marks</Label>

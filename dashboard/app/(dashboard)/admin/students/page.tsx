@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useStudentsPage, useDeleteStudent } from "@/lib/hooks/use-students";
 import { StudentsTable } from "@/components/students/students-table";
+import { DeletionOTPModal } from "@/components/common/deletion-otp-modal";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -16,6 +17,14 @@ export default function StudentsPage() {
   const deleteStudent = useDeleteStudent();
   const students = data?.data ?? [];
   const totalPages = data?.totalPages ?? 1;
+
+  // OTP Modal state
+  const [otpModalOpen, setOtpModalOpen] = useState(false);
+  const [entityToDelete, setEntityToDelete] = useState<{
+    id: string;
+    name: string;
+    type: string;
+  } | null>(null);
 
   const handleAddNew = useCallback(() => {
     router.push("/admin/students/add");
@@ -30,15 +39,32 @@ export default function StudentsPage() {
 
   const handleDelete = useCallback(
     async (studentId: string) => {
+      const student = students.find((s: any) => s.id === studentId);
+      if (student) {
+        setEntityToDelete({
+          id: studentId,
+          name: `${student.firstName} ${student.lastName}`,
+          type: "student",
+        });
+        setOtpModalOpen(true);
+      }
+    },
+    [students]
+  );
+
+  const handleDeleteConfirmed = useCallback(
+    async () => {
+      if (!entityToDelete) return;
       try {
-        await deleteStudent.mutateAsync(studentId);
+        await deleteStudent.mutateAsync(entityToDelete.id);
         toast.success("Student deleted successfully!");
+        refetch();
       } catch (error: any) {
         console.error("Delete student failed:", error);
         toast.error(error?.message || "Failed to delete student. Please try again.");
       }
     },
-    [deleteStudent]
+    [entityToDelete, deleteStudent, refetch]
   );
 
   const handleBulkDelete = useCallback((ids: string[]) => {
@@ -77,6 +103,19 @@ export default function StudentsPage() {
         loading={isFetching}
         onRefresh={refetch}
       />
+
+      {/* Deletion OTP Modal */}
+      {entityToDelete && (
+        <DeletionOTPModal
+          open={otpModalOpen}
+          onOpenChange={setOtpModalOpen}
+          entityType={entityToDelete.type}
+          entityId={entityToDelete.id}
+          entityName={entityToDelete.name}
+          onSuccess={handleDeleteConfirmed}
+          onCancel={() => setEntityToDelete(null)}
+        />
+      )}
     </div>
   );
 }

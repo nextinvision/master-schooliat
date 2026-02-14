@@ -21,6 +21,7 @@ import getRolesSchema from "../schemas/user/get-roles.schema.js";
 import deleteStudentSchema from "../schemas/user/delete-student.schema.js";
 import deleteTeacherSchema from "../schemas/user/delete-teacher.schema.js";
 import deleteEmployeeSchema from "../schemas/user/delete-employee.schema.js";
+import requireDeletionOTP from "../middlewares/require-deletion-otp.middleware.js";
 import changePasswordSchema from "../schemas/user/change-password.schema.js";
 import resetPasswordSchema from "../schemas/user/reset-password.schema.js";
 import stringUtil from "../utils/string.util.js";
@@ -762,6 +763,7 @@ router.patch(
 router.delete(
   "/students/:id",
   withPermission(Permission.DELETE_STUDENT),
+  requireDeletionOTP,
   validateRequest(deleteStudentSchema),
   async (req, res) => {
     const { id } = req.params;
@@ -790,6 +792,7 @@ router.delete(
 router.delete(
   "/teachers/:id",
   withPermission(Permission.DELETE_TEACHER),
+  requireDeletionOTP,
   validateRequest(deleteTeacherSchema),
   async (req, res) => {
     const { id } = req.params;
@@ -818,6 +821,7 @@ router.delete(
 router.delete(
   "/employees/:id",
   withPermission(Permission.DELETE_EMPLOYEE),
+  requireDeletionOTP,
   validateRequest(deleteEmployeeSchema),
   async (req, res) => {
     const { id } = req.params;

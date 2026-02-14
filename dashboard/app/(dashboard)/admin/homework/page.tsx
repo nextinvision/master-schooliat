@@ -4,6 +4,8 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useHomework, useDeleteHomework } from "@/lib/hooks/use-homework";
 import { HomeworkTable } from "@/components/homework/homework-table";
+import { useDeleteWithOTP } from "@/lib/hooks/use-delete-with-otp";
+import { DeletionOTPModal } from "@/components/common/deletion-otp-modal";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -22,6 +24,25 @@ export default function HomeworkPage() {
   const homeworks = data?.data || [];
   const totalPages = data?.pagination?.totalPages || 1;
 
+  // OTP-enabled delete
+  const {
+    handleDelete: handleDeleteWithOTP,
+    otpModalOpen,
+    entityToDelete,
+    setOtpModalOpen,
+    handleDeleteConfirmed,
+    handleCancel,
+  } = useDeleteWithOTP(
+    async (id: string) => {
+      await deleteHomework.mutateAsync(id);
+      toast.success("Homework deleted successfully!");
+      refetch();
+    },
+    (homework: any) => homework.title || "Homework",
+    () => "homework",
+    () => refetch()
+  );
+
   const handleView = useCallback(
     (homework: any) => {
       router.push(`/admin/homework/${homework.id}`);
@@ -37,20 +58,13 @@ export default function HomeworkPage() {
   );
 
   const handleDelete = useCallback(
-    async (homeworkId: string) => {
-      if (!confirm("Are you sure you want to delete this homework?")) {
-        return;
-      }
-
-      try {
-        await deleteHomework.mutateAsync(homeworkId);
-        toast.success("Homework deleted successfully!");
-        refetch();
-      } catch (error: any) {
-        toast.error(error?.message || "Failed to delete homework");
+    (homeworkId: string) => {
+      const homework = homeworks.find((h: any) => h.id === homeworkId);
+      if (homework) {
+        handleDeleteWithOTP(homework);
       }
     },
-    [deleteHomework, refetch]
+    [homeworks, handleDeleteWithOTP]
   );
 
   const handleAddNew = useCallback(() => {
@@ -79,17 +93,30 @@ export default function HomeworkPage() {
   }
 
   return (
-    <HomeworkTable
-      homeworks={homeworks}
-      onView={handleView}
-      onEdit={handleEdit}
-      onDelete={handleDelete}
-      onAddNew={handleAddNew}
-      page={page}
-      onPageChange={setPage}
-      totalPages={totalPages}
-      loading={deleteHomework.isPending}
-    />
+    <>
+      <HomeworkTable
+        homeworks={homeworks}
+        onView={handleView}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onAddNew={handleAddNew}
+        page={page}
+        onPageChange={setPage}
+        totalPages={totalPages}
+        loading={deleteHomework.isPending}
+      />
+      {entityToDelete && (
+        <DeletionOTPModal
+          open={otpModalOpen}
+          onOpenChange={setOtpModalOpen}
+          entityType={entityToDelete.type}
+          entityId={entityToDelete.id}
+          entityName={entityToDelete.name}
+          onSuccess={handleDeleteConfirmed}
+          onCancel={handleCancel}
+        />
+      )}
+    </>
   );
 }
 

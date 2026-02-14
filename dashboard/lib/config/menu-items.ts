@@ -16,6 +16,30 @@ export const FINANCE_SUBMENU: SubMenuItem[] = [
   { name: "Salary Distribution", route: "/admin/finance/salary" },
 ];
 
+// Submenu items for Attendance
+export const ATTENDANCE_SUBMENU: SubMenuItem[] = [
+  { name: "Mark Attendance", route: "/admin/attendance" },
+  { name: "Reports", route: "/admin/attendance/reports" },
+];
+
+// Submenu items for Leave
+export const LEAVE_SUBMENU: SubMenuItem[] = [
+  { name: "My Leaves", route: "/admin/leave" },
+  { name: "Approvals", route: "/admin/leave/approvals" },
+];
+
+// Submenu items for Library
+export const LIBRARY_SUBMENU: SubMenuItem[] = [
+  { name: "Books", route: "/admin/library" },
+  { name: "Operations", route: "/admin/library/operations" },
+];
+
+// Submenu items for Results
+export const RESULTS_SUBMENU: SubMenuItem[] = [
+  { name: "Results", route: "/admin/results" },
+  { name: "Marks Entry", route: "/admin/marks/entry" },
+];
+
 export const MENU_ITEMS: MenuItem[] = [
   {
     name: "Dashboard",
@@ -41,6 +65,7 @@ export const MENU_ITEMS: MenuItem[] = [
     name: "Attendance",
     icon: "UserCheck",
     route: "/admin/attendance",
+    hasSubmenu: true,
   },
   {
     name: "Homework",
@@ -51,6 +76,7 @@ export const MENU_ITEMS: MenuItem[] = [
     name: "Leave Management",
     icon: "Calendar",
     route: "/admin/leave",
+    hasSubmenu: true,
   },
   {
     name: "Finance",
@@ -77,6 +103,7 @@ export const MENU_ITEMS: MenuItem[] = [
     name: "Library",
     icon: "BookOpen",
     route: "/admin/library",
+    hasSubmenu: true,
   },
   {
     name: "Notes & Syllabus",
@@ -97,6 +124,7 @@ export const MENU_ITEMS: MenuItem[] = [
     name: "Result Management",
     icon: "Award",
     route: "/admin/results",
+    hasSubmenu: true,
   },
   {
     name: "ID Cards",

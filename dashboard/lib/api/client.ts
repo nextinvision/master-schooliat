@@ -198,8 +198,8 @@ export function put(path: string, body?: any): Promise<any> {
   return request(path, { method: "PUT", body });
 }
 
-export function del(path: string): Promise<any> {
-  return request(path, { method: "DELETE" });
+export function del(path: string, body?: any): Promise<any> {
+  return request(path, { method: "DELETE", body });
 }
 
 export function patch(path: string, body?: any): Promise<any> {

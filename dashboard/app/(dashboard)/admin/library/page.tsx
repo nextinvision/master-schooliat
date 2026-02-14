@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useBooks, useLibraryDashboard, useDeleteBook } from "@/lib/hooks/use-library";
+import { useDeleteWithOTP } from "@/lib/hooks/use-delete-with-otp";
+import { DeletionOTPModal } from "@/components/common/deletion-otp-modal";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -38,6 +40,25 @@ export default function LibraryPage() {
   const totalPages = data?.pagination?.totalPages || 1;
   const dashboard = dashboardData?.data || {};
 
+  // OTP-enabled delete
+  const {
+    handleDelete: handleDeleteWithOTP,
+    otpModalOpen,
+    entityToDelete,
+    setOtpModalOpen,
+    handleDeleteConfirmed,
+    handleCancel,
+  } = useDeleteWithOTP(
+    async (id: string) => {
+      await deleteBook.mutateAsync(id);
+      toast.success("Book deleted successfully!");
+      refetch();
+    },
+    (book: any) => book.title || "Book",
+    () => "book",
+    () => refetch()
+  );
+
   const handleView = useCallback(
     (book: any) => {
       router.push(`/admin/library/${book.id}`);
@@ -53,20 +74,13 @@ export default function LibraryPage() {
   );
 
   const handleDelete = useCallback(
-    async (bookId: string) => {
-      if (!confirm("Are you sure you want to delete this book?")) {
-        return;
-      }
-
-      try {
-        await deleteBook.mutateAsync(bookId);
-        toast.success("Book deleted successfully!");
-        refetch();
-      } catch (error: any) {
-        toast.error(error?.message || "Failed to delete book");
+    (bookId: string) => {
+      const book = books.find((b: any) => b.id === bookId);
+      if (book) {
+        handleDeleteWithOTP(book);
       }
     },
-    [deleteBook, refetch]
+    [books, handleDeleteWithOTP]
   );
 
   const handleAddNew = useCallback(() => {
@@ -264,6 +278,19 @@ export default function LibraryPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Deletion OTP Modal */}
+      {entityToDelete && (
+        <DeletionOTPModal
+          open={otpModalOpen}
+          onOpenChange={setOtpModalOpen}
+          entityType={entityToDelete.type}
+          entityId={entityToDelete.id}
+          entityName={entityToDelete.name}
+          onSuccess={handleDeleteConfirmed}
+          onCancel={handleCancel}
+        />
+      )}
     </div>
   );
 }
