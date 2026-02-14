@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useFormContext, Controller, Control, useWatch } from "react-hook-form";
-import { useFileUpload, useFile } from "@/lib/hooks/use-file-upload";
+import { useFileUpload, useFile, getFileUrl } from "@/lib/hooks/use-file-upload";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2 } from "lucide-react";
@@ -62,16 +62,18 @@ export function PhotoUpload({
   });
 
   useEffect(() => {
-    if (existingFile?.url && !isRemoved) {
-      imageUriRef.current = existingFile.url;
-      setLocalImageUri(existingFile.url);
+    const fileUrl = getFileUrl(existingFile);
+    if (fileUrl && !isRemoved) {
+      imageUriRef.current = fileUrl;
+      setLocalImageUri(fileUrl);
     }
   }, [existingFile, isRemoved]);
 
   useEffect(() => {
-    if (uploadedFile?.url && !uploading && !existingImageUrl) {
-      imageUriRef.current = uploadedFile.url;
-      setLocalImageUri(uploadedFile.url);
+    const fileUrl = getFileUrl(uploadedFile);
+    if (fileUrl && !uploading && !existingImageUrl) {
+      imageUriRef.current = fileUrl;
+      setLocalImageUri(fileUrl);
     }
   }, [uploadedFile, uploading, existingImageUrl]);
 
@@ -133,8 +135,8 @@ export function PhotoUpload({
     imageUriRef.current ||
     localImageUri ||
     (!isRemoved && existingImageUrl) ||
-    uploadedFile?.url ||
-    existingFile?.url ||
+    getFileUrl(uploadedFile) ||
+    getFileUrl(existingFile) ||
     null;
 
   return (

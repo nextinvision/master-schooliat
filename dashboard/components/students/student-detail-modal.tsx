@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useFile } from "@/lib/hooks/use-file-upload";
+import { useFile, getFileUrl } from "@/lib/hooks/use-file-upload";
 import { User } from "lucide-react";
 import Image from "next/image";
 
@@ -24,7 +24,7 @@ export function StudentDetailModal({ visible, onClose, student }: StudentDetailM
     enabled: !!fileId && visible && !!student,
   });
 
-  const userImageUrl = userFile?.url;
+  const userImageUrl = getFileUrl(userFile);
 
   if (!student) return null;
 
