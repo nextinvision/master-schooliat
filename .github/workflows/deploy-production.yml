@@ -21,16 +21,35 @@ jobs:
         with:
           node-version: '20'
       
-      # Deploy Backend Production
-      - name: Deploy Backend Production
+      # Check SSH connectivity before deployment
+      - name: Check SSH Connectivity
+        id: ssh_check
         uses: appleboy/ssh-action@master
+        continue-on-error: true
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          timeout: 60s
-          command_timeout: 15m
+          timeout: 120s
+          command_timeout: 30s
+          debug: true
+          script: |
+            echo "Checking SSH connectivity..."
+            uptime
+            echo "SSH connection successful!"
+      
+      # Deploy Backend Production
+      - name: Deploy Backend Production
+        uses: appleboy/ssh-action@master
+        continue-on-error: false
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: 22
+          timeout: 180s
+          command_timeout: 25m
           debug: true
           script: |
             set -e
@@ -67,13 +86,14 @@ jobs:
       # Deploy Dashboard Production
       - name: Deploy Dashboard Production
         uses: appleboy/ssh-action@master
+        continue-on-error: false
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          timeout: 60s
-          command_timeout: 15m
+          timeout: 180s
+          command_timeout: 25m
           debug: true
           script: |
             set -e
@@ -101,13 +121,14 @@ jobs:
       # Deploy Landing
       - name: Deploy Landing
         uses: appleboy/ssh-action@master
+        continue-on-error: false
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: 22
-          timeout: 60s
-          command_timeout: 15m
+          timeout: 180s
+          command_timeout: 25m
           debug: true
           script: |
             set -e
