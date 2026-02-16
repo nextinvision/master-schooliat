@@ -557,29 +557,48 @@ const getTeacherDashboardData = async (schoolId, teacherId) => {
     }),
     // Get exams with upcoming dates from exam calendar items
     (async () => {
-      const upcomingExamCalendars = await prisma.examCalendar.findMany({
+      // First, find exam calendar items with upcoming dates
+      const upcomingItems = await prisma.examCalendarItem.findMany({
         where: {
-          schoolId,
-          examCalendarItems: {
-            some: {
-              date: { gte: currentDate },
-              deletedAt: null,
-            },
-          },
+          date: { gte: currentDate },
           deletedAt: null,
         },
-        include: {
-          examCalendarItems: {
-            where: {
-              deletedAt: null,
-            },
-            orderBy: {
-              date: "asc",
-            },
-          },
+        select: {
+          examCalendarId: true,
+        },
+        take: 50, // Get enough to find unique calendars
+      });
+      
+      const examCalendarIds = [...new Set(upcomingItems.map(item => item.examCalendarId))];
+      
+      if (examCalendarIds.length === 0) {
+        return [];
+      }
+      
+      // Get exam calendars
+      const upcomingExamCalendars = await prisma.examCalendar.findMany({
+        where: {
+          id: { in: examCalendarIds },
+          schoolId,
+          deletedAt: null,
         },
         take: 5,
       });
+      
+      // Fetch exam calendar items for these calendars
+      const calendarItemMap = new Map();
+      for (const ec of upcomingExamCalendars) {
+        const items = await prisma.examCalendarItem.findMany({
+          where: {
+            examCalendarId: ec.id,
+            deletedAt: null,
+          },
+          orderBy: {
+            date: "asc",
+          },
+        });
+        calendarItemMap.set(ec.id, items);
+      }
       
       // Fetch exams separately since there's no relation defined
       const examIds = [...new Set(upcomingExamCalendars.map(ec => ec.examId))];
@@ -596,6 +615,7 @@ const getTeacherDashboardData = async (schoolId, teacherId) => {
         ...examMap.get(ec.examId),
         examCalendar: {
           ...ec,
+          examCalendarItems: calendarItemMap.get(ec.id) || [],
           examId: undefined, // Remove redundant field
         },
       })).filter(e => e.id); // Filter out any exams that weren't found
@@ -769,29 +789,48 @@ const getStudentDashboardData = async (schoolId, studentId) => {
     }),
     // Get exams with upcoming dates from exam calendar items
     (async () => {
-      const upcomingExamCalendars = await prisma.examCalendar.findMany({
+      // First, find exam calendar items with upcoming dates
+      const upcomingItems = await prisma.examCalendarItem.findMany({
         where: {
-          schoolId,
-          examCalendarItems: {
-            some: {
-              date: { gte: currentDate },
-              deletedAt: null,
-            },
-          },
+          date: { gte: currentDate },
           deletedAt: null,
         },
-        include: {
-          examCalendarItems: {
-            where: {
-              deletedAt: null,
-            },
-            orderBy: {
-              date: "asc",
-            },
-          },
+        select: {
+          examCalendarId: true,
+        },
+        take: 50, // Get enough to find unique calendars
+      });
+      
+      const examCalendarIds = [...new Set(upcomingItems.map(item => item.examCalendarId))];
+      
+      if (examCalendarIds.length === 0) {
+        return [];
+      }
+      
+      // Get exam calendars
+      const upcomingExamCalendars = await prisma.examCalendar.findMany({
+        where: {
+          id: { in: examCalendarIds },
+          schoolId,
+          deletedAt: null,
         },
         take: 5,
       });
+      
+      // Fetch exam calendar items for these calendars
+      const calendarItemMap = new Map();
+      for (const ec of upcomingExamCalendars) {
+        const items = await prisma.examCalendarItem.findMany({
+          where: {
+            examCalendarId: ec.id,
+            deletedAt: null,
+          },
+          orderBy: {
+            date: "asc",
+          },
+        });
+        calendarItemMap.set(ec.id, items);
+      }
       
       // Fetch exams separately since there's no relation defined
       const examIds = [...new Set(upcomingExamCalendars.map(ec => ec.examId))];
@@ -808,6 +847,7 @@ const getStudentDashboardData = async (schoolId, studentId) => {
         ...examMap.get(ec.examId),
         examCalendar: {
           ...ec,
+          examCalendarItems: calendarItemMap.get(ec.id) || [],
           examId: undefined, // Remove redundant field
         },
       })).filter(e => e.id); // Filter out any exams that weren't found
@@ -871,7 +911,7 @@ const getStudentDashboardData = async (schoolId, studentId) => {
       },
       take: 5,
       orderBy: {
-        dueDate: "asc",
+        installementNumber: "asc",
       },
     }),
   ]);
