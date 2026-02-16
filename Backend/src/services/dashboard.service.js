@@ -605,7 +605,6 @@ const getTeacherDashboardData = async (schoolId, teacherId) => {
       const exams = await prisma.exam.findMany({
         where: {
           id: { in: examIds },
-          deletedAt: null,
         },
       });
       
@@ -837,7 +836,6 @@ const getStudentDashboardData = async (schoolId, studentId) => {
       const exams = await prisma.exam.findMany({
         where: {
           id: { in: examIds },
-          deletedAt: null,
         },
       });
       
@@ -905,9 +903,6 @@ const getStudentDashboardData = async (schoolId, studentId) => {
         studentId,
         paymentStatus: { in: ["PENDING", "PARTIALLY_PAID"] },
         deletedAt: null,
-      },
-      include: {
-        fee: true,
       },
       take: 5,
       orderBy: {
