@@ -24,6 +24,8 @@ const getDashboard = async (currentUser) => {
     return await getStudentDashboard(currentUser);
   } else if (roleName === RoleName.PARENT) {
     return await getParentDashboard(currentUser);
+  } else if (roleName === RoleName.EMPLOYEE) {
+    return await getEmployeeDashboard(currentUser);
   }
 
   return {};
@@ -943,6 +945,278 @@ const getParentDashboard = async (currentUser) => {
   );
 };
 
+// Employee Dashboard
+const getEmployeeDashboard = async (currentUser) => {
+  const employeeId = currentUser?.id;
+
+  if (!employeeId) {
+    return {};
+  }
+
+  const cacheKey = `dashboard:employee:${employeeId}`;
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      return await getEmployeeDashboardData();
+    },
+    5 * 60 * 1000, // 5 minutes TTL
+  );
+};
+
+const getEmployeeDashboardData = async () => {
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1;
+  const currentYear = currentDate.getFullYear();
+  const firstDayOfMonth = dateUtil.getFirstDayOfMonth(currentMonth, currentYear);
+  const lastDayOfMonth = dateUtil.getLastDayOfMonth(currentMonth, currentYear);
+
+  // Get role IDs for statistics
+  const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
+  const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+  const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+
+  const [
+    totalSchools,
+    activeLicenses,
+    expiringLicenses,
+    expiredLicenses,
+    totalVendors,
+    recentSchools,
+    recentLicenses,
+    recentReceipts,
+    monthlyRevenue,
+    totalRevenue,
+    licenseStatistics,
+  ] = await Promise.all([
+    // Total schools count
+    prisma.school.count({
+      where: { deletedAt: null },
+    }),
+    // Active licenses count
+    prisma.license.count({
+      where: {
+        status: "ACTIVE",
+        deletedAt: null,
+      },
+    }),
+    // Expiring soon licenses (within 30 days)
+    prisma.license.count({
+      where: {
+        status: "EXPIRING_SOON",
+        deletedAt: null,
+      },
+    }),
+    // Expired licenses count
+    prisma.license.count({
+      where: {
+        status: "EXPIRED",
+        deletedAt: null,
+      },
+    }),
+    // Total vendors count
+    prisma.vendor.count({
+      where: { deletedAt: null },
+    }),
+    // Recent schools (last 5)
+    prisma.school.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        email: true,
+        phone: true,
+        address: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    }),
+    // Recent licenses (last 5)
+    prisma.license.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        issuer: true,
+        issueDate: true,
+        expiryDate: true,
+        status: true,
+        certificateNumber: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    }),
+    // Recent receipts (last 10)
+    prisma.receipt.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        receiptNumber: true,
+        schoolId: true,
+        baseAmount: true,
+        amount: true,
+        paymentMethod: true,
+        createdAt: true,
+        school: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 10,
+    }),
+    // Monthly revenue (current month)
+    prisma.receipt.aggregate({
+      where: {
+        createdAt: {
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth,
+        },
+        deletedAt: null,
+      },
+      _sum: {
+        amount: true,
+      },
+      _count: {
+        id: true,
+      },
+    }),
+    // Total revenue (all time)
+    prisma.receipt.aggregate({
+      where: { deletedAt: null },
+      _sum: {
+        amount: true,
+      },
+      _count: {
+        id: true,
+      },
+    }),
+    // License statistics by status
+    prisma.license.groupBy({
+      by: ["status"],
+      where: { deletedAt: null },
+      _count: {
+        id: true,
+      },
+    }),
+  ]);
+
+  // Calculate student and staff counts for recent schools
+  const recentSchoolIds = recentSchools.map((school) => school.id);
+  const [studentCounts, teacherCounts, staffCounts] = await Promise.all([
+    recentSchoolIds.length > 0
+      ? prisma.user.groupBy({
+          by: ["schoolId"],
+          where: {
+            schoolId: { in: recentSchoolIds },
+            roleId: studentRole?.id,
+            userType: UserType.SCHOOL,
+            deletedAt: null,
+          },
+          _count: {
+            _all: true,
+          },
+        })
+      : [],
+    recentSchoolIds.length > 0
+      ? prisma.user.groupBy({
+          by: ["schoolId"],
+          where: {
+            schoolId: { in: recentSchoolIds },
+            roleId: teacherRole?.id,
+            userType: UserType.SCHOOL,
+            deletedAt: null,
+          },
+          _count: {
+            _all: true,
+          },
+        })
+      : [],
+    recentSchoolIds.length > 0
+      ? prisma.user.groupBy({
+          by: ["schoolId"],
+          where: {
+            schoolId: { in: recentSchoolIds },
+            roleId: staffRole?.id,
+            userType: UserType.SCHOOL,
+            deletedAt: null,
+          },
+          _count: {
+            _all: true,
+          },
+        })
+      : [],
+  ]);
+
+  // Create maps for O(1) lookup
+  const studentCountMap = new Map(
+    studentCounts.map((item) => [item.schoolId, item._count._all]),
+  );
+  const teacherCountMap = new Map(
+    teacherCounts.map((item) => [item.schoolId, item._count._all]),
+  );
+  const staffCountMap = new Map(
+    staffCounts.map((item) => [item.schoolId, item._count._all]),
+  );
+
+  // Enhance recent schools with statistics
+  const recentSchoolsWithStats = recentSchools.map((school) => ({
+    ...school,
+    studentCount: studentCountMap.get(school.id) || 0,
+    teacherCount: teacherCountMap.get(school.id) || 0,
+    staffCount: staffCountMap.get(school.id) || 0,
+    status: "Active",
+  }));
+
+  // Calculate license statistics summary
+  const licenseStatsMap = new Map(
+    licenseStatistics.map((stat) => [stat.status, stat._count.id]),
+  );
+
+  return {
+    // Overview statistics
+    totalSchools,
+    totalVendors,
+    totalLicenses: activeLicenses + expiringLicenses + expiredLicenses,
+    activeLicenses,
+    expiringLicenses,
+    expiredLicenses,
+    // License statistics breakdown
+    licenseStatistics: {
+      active: licenseStatsMap.get("ACTIVE") || 0,
+      expiringSoon: licenseStatsMap.get("EXPIRING_SOON") || 0,
+      expired: licenseStatsMap.get("EXPIRED") || 0,
+    },
+    // Financial statistics
+    revenue: {
+      monthly: {
+        amount: monthlyRevenue._sum.amount ? Number(monthlyRevenue._sum.amount) : 0,
+        receiptCount: monthlyRevenue._count.id || 0,
+        period: `${currentMonth}/${currentYear}`,
+      },
+      total: {
+        amount: totalRevenue._sum.amount ? Number(totalRevenue._sum.amount) : 0,
+        receiptCount: totalRevenue._count.id || 0,
+      },
+    },
+    // Recent data
+    recentSchools: recentSchoolsWithStats,
+    recentLicenses,
+    recentReceipts,
+  };
+};
+
 // Invalidate dashboard cache when data changes
 const invalidateDashboardCache = async (schoolId = null, userId = null, roleName = null) => {
   if (schoolId) {
@@ -964,6 +1238,7 @@ const dashboardService = {
   getStaffDashboard,
   getStudentDashboard,
   getParentDashboard,
+  getEmployeeDashboard,
   invalidateDashboardCache,
 };
 
