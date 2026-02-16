@@ -161,11 +161,11 @@ router.post(
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 30); // 30 minutes expiry
 
-    // Delete any existing unused reset tokens for this user (to avoid unique constraint violation)
+    // Delete ALL existing reset tokens for this user (to avoid unique constraint violation)
+    // The unique constraint is on userId, so we need to delete all tokens for this user
     await prisma.passwordResetToken.deleteMany({
       where: {
         userId: user.id,
-        isUsed: false,
       },
     });
 
