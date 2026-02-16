@@ -1,7 +1,14 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
 import pkg from "../prisma/generated/index.js";
-const { CircularStatus } = pkg;
+const { CircularStatus } = pkg || {};
+
+// Fallback if CircularStatus enum doesn't exist
+const StatusEnum = CircularStatus || {
+  DRAFT: "DRAFT",
+  PUBLISHED: "PUBLISHED",
+  ARCHIVED: "ARCHIVED",
+};
 import notificationService from "./notification.service.js";
 
 /**
@@ -26,7 +33,7 @@ const createCircular = async (data) => {
     data: {
       title,
       content,
-      status: CircularStatus.DRAFT,
+      status: StatusEnum.DRAFT,
       targetRoles,
       targetUserIds,
       classIds,
@@ -84,7 +91,7 @@ const publishCircular = async (circularId, publishedBy) => {
   const updatedCircular = await prisma.circular.update({
     where: { id: circularId },
     data: {
-      status: CircularStatus.PUBLISHED,
+      status: StatusEnum.PUBLISHED,
       publishedAt: new Date(),
       updatedBy: publishedBy,
     },

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import pkg from "../../prisma/generated/index.js";
-const { GalleryPrivacy } = pkg;
+const { GalleryPrivacy } = pkg || {};
 
 const getGalleriesSchema = z.object({
   request: z.object({}),
@@ -9,7 +9,7 @@ const getGalleriesSchema = z.object({
     limit: z.string().regex(/^\d+$/).transform(Number).optional().default("20"),
     eventId: z.string().uuid().optional(),
     classId: z.string().uuid().optional(),
-    privacy: z.nativeEnum(GalleryPrivacy).optional(),
+    privacy: z.enum(["PUBLIC", "PRIVATE", "SCHOOL_ONLY"]).optional(),
   }),
   params: z.object({}),
 });

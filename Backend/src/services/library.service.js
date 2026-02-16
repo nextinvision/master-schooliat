@@ -1,6 +1,13 @@
 import prisma from "../prisma/client.js";
 import pkg from "../prisma/generated/index.js";
-const { LibraryIssueStatus } = pkg;
+const { LibraryIssueStatus } = pkg || {};
+
+// Fallback if LibraryIssueStatus enum doesn't exist
+const IssueStatusEnum = LibraryIssueStatus || {
+  ISSUED: "ISSUED",
+  RETURNED: "RETURNED",
+  OVERDUE: "OVERDUE",
+};
 import logger from "../config/logger.js";
 import notificationService from "./notification.service.js";
 
@@ -108,7 +115,7 @@ const issueBook = async (data) => {
   const overdueIssues = await prisma.libraryIssue.findMany({
     where: {
       userId,
-      status: LibraryIssueStatus.OVERDUE,
+      status: IssueStatusEnum.OVERDUE,
       deletedAt: null,
     },
   });
@@ -124,7 +131,7 @@ const issueBook = async (data) => {
       userId,
       issuedDate: new Date(),
       dueDate: new Date(dueDate),
-      status: LibraryIssueStatus.ISSUED,
+      status: IssueStatusEnum.ISSUED,
       schoolId,
       createdBy,
     },
@@ -157,7 +164,7 @@ const returnBook = async (issueId, data) => {
     include: { book: true },
   });
 
-  if (!issue || issue.status === LibraryIssueStatus.RETURNED) {
+  if (!issue || issue.status === IssueStatusEnum.RETURNED) {
     throw new Error("Issue not found or already returned");
   }
 
@@ -176,7 +183,7 @@ const returnBook = async (issueId, data) => {
     where: { id: issueId },
     data: {
       returnDate,
-      status: LibraryIssueStatus.RETURNED,
+      status: IssueStatusEnum.RETURNED,
       fineAmount,
       remarks,
       updatedBy,
@@ -356,7 +363,7 @@ const calculateOverdueFines = async (schoolId) => {
   const overdueIssues = await prisma.libraryIssue.findMany({
     where: {
       schoolId,
-      status: LibraryIssueStatus.ISSUED,
+      status: IssueStatusEnum.ISSUED,
       dueDate: {
         lt: today,
       },
@@ -372,7 +379,7 @@ const calculateOverdueFines = async (schoolId) => {
     await prisma.libraryIssue.update({
       where: { id: issue.id },
       data: {
-        status: LibraryIssueStatus.OVERDUE,
+        status: IssueStatusEnum.OVERDUE,
         fineAmount,
       },
     });
@@ -429,14 +436,14 @@ const getLibrarianDashboard = async (schoolId) => {
     prisma.libraryIssue.count({
       where: {
         schoolId,
-        status: LibraryIssueStatus.ISSUED,
+        status: IssueStatusEnum.ISSUED,
         deletedAt: null,
       },
     }),
     prisma.libraryIssue.count({
       where: {
         schoolId,
-        status: LibraryIssueStatus.OVERDUE,
+        status: IssueStatusEnum.OVERDUE,
         deletedAt: null,
       },
     }),
