@@ -29,12 +29,83 @@ export function useChangePassword() {
 
 export interface Settings {
   id: string;
-  schoolId: string;
+  schoolId: string | null;
   logoId?: string;
   logoUrl?: string;
   studentFeeInstallments?: number;
   studentFeeAmount?: number;
+  platformConfig?: PlatformConfig;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PlatformConfig {
+  // Branding
+  branding?: {
+    platformName?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    faviconId?: string;
+  };
+  // System
+  system?: {
+    maintenanceMode?: boolean;
+    maintenanceMessage?: string;
+    smtp?: {
+      host?: string;
+      port?: number;
+      user?: string;
+      password?: string;
+      fromEmail?: string;
+      fromName?: string;
+    };
+    notifications?: {
+      emailEnabled?: boolean;
+      pushEnabled?: boolean;
+      smsEnabled?: boolean;
+    };
+  };
+  // Security
+  security?: {
+    ipWhitelist?: string[];
+    global2FA?: boolean;
+    passwordPolicy?: {
+      minLength?: number;
+      requireUppercase?: boolean;
+      requireLowercase?: boolean;
+      requireNumbers?: boolean;
+      requireSpecialChars?: boolean;
+      preventReuse?: number;
+    };
+    sessionTimeout?: number; // minutes
+    jwtExpiration?: number; // hours
+  };
+  // Performance
+  performance?: {
+    cacheEnabled?: boolean;
+    cacheTTL?: number; // seconds
+    paginationDefault?: number;
+    fileUploadLimit?: number; // MB
+    queryTimeout?: number; // seconds
+  };
+  // Audit
+  audit?: {
+    retentionDays?: number;
+    logLevel?: "DEBUG" | "INFO" | "WARN" | "ERROR";
+    enableActivityTracking?: boolean;
+  };
+  // AI
+  ai?: {
+    chatbotEnabled?: boolean;
+    conversationRetentionDays?: number;
+    responseConfig?: {
+      maxTokens?: number;
+      temperature?: number;
+    };
+  };
+  // Features
+  features?: {
+    [key: string]: boolean;
+  };
 }
 

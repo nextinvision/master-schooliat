@@ -792,6 +792,9 @@ model Settings {
 
   logoId String? @map("logo_id")
 
+  // Platform configuration (JSON field for super admin settings)
+  platformConfig Json? @map("platform_config")
+
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
   deletedBy String?   @map("deleted_by")

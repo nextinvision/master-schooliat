@@ -96,6 +96,7 @@ router.patch(
           studentFeeAmount: updateData.studentFeeAmount ?? 0,
           currentInstallmentNumber: updateData.currentInstallmentNumber ?? 1,
           logoId: updateData.logoId ?? null,
+          platformConfig: updateData.platformConfig ?? {},
           createdBy: currentUser.id,
         },
       });
@@ -130,6 +131,14 @@ router.patch(
     }
     if (updateData.logoId !== undefined) {
       settingsUpdateData.logoId = updateData.logoId;
+    }
+    if (updateData.platformConfig !== undefined) {
+      // Merge with existing platform config if it exists
+      const existingConfig = existingSettings.platformConfig || {};
+      settingsUpdateData.platformConfig = {
+        ...existingConfig,
+        ...updateData.platformConfig,
+      };
     }
 
     settingsUpdateData.updatedBy = currentUser.id;
