@@ -24,7 +24,7 @@ const ClassesContext = createContext<ClassesContextType | undefined>(undefined);
 export function ClassesProvider({ children }: { children: ReactNode }) {
   const { data: classesData, isLoading, error, refetch } = useQuery({
     queryKey: ["classes"],
-    queryFn: () => get("/classes", { page: 1, limit: 100 }),
+    queryFn: () => get("/schools/classes", { pageNumber: 1, pageSize: 100 }),
   });
 
   const [classes, setClasses] = useState<Class[]>([]);

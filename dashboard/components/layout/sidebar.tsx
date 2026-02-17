@@ -156,13 +156,9 @@ export function Sidebar() {
       {/* Logo Container */}
       <div className="flex items-center px-3 py-2.5 gap-2 border-b border-gray-800 justify-center lg:justify-start">
         <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center flex-shrink-0">
-          <Image
-            src="/logo.png"
-            alt="SchooliAT Logo"
-            width={28}
-            height={28}
-            className="object-contain"
-          />
+          <div className="w-full h-full bg-gradient-to-br from-green-500 to-green-600 rounded flex items-center justify-center text-white font-bold text-xs">
+            SA
+          </div>
         </div>
         {isOpen && (
           <span className="text-base font-medium text-white ml-2 whitespace-nowrap">

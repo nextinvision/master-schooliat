@@ -22,7 +22,7 @@ import authorize from "./middlewares/authorize.middleware.js";
 import addReponseStatusToBody from "./middlewares/add-response-status-to-body.middleware.js";
 import errorHandler from "./middlewares/error-handler.middleware.js";
 import authRouter from "./routers/auth.router.js";
-// import userRouter from "./routers/user.router.js"; // Commented out - router not found
+import userRouter from "./routers/user.router.js";
 import schoolRouter from "./routers/school.router.js";
 import regionRouter from "./routers/region.router.js";
 import vendorRouter from "./routers/vendor.router.js";
@@ -218,7 +218,7 @@ async function main() {
 }
 
 function addRouters(app) {
-  // app.use("/users", userRouter); // Commented out - router not found
+  app.use("/users", userRouter);
   app.use("/schools", schoolRouter);
   app.use("/regions", regionRouter);
   app.use("/vendors", vendorRouter);

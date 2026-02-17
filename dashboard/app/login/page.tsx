@@ -130,13 +130,9 @@ export default function LoginPage() {
         <div className="z-10 text-center">
           <div className="mb-8">
             <div className="w-24 h-24 bg-white rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
-              <Image
-                src="/logo.png"
-                alt="SchooliAT Logo"
-                width={60}
-                height={60}
-                className="object-contain"
-              />
+              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center text-white font-bold text-2xl">
+                SA
+              </div>
             </div>
             <h1 className="text-4xl font-bold text-white mb-2">SchooliAT</h1>
             <p className="text-white/90 text-lg">
