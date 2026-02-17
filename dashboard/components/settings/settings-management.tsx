@@ -18,7 +18,7 @@ import {
 import { Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-export function SettingsManagement() {
+export function SchoolSettingsManagement() {
   const { toast } = useToast();
   const { data: settingsData, isLoading: isSettingsLoading } = useSettings();
   const updateSettings = useUpdateSettings();
@@ -111,7 +111,10 @@ export function SettingsManagement() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <div>
+        <h1 className="text-2xl font-semibold">School Settings</h1>
+        <p className="text-gray-600 mt-1">Manage your school configuration and preferences</p>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* School Logo */}

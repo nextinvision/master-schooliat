@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
+import { RoleName } from "../prisma/generated/index.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
 import getSettingsSchema from "../schemas/settings/get-settings.schema.js";
 import updateSettingsSchema from "../schemas/settings/update-settings.schema.js";
@@ -9,15 +10,20 @@ import fileService from "../services/file.service.js";
 
 const router = Router();
 
-// GET settings for current school
+// GET settings - Platform settings for SUPER_ADMIN, School settings for SCHOOL_ADMIN
 router.get(
   "/",
   withPermission(Permission.GET_SETTINGS),
   validateRequest(getSettingsSchema),
   async (req, res) => {
     const currentUser = req.context.user;
+    const userRole = currentUser.role?.name;
 
-    if (!currentUser.schoolId) {
+    // Determine if this is platform settings (SUPER_ADMIN) or school settings (SCHOOL_ADMIN)
+    const isPlatformSettings = userRole === RoleName.SUPER_ADMIN;
+    const targetSchoolId = isPlatformSettings ? null : currentUser.schoolId;
+
+    if (!isPlatformSettings && !currentUser.schoolId) {
       return res.json({
         message: "Settings - school context required",
         data: {
@@ -28,7 +34,7 @@ router.get(
 
     const settings = await prisma.settings.findFirst({
       where: {
-        schoolId: currentUser.schoolId,
+        schoolId: targetSchoolId,
         deletedAt: null,
       },
     });
@@ -48,7 +54,7 @@ router.get(
   },
 );
 
-// PATCH settings for current school (creates if not exists)
+// PATCH settings - Platform settings for SUPER_ADMIN, School settings for SCHOOL_ADMIN
 router.patch(
   "/",
   withPermission(Permission.EDIT_SETTINGS),
@@ -56,8 +62,13 @@ router.patch(
   async (req, res) => {
     const updateData = req.body.request || {};
     const currentUser = req.context.user;
+    const userRole = currentUser.role?.name;
 
-    if (!currentUser.schoolId) {
+    // Determine if this is platform settings (SUPER_ADMIN) or school settings (SCHOOL_ADMIN)
+    const isPlatformSettings = userRole === RoleName.SUPER_ADMIN;
+    const targetSchoolId = isPlatformSettings ? null : currentUser.schoolId;
+
+    if (!isPlatformSettings && !currentUser.schoolId) {
       return res.json({
         message: "Settings - school context required",
         data: {
@@ -66,10 +77,10 @@ router.patch(
       });
     }
 
-    // Check if settings exist for this school
+    // Check if settings exist
     const existingSettings = await prisma.settings.findFirst({
       where: {
-        schoolId: currentUser.schoolId,
+        schoolId: targetSchoolId,
         deletedAt: null,
       },
     });
@@ -80,7 +91,7 @@ router.patch(
       // Create new settings with defaults and apply provided values
       resultSettings = await prisma.settings.create({
         data: {
-          schoolId: currentUser.schoolId,
+          schoolId: targetSchoolId,
           studentFeeInstallments: updateData.studentFeeInstallments ?? 12,
           studentFeeAmount: updateData.studentFeeAmount ?? 0,
           currentInstallmentNumber: updateData.currentInstallmentNumber ?? 1,
