@@ -36,7 +36,7 @@ export default function AuditLogsPage() {
     endDate: "",
   });
 
-  const { data, isLoading } = useAuditLogs({
+  const { data, isLoading, error } = useAuditLogs({
     ...filters,
     page,
     limit: 20,
@@ -44,6 +44,11 @@ export default function AuditLogsPage() {
 
   const logs = (data?.data || []) as AuditLog[];
   const pagination = data?.pagination;
+
+  // Handle error state
+  if (error) {
+    console.error("Error fetching audit logs:", error);
+  }
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters({ ...filters, [key]: value });
