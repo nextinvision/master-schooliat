@@ -217,5 +217,20 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     icon: "MessageSquare",
     route: "/super-admin/grievances",
   },
+  {
+    name: "Reports & Analytics",
+    icon: "BarChart3",
+    route: "/super-admin/reports",
+  },
+  {
+    name: "Settings",
+    icon: "ShieldCheck",
+    route: "/super-admin/settings",
+  },
+  {
+    name: "Help",
+    icon: "Info",
+    route: "/super-admin/help",
+  },
 ];
 

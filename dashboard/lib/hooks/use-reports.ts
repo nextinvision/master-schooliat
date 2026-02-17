@@ -7,6 +7,7 @@ import { get } from "@/lib/api/client";
 function fetchAttendanceReports(params: {
   classId?: string;
   studentId?: string;
+  schoolId?: string;
   startDate?: string;
   endDate?: string;
 }) {
@@ -16,6 +17,7 @@ function fetchAttendanceReports(params: {
 // Fetch fee analytics
 function fetchFeeAnalytics(params: {
   classId?: string;
+  schoolId?: string;
   startDate?: string;
   endDate?: string;
 }) {
@@ -28,6 +30,7 @@ function fetchAcademicReports(params: {
   examId?: string;
   subjectId?: string;
   studentId?: string;
+  schoolId?: string;
 }) {
   return get("/reports/academic", params);
 }
@@ -44,6 +47,7 @@ function fetchSalaryReports(params: {
 export function useAttendanceReports(params: {
   classId?: string;
   studentId?: string;
+  schoolId?: string;
   startDate?: string;
   endDate?: string;
 } = {}) {
@@ -56,6 +60,7 @@ export function useAttendanceReports(params: {
 
 export function useFeeAnalytics(params: {
   classId?: string;
+  schoolId?: string;
   startDate?: string;
   endDate?: string;
 } = {}) {
@@ -71,6 +76,7 @@ export function useAcademicReports(params: {
   examId?: string;
   subjectId?: string;
   studentId?: string;
+  schoolId?: string;
 } = {}) {
   return useQuery({
     queryKey: ["reports", "academic", params],
