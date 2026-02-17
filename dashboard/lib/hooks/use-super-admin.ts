@@ -272,8 +272,18 @@ export interface School {
   email: string;
   phone: string;
   address: string[];
-  status: string;
+  status?: string;
   createdAt: string;
+  userCount?: number;
+  gstNumber?: string;
+  principalName?: string;
+  principalEmail?: string;
+  principalPhone?: string;
+  establishedYear?: number;
+  boardAffiliation?: string;
+  studentStrength?: number;
+  certificateLink?: string;
+  regionId?: string;
 }
 
 export interface CreateSchoolData {
