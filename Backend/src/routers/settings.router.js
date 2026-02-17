@@ -32,36 +32,100 @@ router.get(
       });
     }
 
-    const settings = await prisma.settings.findFirst({
-      where: {
-        schoolId: targetSchoolId,
-        deletedAt: null,
-      },
-    });
+    try {
+      const settings = await prisma.settings.findFirst({
+        where: {
+          schoolId: targetSchoolId,
+          deletedAt: null,
+        },
+      });
 
-    let logoUrl = null;
-    if (settings?.logoId) {
-      const logoFile = await fileService.getFileById(settings.logoId);
-      if (logoFile) {
-        logoUrl = fileService.attachFileURL(logoFile).url;
+      let logoUrl = null;
+      if (settings?.logoId) {
+        const logoFile = await fileService.getFileById(settings.logoId);
+        if (logoFile) {
+          logoUrl = fileService.attachFileURL(logoFile).url;
+        }
       }
-    }
 
-    // Handle platformConfig field safely (may not exist if migration not applied)
-    let settingsData = settings;
-    if (settings) {
-      settingsData = { ...settings };
-      // Only include platformConfig if it exists (migration applied)
-      if (settings.platformConfig === undefined) {
-        // Field doesn't exist yet, don't include it
-        delete settingsData.platformConfig;
+      // Handle platformConfig field safely (may not exist if migration not applied)
+      let settingsData = settings;
+      if (settings) {
+        settingsData = { ...settings };
+        // Only include platformConfig if it exists (migration applied)
+        if (settingsData.platformConfig === undefined) {
+          // Field doesn't exist yet, don't include it
+          delete settingsData.platformConfig;
+        }
       }
-    }
 
-    return res.json({
-      message: "Settings fetched!",
-      data: settingsData ? { ...settingsData, logoUrl } : null,
-    });
+      return res.json({
+        message: "Settings fetched!",
+        data: settingsData ? { ...settingsData, logoUrl } : null,
+      });
+    } catch (error) {
+      // If error is due to platformConfig column not existing (migration not applied),
+      // try querying without that field using raw SQL
+      if (error.message && (error.message.includes('platform_config') || error.message.includes('column') || error.code === '42703')) {
+        try {
+          // Use raw query to exclude platformConfig column
+          const rawSettings = await prisma.$queryRaw`
+            SELECT id, school_id, student_fee_installments, student_fee_amount, 
+                   current_installement_number, logo_id, created_by, updated_by, 
+                   deleted_by, created_at, updated_at, deleted_at
+            FROM settings
+            WHERE school_id ${targetSchoolId === null ? prisma.sql`IS NULL` : prisma.sql`= ${targetSchoolId}`}
+            AND deleted_at IS NULL
+            LIMIT 1
+          `;
+          
+          const settings = rawSettings[0] || null;
+          
+          let logoUrl = null;
+          if (settings?.logo_id) {
+            const logoFile = await fileService.getFileById(settings.logo_id);
+            if (logoFile) {
+              logoUrl = fileService.attachFileURL(logoFile).url;
+            }
+          }
+
+          // Map raw query result to expected format
+          const settingsData = settings ? {
+            id: settings.id,
+            schoolId: settings.school_id,
+            studentFeeInstallments: settings.student_fee_installments,
+            studentFeeAmount: settings.student_fee_amount,
+            currentInstallmentNumber: settings.current_installement_number,
+            logoId: settings.logo_id,
+            createdBy: settings.created_by,
+            updatedBy: settings.updated_by,
+            deletedBy: settings.deleted_by,
+            createdAt: settings.created_at,
+            updatedAt: settings.updated_at,
+            deletedAt: settings.deleted_at,
+            logoUrl,
+          } : null;
+
+          return res.json({
+            message: "Settings fetched!",
+            data: settingsData,
+          });
+        } catch (rawError) {
+          console.error("Error fetching settings (raw query):", rawError);
+          return res.status(500).json({
+            message: "Failed to fetch settings",
+            error: rawError.message,
+          });
+        }
+      }
+      
+      // Log error for debugging
+      console.error("Error fetching settings:", error);
+      return res.status(500).json({
+        message: "Failed to fetch settings",
+        error: error.message,
+      });
+    }
   },
 );
 
