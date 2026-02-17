@@ -28,6 +28,7 @@ import {
   useCreateRegion,
   useUpdateRegion,
   useDeleteRegion,
+  type Region,
 } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -42,12 +43,12 @@ export default function RegionsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [selectedRegion, setSelectedRegion] = useState<{ id: string; name: string } | null>(null);
+  const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [formData, setFormData] = useState({ name: "" });
 
-  const regions = data?.data || [];
-  const filteredRegions = regions.filter((region) =>
+  const regions = (data?.data || []) as Region[];
+  const filteredRegions = regions.filter((region: Region) =>
     region.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -126,13 +127,13 @@ export default function RegionsPage() {
     }
   };
 
-  const openEditDialog = (region: { id: string; name: string }) => {
+  const openEditDialog = (region: Region) => {
     setSelectedRegion(region);
     setFormData({ name: region.name });
     setIsEditOpen(true);
   };
 
-  const openDeleteDialog = (region: { id: string; name: string }) => {
+  const openDeleteDialog = (region: Region) => {
     setSelectedRegion(region);
     setIsDeleteOpen(true);
   };

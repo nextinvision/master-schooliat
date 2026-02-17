@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
-import { useAuditLogs } from "@/lib/hooks/use-super-admin";
+import { useAuditLogs, type AuditLog } from "@/lib/hooks/use-super-admin";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 
@@ -42,7 +42,7 @@ export default function AuditLogsPage() {
     limit: 20,
   });
 
-  const logs = data?.data || [];
+  const logs = (data?.data || []) as AuditLog[];
   const pagination = data?.pagination;
 
   const handleFilterChange = (key: string, value: string) => {
@@ -170,7 +170,7 @@ export default function AuditLogsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logs.map((log: any) => (
+                  {logs.map((log: AuditLog) => (
                     <TableRow key={log.id}>
                       <TableCell className="text-xs">
                         {format(new Date(log.createdAt), "MMM dd, yyyy HH:mm:ss")}

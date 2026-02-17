@@ -20,14 +20,18 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { FileText, Search, Eye, Download } from "lucide-react";
-import { useTemplates, useTemplateDefaults } from "@/lib/hooks/use-super-admin";
+import {
+  useTemplates,
+  useTemplateDefaults,
+  type Template,
+} from "@/lib/hooks/use-super-admin";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 
 export default function TemplatesPage() {
   const [filterType, setFilterType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState<any>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const { data, isLoading } = useTemplates(filterType === "all" ? undefined : filterType);
@@ -35,14 +39,14 @@ export default function TemplatesPage() {
     selectedTemplate?.id || ""
   );
 
-  const templates = data?.data || [];
-  const filteredTemplates = templates.filter((template: any) =>
+  const templates = (data?.data || []) as Template[];
+  const filteredTemplates = templates.filter((template: Template) =>
     template.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const templateTypes = Array.from(new Set(templates.map((t: any) => t.type)));
+  const templateTypes = Array.from(new Set(templates.map((t: Template) => t.type)));
 
-  const openPreview = (template: any) => {
+  const openPreview = (template: Template) => {
     setSelectedTemplate(template);
     setIsPreviewOpen(true);
   };
@@ -101,7 +105,7 @@ export default function TemplatesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredTemplates.map((template: any) => (
+              {filteredTemplates.map((template: Template) => (
                 <Card key={template.id} className="overflow-hidden">
                   <div className="relative h-48 bg-gray-100">
                     {template.imageUrl ? (

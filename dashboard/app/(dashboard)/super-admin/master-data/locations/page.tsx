@@ -37,6 +37,9 @@ import {
   useCreateLocation,
   useUpdateLocation,
   useDeleteLocation,
+  type Location,
+  type Region,
+  type Employee,
 } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,7 +56,7 @@ export default function LocationsPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [selectedLocation, setSelectedLocation] = useState<any>(null);
+  const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRegion, setFilterRegion] = useState<string>("all");
   const [filterEmployee, setFilterEmployee] = useState<string>("all");
@@ -63,11 +66,11 @@ export default function LocationsPage() {
     employeeId: "",
   });
 
-  const locations = locationsData?.data || [];
-  const regions = regionsData?.data || [];
-  const employees = employeesData?.data || [];
+  const locations = (locationsData?.data || []) as Location[];
+  const regions = (regionsData?.data || []) as Region[];
+  const employees = (employeesData?.data || []) as Employee[];
 
-  const filteredLocations = locations.filter((location: any) => {
+  const filteredLocations = locations.filter((location: Location) => {
     const matchesSearch = location.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesRegion = filterRegion === "all" || location.regionId === filterRegion;
     const matchesEmployee = filterEmployee === "all" || location.employeeId === filterEmployee;
@@ -149,7 +152,7 @@ export default function LocationsPage() {
     }
   };
 
-  const openEditDialog = (location: any) => {
+  const openEditDialog = (location: Location) => {
     setSelectedLocation(location);
     setFormData({
       name: location.name,
@@ -159,7 +162,7 @@ export default function LocationsPage() {
     setIsEditOpen(true);
   };
 
-  const openDeleteDialog = (location: any) => {
+  const openDeleteDialog = (location: Location) => {
     setSelectedLocation(location);
     setIsDeleteOpen(true);
   };
@@ -207,7 +210,7 @@ export default function LocationsPage() {
                     <SelectValue placeholder="Select region" />
                   </SelectTrigger>
                   <SelectContent>
-                    {regions.map((region: any) => (
+                    {regions.map((region: Region) => (
                       <SelectItem key={region.id} value={region.id}>
                         {region.name}
                       </SelectItem>
@@ -225,7 +228,7 @@ export default function LocationsPage() {
                     <SelectValue placeholder="Select employee" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.map((employee: any) => (
+                    {employees.map((employee: Employee) => (
                       <SelectItem key={employee.id} value={employee.id}>
                         {employee.firstName} {employee.lastName}
                       </SelectItem>
@@ -266,7 +269,7 @@ export default function LocationsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Regions</SelectItem>
-                  {regions.map((region: any) => (
+                  {regions.map((region: Region) => (
                     <SelectItem key={region.id} value={region.id}>
                       {region.name}
                     </SelectItem>
@@ -279,7 +282,7 @@ export default function LocationsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Employees</SelectItem>
-                  {employees.map((employee: any) => (
+                    {employees.map((employee: Employee) => (
                     <SelectItem key={employee.id} value={employee.id}>
                       {employee.firstName} {employee.lastName}
                     </SelectItem>
@@ -313,7 +316,7 @@ export default function LocationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredLocations.map((location: any) => (
+                {filteredLocations.map((location: Location) => (
                   <TableRow key={location.id}>
                     <TableCell className="font-medium">{location.name}</TableCell>
                     <TableCell>{location.region?.name || "-"}</TableCell>
@@ -374,7 +377,7 @@ export default function LocationsPage() {
                   <SelectValue placeholder="Select region" />
                 </SelectTrigger>
                 <SelectContent>
-                  {regions.map((region: any) => (
+                  {regions.map((region: Region) => (
                     <SelectItem key={region.id} value={region.id}>
                       {region.name}
                     </SelectItem>
@@ -392,7 +395,7 @@ export default function LocationsPage() {
                   <SelectValue placeholder="Select employee" />
                 </SelectTrigger>
                 <SelectContent>
-                  {employees.map((employee: any) => (
+                    {employees.map((employee: Employee) => (
                     <SelectItem key={employee.id} value={employee.id}>
                       {employee.firstName} {employee.lastName}
                     </SelectItem>
