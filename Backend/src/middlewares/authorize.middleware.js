@@ -67,6 +67,20 @@ const authorize = async (req, res, next) => {
       throw ApiErrors.UNAUTHORIZED;
     }
 
+    // Validate role exists
+    if (!user.role) {
+      logger.error(
+        { userId, roleId: user.roleId },
+        "Authorization failed: User role not found",
+      );
+      throw ApiErrors.UNAUTHORIZED;
+    }
+
+    // Ensure permissions is always an array
+    const permissions = Array.isArray(user.role.permissions)
+      ? user.role.permissions
+      : [];
+
     // Set context with fresh user data
     req.context = {
       user: {
@@ -80,7 +94,7 @@ const authorize = async (req, res, next) => {
         lastName: user.lastName,
         role: user.role,
       },
-      permissions: user.role.permissions,
+      permissions: permissions,
     };
 
     next();
