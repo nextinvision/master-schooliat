@@ -1,0 +1,127 @@
+"use client";
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { get, post, put, del } from "@/lib/api/client";
+
+// Send chat message
+function sendChatMessage(data: { query: string }) {
+  return post("/ai/chat", { request: data });
+}
+
+// Get conversation history
+function fetchConversations(params: { page?: number; limit?: number } = {}) {
+  return get("/ai/conversations", params);
+}
+
+// Get conversation by ID
+function fetchConversationById(conversationId: string) {
+  return get(`/ai/conversations/${conversationId}`);
+}
+
+// Get FAQs
+function fetchFAQs(params: { category?: string; search?: string; page?: number; limit?: number } = {}) {
+  return get("/ai/faqs", params);
+}
+
+// Create FAQ
+function createFAQ(data: {
+  question: string;
+  answer: string;
+  category?: string;
+  keywords?: string[];
+}) {
+  return post("/ai/faqs", { request: data });
+}
+
+// Update FAQ
+function updateFAQ(faqId: string, data: {
+  question?: string;
+  answer?: string;
+  category?: string;
+  keywords?: string[];
+  isActive?: boolean;
+}) {
+  return put(`/ai/faqs/${faqId}`, { request: data });
+}
+
+// Delete FAQ
+function deleteFAQ(faqId: string) {
+  return del(`/ai/faqs/${faqId}`);
+}
+
+// Hooks
+export function useChatMessage() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: { query: string }) => sendChatMessage(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai", "conversations"] });
+    },
+  });
+}
+
+export function useConversations(params: { page?: number; limit?: number } = {}) {
+  return useQuery({
+    queryKey: ["ai", "conversations", params],
+    queryFn: () => fetchConversations(params),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useConversationById(conversationId: string) {
+  return useQuery({
+    queryKey: ["ai", "conversation", conversationId],
+    queryFn: () => fetchConversationById(conversationId),
+    enabled: !!conversationId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useFAQs(params: { category?: string; search?: string; page?: number; limit?: number } = {}) {
+  return useQuery({
+    queryKey: ["ai", "faqs", params],
+    queryFn: () => fetchFAQs(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateFAQ() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      question: string;
+      answer: string;
+      category?: string;
+      keywords?: string[];
+    }) => createFAQ(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai", "faqs"] });
+    },
+  });
+}
+
+export function useUpdateFAQ() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, ...data }: { id: string; [key: string]: any }) =>
+      updateFAQ(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai", "faqs"] });
+    },
+  });
+}
+
+export function useDeleteFAQ() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (faqId: string) => deleteFAQ(faqId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["ai", "faqs"] });
+    },
+  });
+}
+
