@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { useChatMessage, useConversations } from "@/lib/hooks/use-ai";
+import { toast } from "sonner";
 
 interface Message {
   id: number;
@@ -50,6 +52,9 @@ export function ChatBot() {
   const [inputText, setInputText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  
+  const chatMutation = useChatMessage();
+  const { data: conversationsData } = useConversations({ page: 1, limit: 1 });
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -60,7 +65,7 @@ export function ChatBot() {
     }, 100);
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputText.trim()) return;
 
     const userMessage: Message = {
@@ -71,22 +76,35 @@ export function ChatBot() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const queryText = inputText.trim();
     setInputText("");
     scrollToBottom();
 
     setIsTyping(true);
 
-    setTimeout(() => {
-      setIsTyping(false);
+    try {
+      const response = await chatMutation.mutateAsync({ query: queryText });
       const botResponse: Message = {
         id: Date.now() + 1,
         type: "bot",
-        text: "Thanks for your message! This feature will be connected to AI soon. For now, I'm just a placeholder response. 🚀",
+        text: response.data?.response || response.data?.answer || "I'm here to help! How can I assist you further?",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, botResponse]);
       scrollToBottom();
-    }, 1500);
+    } catch (error: any) {
+      const errorMessage: Message = {
+        id: Date.now() + 1,
+        type: "bot",
+        text: "Sorry, I encountered an error. Please try again or contact support if the issue persists.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      toast.error(error?.message || "Failed to process your query");
+      scrollToBottom();
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const formatTime = (date: Date) => {

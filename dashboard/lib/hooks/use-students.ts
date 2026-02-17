@@ -149,3 +149,12 @@ export function useDeleteStudent() {
   });
 }
 
+// Wrapper hook for simpler API
+export function useStudents(params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ["students", params?.page || 1, params?.limit || 1000],
+    queryFn: () => fetchStudents({ page: params?.page || 1, limit: params?.limit || 1000 }),
+    staleTime: 30 * 1000,
+  });
+}
+
