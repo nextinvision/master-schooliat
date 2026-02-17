@@ -54,7 +54,11 @@ export function ChatBot() {
   const scrollRef = useRef<HTMLDivElement>(null);
   
   const chatMutation = useChatMessage();
-  const { data: conversationsData } = useConversations({ page: 1, limit: 1 });
+  // Only fetch when chatbot is open to avoid 403 on every page load (when role lacks GET_CHATBOT_HISTORY in DB)
+  const { data: conversationsData } = useConversations(
+    { page: 1, limit: 1 },
+    { enabled: isOpen }
+  );
 
   const scrollToBottom = () => {
     setTimeout(() => {

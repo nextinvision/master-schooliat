@@ -67,7 +67,11 @@ const emptyConversationsResult = {
   pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
 };
 
-export function useConversations(params: { page?: number; limit?: number } = {}) {
+export function useConversations(
+  params: { page?: number; limit?: number } = {},
+  options?: { enabled?: boolean }
+) {
+  const enabled = options?.enabled ?? true;
   return useQuery({
     queryKey: ["ai", "conversations", params],
     queryFn: async () => {
@@ -81,6 +85,8 @@ export function useConversations(params: { page?: number; limit?: number } = {})
       }
     },
     staleTime: 30 * 1000,
+    enabled,
+    ...options,
   });
 }
 

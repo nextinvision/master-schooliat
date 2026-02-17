@@ -36,7 +36,8 @@
     "migrate:production": "bash scripts/migrate-production.sh",
     "migrate:status": "bash scripts/check-migration-status.sh",
     "migrate:seed": "bash scripts/migrate-and-seed.sh",
-    "migrate:seed:production": "bash scripts/migrate-and-seed-production.sh"
+    "migrate:seed:production": "bash scripts/migrate-and-seed-production.sh",
+    "check:dashboard-db": "node scripts/check-dashboard-db.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
