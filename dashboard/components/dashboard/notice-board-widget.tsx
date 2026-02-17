@@ -33,7 +33,7 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
   };
 
   return (
-    <Card className="card-hover-lift transition-all duration-300 hover:shadow-xl">
+    <Card className="relative isolate transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
