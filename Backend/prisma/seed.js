@@ -150,12 +150,24 @@ async function seedRoles() {
     ],
     [RoleName.EMPLOYEE]: [
       Permission.GET_SCHOOLS,
+      Permission.CREATE_SCHOOL,
+      Permission.EDIT_SCHOOL,
+      Permission.DELETE_SCHOOL,
       Permission.GET_VENDORS,
       Permission.CREATE_VENDOR,
       Permission.EDIT_VENDOR,
+      Permission.DELETE_VENDOR,
       Permission.GET_REGIONS,
       Permission.CREATE_REGION,
-      Permission.CREATE_SCHOOL,
+      Permission.EDIT_REGION,
+      Permission.DELETE_REGION,
+      Permission.GET_LICENSES,
+      Permission.CREATE_LICENSE,
+      Permission.UPDATE_LICENSE,
+      Permission.GET_RECEIPTS,
+      Permission.CREATE_RECEIPT,
+      Permission.GET_STATISTICS,
+      Permission.GET_DASHBOARD_STATS,
       Permission.CREATE_GRIEVANCE,
       Permission.GET_MY_GRIEVANCES,
       Permission.ADD_GRIEVANCE_COMMENT,
@@ -261,8 +273,16 @@ async function seedRoles() {
       seedData.roles[roleName] = role.id;
       logger.info(`Created role: ${roleName}`);
     } else {
-      seedData.roles[roleName] = existingRole.id;
-      logger.info(`Role already exists: ${roleName}`);
+      // Update permissions for existing role to ensure they match the seed data
+      const updatedRole = await prisma.role.update({
+        where: { name: roleName },
+        data: {
+          permissions: permissions,
+          updatedBy: "seed",
+        },
+      });
+      seedData.roles[roleName] = updatedRole.id;
+      logger.info(`Updated permissions for existing role: ${roleName}`);
     }
   }
 }

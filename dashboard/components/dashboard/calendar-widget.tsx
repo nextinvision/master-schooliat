@@ -66,17 +66,18 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
   };
 
   return (
-    <Card>
+    <Card className="card-hover-lift transition-all duration-300 hover:shadow-xl">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-[#678d3d]" />
             {format(displayMonth, "MMMM yyyy")}
           </CardTitle>
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 transition-all hover:bg-gray-100 hover:scale-110"
               onClick={handlePreviousMonth}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -84,7 +85,7 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
             <Button
               variant="ghost"
               size="icon"
-              className="h-8 w-8"
+              className="h-8 w-8 transition-all hover:bg-gray-100 hover:scale-110"
               onClick={handleNextMonth}
             >
               <ChevronRight className="h-4 w-4" />
@@ -120,10 +121,10 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
                 key={date.toISOString()}
                 onClick={() => handleDateClick(date)}
                 className={cn(
-                  "aspect-square rounded-md text-sm transition-colors relative",
-                  "hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-green-500",
-                  isToday && "bg-green-100 font-semibold",
-                  isSelected && !isToday && "bg-green-200",
+                  "aspect-square rounded-md text-sm transition-all duration-200 relative",
+                  "hover:bg-gray-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500",
+                  isToday && "bg-green-100 font-semibold ring-2 ring-green-400",
+                  isSelected && !isToday && "bg-green-200 scale-105",
                   !isToday && !isSelected && "hover:bg-gray-50"
                 )}
               >
@@ -147,7 +148,7 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
         {/* Manage Calendar button */}
         <Button
           variant="outline"
-          className="w-full mt-4"
+          className="w-full mt-4 transition-all duration-300 hover:bg-[#678d3d] hover:text-white hover:shadow-md hover:-translate-y-0.5"
           onClick={handleManageCalendar}
         >
           <CalendarIcon className="h-4 w-4 mr-2" />

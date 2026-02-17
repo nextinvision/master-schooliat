@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { useVendorStats, useVendors } from "@/lib/hooks/use-super-admin";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
+import { cn } from "@/lib/utils";
 import {
   Store,
   Star,
@@ -79,16 +80,7 @@ export default function EmployeeDashboardPage() {
   const isLoading = statsLoading || vendorsLoading;
 
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-32 w-full" />
-        <div className="grid grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-      </div>
-    );
+    return <PremiumLoadingSkeleton />;
   }
 
   const StatCard = ({
@@ -104,19 +96,28 @@ export default function EmployeeDashboardPage() {
     return (
       <Link href="/employee/vendors">
         <Card
-          className="cursor-pointer transition-all hover:shadow-md"
+          className={cn(
+            "cursor-pointer transition-all duration-300",
+            "card-hover-lift hover:shadow-xl hover:-translate-y-1"
+          )}
           style={{ backgroundColor: config.bgColor }}
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div
-                className="p-2 rounded-lg"
+                className={cn(
+                  "p-2 rounded-lg transition-transform duration-300",
+                  "hover:scale-110"
+                )}
                 style={{ backgroundColor: `${config.color}20` }}
               >
                 <Icon className="w-5 h-5" style={{ color: config.color }} />
               </div>
               <div>
-                <p className="text-2xl font-bold" style={{ color: config.color }}>
+                <p 
+                  className="text-2xl font-bold animate-count-up" 
+                  style={{ color: config.color }}
+                >
                   {count}
                 </p>
                 <p className="text-sm font-medium" style={{ color: `${config.color}cc` }}>
@@ -131,31 +132,48 @@ export default function EmployeeDashboardPage() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
+    <div className="space-y-6 animate-fade-in">
+      {/* Header with Premium Styling */}
       <div
-        className="rounded-2xl p-6 text-white"
+        className={cn(
+          "rounded-2xl p-6 text-white relative overflow-hidden",
+          "animate-slide-up shadow-2xl"
+        )}
         style={{
           background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
         }}
       >
-        <div className="flex items-start justify-between mb-6">
-          <div>
+        {/* Animated Background Elements */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="flex items-start justify-between mb-6 relative z-10">
+          <div className="animate-slide-in-left">
             <p className="text-sm opacity-90 mb-1">Good {getGreeting()}</p>
             <h1 className="text-3xl font-bold">Welcome Back! 👋</h1>
           </div>
         </div>
 
         {/* Total Vendors Card */}
-        <Card className="bg-white">
+        <Card 
+          className={cn(
+            "bg-white relative z-10 animate-scale-in",
+            "card-hover-lift transition-all duration-300"
+          )}
+          style={{ animationDelay: "0.2s", opacity: 0, animationFillMode: "forwards" }}
+        >
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600 mb-1">Total Vendors</p>
-                <p className="text-4xl font-bold text-gray-900">{stats.total}</p>
+                <p 
+                  className="text-4xl font-bold text-gray-900 animate-count-up"
+                  style={{ animation: "countUp 0.6s ease-out" }}
+                >
+                  {stats.total}
+                </p>
                 <p className="text-xs text-gray-500 mt-1">Assigned to you</p>
               </div>
-              <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-green-50 flex items-center justify-center transition-transform duration-300 hover:scale-110">
                 <Store className="w-10 h-10 text-green-300" />
               </div>
             </div>
@@ -187,12 +205,15 @@ export default function EmployeeDashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div>
+      <div className="animate-slide-up" style={{ animationDelay: "0.4s", opacity: 0, animationFillMode: "forwards" }}>
         <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-2 gap-4">
           <Link href="/employee/add-vendor">
             <Button
-              className="w-full h-20 text-white"
+              className={cn(
+                "w-full h-20 text-white transition-all duration-300",
+                "hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02]"
+              )}
               style={{
                 background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
               }}
@@ -203,7 +224,10 @@ export default function EmployeeDashboardPage() {
           </Link>
           <Link href="/employee/vendors">
             <Button
-              className="w-full h-20 text-white"
+              className={cn(
+                "w-full h-20 text-white transition-all duration-300",
+                "hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02]"
+              )}
               style={{
                 background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
               }}
@@ -244,11 +268,17 @@ export default function EmployeeDashboardPage() {
                 LEAD_STATUS_CONFIG.NEW;
               return (
                 <Link key={vendor.id} href="/employee/vendors">
-                  <Card className="cursor-pointer transition-all hover:shadow-md">
+                  <Card className={cn(
+                    "cursor-pointer transition-all duration-300",
+                    "card-hover-lift hover:shadow-xl hover:-translate-y-1"
+                  )}>
                     <CardContent className="p-4">
                       <div className="flex items-center gap-3">
                         <div
-                          className="w-11 h-11 rounded-lg flex items-center justify-center"
+                          className={cn(
+                            "w-11 h-11 rounded-lg flex items-center justify-center",
+                            "transition-transform duration-300 hover:scale-110"
+                          )}
                           style={{ backgroundColor: statusConfig.bgColor }}
                         >
                           <Store

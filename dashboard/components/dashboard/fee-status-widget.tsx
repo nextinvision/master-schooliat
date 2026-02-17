@@ -34,10 +34,13 @@ export function FeeStatusWidget({
   const pendingPercentage = total > 0 ? (((pending + partiallyPaid) / total) * 100).toFixed(1) : "0";
 
   return (
-    <Card>
+    <Card className="card-hover-lift transition-all duration-300 hover:shadow-xl">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">Fee Status</CardTitle>
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#678d3d] animate-pulse" />
+            Fee Status
+          </CardTitle>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
             <SelectTrigger className="w-20 h-8 text-xs">
               <SelectValue />
@@ -52,7 +55,7 @@ export function FeeStatusWidget({
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Paid Fees Card */}
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Paid</span>
               <Badge className="bg-green-500 hover:bg-green-600 text-white">
@@ -68,7 +71,7 @@ export function FeeStatusWidget({
           </div>
 
           {/* Pending Fees Card */}
-          <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+          <div className="p-4 bg-orange-50 rounded-lg border border-orange-200 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Pending</span>
               <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
