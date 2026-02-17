@@ -159,7 +159,15 @@ export function SchoolsManagement() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            router.push(`/super-admin/schools/${school.id}`)
+                          }
+                          title="View Details"
+                        >
                           <Eye className="w-4 h-4" />
                         </Button>
                         <Button
@@ -167,8 +175,11 @@ export function SchoolsManagement() {
                           size="icon"
                           className="h-8 w-8"
                           onClick={() =>
-                            router.push("/super-admin/receipts/generate")
+                            router.push(
+                              `/super-admin/receipts/generate?schoolId=${school.id}`
+                            )
                           }
+                          title="Generate Receipt"
                         >
                           <Receipt className="w-4 h-4" />
                         </Button>

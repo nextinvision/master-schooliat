@@ -32,11 +32,51 @@ export function useSchools(search?: string) {
   });
 }
 
+export function useSchool(id: string) {
+  return useQuery({
+    queryKey: ["school", id],
+    queryFn: async () => {
+      // Get school from list and find by ID
+      const response = await get("/schools");
+      const schools = response?.data || [];
+      return schools.find((s: School) => s.id === id) || null;
+    },
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useCreateSchool() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (formData: CreateSchoolData) =>
       post("/schools", { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schools"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+      queryClient.invalidateQueries({ queryKey: ["schoolStatistics"] });
+    },
+  });
+}
+
+export function useUpdateSchool() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateSchoolData>) =>
+      patch(`/schools/${id}`, { request: formData }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["schools"] });
+      queryClient.invalidateQueries({ queryKey: ["school", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+      queryClient.invalidateQueries({ queryKey: ["schoolStatistics"] });
+    },
+  });
+}
+
+export function useDeleteSchool() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/schools/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
