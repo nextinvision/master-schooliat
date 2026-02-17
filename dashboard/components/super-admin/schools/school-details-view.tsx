@@ -47,6 +47,7 @@ import {
   useRegions,
   useSchoolStatistics,
   type School,
+  type Region,
 } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -85,7 +86,7 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
   });
 
   const school = data as School | null;
-  const regions = regionsData?.data || [];
+  const regions = (regionsData?.data || []) as Region[];
   const schoolStats = statisticsData?.data?.schools?.find(
     (s: any) => s.id === schoolId
   );
