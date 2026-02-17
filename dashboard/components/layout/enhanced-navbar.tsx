@@ -3,11 +3,11 @@
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
 import { 
-  ArrowLeft, 
   Settings, 
   Bell, 
   Search, 
   Menu,
+  X,
   User,
   LogOut,
   ChevronDown
@@ -25,12 +25,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { clearToken } from "@/lib/auth/storage";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useSidebar } from "@/lib/context/sidebar-context";
 import { cn } from "@/lib/utils";
 
 export function EnhancedNavbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
+  const { isOpen, toggle } = useSidebar();
   const [searchQuery, setSearchQuery] = useState("");
 
   const isSuperAdminRoute = pathname.startsWith("/super-admin");
@@ -70,10 +72,15 @@ export function EnhancedNavbar() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => router.back()}
+          onClick={toggle}
           className="rounded-full bg-gray-50 border border-gray-200 hover:bg-gray-100 h-9 w-9 lg:h-10 lg:w-10"
+          title={isOpen ? "Close Sidebar" : "Open Sidebar"}
         >
-          <ArrowLeft className="h-4 w-4 lg:h-5 lg:w-5 text-gray-600" />
+          {isOpen ? (
+            <X className="h-4 w-4 lg:h-5 lg:w-5 text-gray-600" />
+          ) : (
+            <Menu className="h-4 w-4 lg:h-5 lg:w-5 text-gray-600" />
+          )}
         </Button>
 
         {/* Search Bar */}

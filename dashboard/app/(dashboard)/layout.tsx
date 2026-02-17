@@ -1,11 +1,10 @@
 "use client";
 
 import { useAuth } from "@/lib/hooks/use-auth";
-import { Sidebar } from "@/components/layout/sidebar";
-import { EnhancedNavbar } from "@/components/layout/enhanced-navbar";
-import { ChatBot } from "@/components/layout/chatbot";
 import { usePathname } from "next/navigation";
 import { ClassesProvider } from "@/lib/context/classes-context";
+import { SidebarProvider } from "@/lib/context/sidebar-context";
+import { LayoutContent } from "./layout-content";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardLayout({
@@ -41,17 +40,9 @@ export default function DashboardLayout({
 
   return (
     <ClassesProvider>
-      <div className="flex min-h-screen bg-gray-100">
-        <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0 ml-[220px] lg:ml-[300px]">
-          <EnhancedNavbar />
-          <main className="flex-1 overflow-y-auto p-4 lg:p-7 mt-16 lg:mt-20 min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-5rem)]">
-            {children}
-          </main>
-        </div>
-        {/* ChatBot for School Admin */}
-        {isSchoolAdminRoute && <ChatBot />}
-      </div>
+      <SidebarProvider>
+        <LayoutContent>{children}</LayoutContent>
+      </SidebarProvider>
     </ClassesProvider>
   );
 }
