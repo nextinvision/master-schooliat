@@ -110,12 +110,24 @@ jobs:
             echo "Building dashboard with production API URL..."
             NODE_ENV=production npm run build
             echo "Copying build to production directory..."
+            # Ensure production directory structure exists
+            mkdir -p /opt/schooliat/dashboard/production/current
+            # Remove old build
+            rm -rf /opt/schooliat/dashboard/production/current/.next
             rm -rf /opt/schooliat/dashboard/production/.next
-            cp -r .next /opt/schooliat/dashboard/production/
-            cp -r public /opt/schooliat/dashboard/production/ 2>/dev/null || true
-            cp package.json /opt/schooliat/dashboard/production/
+            # Copy new build to current directory (where PM2 runs from)
+            cp -r .next /opt/schooliat/dashboard/production/current/
+            cp -r public /opt/schooliat/dashboard/production/current/ 2>/dev/null || true
+            cp package.json /opt/schooliat/dashboard/production/current/
+            # Also copy to parent for backup
+            cp -r .next /opt/schooliat/dashboard/production/ 2>/dev/null || true
+            echo "Clearing Next.js cache..."
+            rm -rf /opt/schooliat/dashboard/production/current/.next/cache
             echo "Restarting PM2 process..."
             pm2 restart schooliat-dashboard-production --update-env
+            echo "Waiting for PM2 to fully restart..."
+            sleep 5
+            pm2 status schooliat-dashboard-production
             echo "Dashboard Production deployment complete!"
       
       # Deploy Landing
