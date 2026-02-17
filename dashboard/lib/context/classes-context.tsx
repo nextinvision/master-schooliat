@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api/client";
 
@@ -22,9 +23,14 @@ interface ClassesContextType {
 const ClassesContext = createContext<ClassesContextType | undefined>(undefined);
 
 export function ClassesProvider({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  // Only fetch classes on school-admin routes; super-admin has no schoolId and no GET_CLASSES permission
+  const isSuperAdminRoute = pathname?.startsWith("/super-admin") ?? false;
+
   const { data: classesData, isLoading, error, refetch } = useQuery({
     queryKey: ["classes"],
     queryFn: () => get("/schools/classes", { pageNumber: 1, pageSize: 100 }),
+    enabled: !isSuperAdminRoute,
   });
 
   const [classes, setClasses] = useState<Class[]>([]);
