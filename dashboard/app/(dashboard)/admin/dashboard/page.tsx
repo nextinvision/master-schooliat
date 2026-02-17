@@ -4,7 +4,8 @@ import { useDashboard } from "@/lib/hooks/use-dashboard";
 import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
 import { PremiumStatCard } from "@/components/dashboard/premium-stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, GraduationCap, UserCheck, Briefcase, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { GraduationCap, UserCheck, Briefcase, Bell, AlertCircle, RefreshCw } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 import { NoticeBoardWidget } from "@/components/dashboard/notice-board-widget";
@@ -12,8 +13,10 @@ import { FinancialOverviewWidget } from "@/components/dashboard/financial-overvi
 import { FeeStatusWidget } from "@/components/dashboard/fee-status-widget";
 import { cn } from "@/lib/utils";
 
+const CHART_HEIGHT = 300;
+
 export default function AdminDashboardPage() {
-  const { data, isLoading } = useDashboard();
+  const { data, isLoading, isError, refetch } = useDashboard();
   const stats = data?.data || {};
 
   const school = stats.school || {};
@@ -53,6 +56,23 @@ export default function AdminDashboardPage() {
 
   if (isLoading) {
     return <PremiumLoadingSkeleton />;
+  }
+
+  if (isError) {
+    return (
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardContent className="flex flex-col items-center justify-center gap-4 py-12">
+          <AlertCircle className="h-12 w-12 text-amber-600" />
+          <p className="text-center text-sm text-amber-800">
+            Could not load dashboard. Please try again.
+          </p>
+          <Button onClick={() => refetch()} variant="outline" size="sm" className="gap-2">
+            <RefreshCw className="h-4 w-4" />
+            Retry
+          </Button>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (
@@ -193,9 +213,9 @@ export default function AdminDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ width: "100%", height: "300px", minHeight: "300px", minWidth: 1 }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
-                <LineChart 
+            <div style={{ width: "100%", height: CHART_HEIGHT }} role="img" aria-label="Earnings chart">
+              <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+                <LineChart
                 data={earningsData}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
               >
@@ -259,8 +279,8 @@ export default function AdminDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center" style={{ width: "100%", height: "300px", minHeight: "300px", minWidth: 1 }}>
-              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
+            <div className="flex items-center justify-center" style={{ width: "100%", height: CHART_HEIGHT }} role="img" aria-label="Students distribution chart">
+              <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
                 <PieChart>
                   <Pie
                     data={pieData}

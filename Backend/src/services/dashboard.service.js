@@ -11,25 +11,46 @@ import cacheService from "./cache.service.js";
 import logger from "../config/logger.js";
 
 const getDashboard = async (currentUser) => {
-  const roleName = currentUser?.role?.name;
+  try {
+    const roleName = currentUser?.role?.name;
 
-  if (roleName === RoleName.SUPER_ADMIN) {
-    return await getSuperAdminDashboard();
-  } else if (roleName === RoleName.SCHOOL_ADMIN) {
-    return await getSchoolAdminDashboard(currentUser);
-  } else if (roleName === RoleName.TEACHER) {
-    return await getTeacherDashboard(currentUser);
-  } else if (roleName === RoleName.STAFF) {
-    return await getStaffDashboard(currentUser);
-  } else if (roleName === RoleName.STUDENT) {
-    return await getStudentDashboard(currentUser);
-  } else if (roleName === RoleName.PARENT) {
-    return await getParentDashboard(currentUser);
-  } else if (roleName === RoleName.EMPLOYEE) {
-    return await getEmployeeDashboard(currentUser);
+    if (roleName === RoleName.SUPER_ADMIN) {
+      return await getSuperAdminDashboard();
+    }
+    if (roleName === RoleName.SCHOOL_ADMIN) {
+      return await getSchoolAdminDashboard(currentUser);
+    }
+    if (roleName === RoleName.TEACHER) {
+      return await getTeacherDashboard(currentUser);
+    }
+    if (roleName === RoleName.STAFF) {
+      return await getStaffDashboard(currentUser);
+    }
+    if (roleName === RoleName.STUDENT) {
+      return await getStudentDashboard(currentUser);
+    }
+    if (roleName === RoleName.PARENT) {
+      return await getParentDashboard(currentUser);
+    }
+    if (roleName === RoleName.EMPLOYEE) {
+      return await getEmployeeDashboard(currentUser);
+    }
+
+    // Unknown role or missing role - return fallback for school admin if we have schoolId
+    if (currentUser?.schoolId) {
+      return await getSchoolAdminDashboardFallback(currentUser.schoolId);
+    }
+    return {};
+  } catch (err) {
+    logger.error(
+      { err: err.message, stack: err.stack, userId: currentUser?.id, schoolId: currentUser?.schoolId },
+      "getDashboard failed",
+    );
+    if (currentUser?.schoolId) {
+      return await getSchoolAdminDashboardFallback(currentUser.schoolId);
+    }
+    return {};
   }
-
-  return {};
 };
 
 const getSuperAdminDashboard = async () => {
