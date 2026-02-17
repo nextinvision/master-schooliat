@@ -47,9 +47,20 @@ router.get(
       }
     }
 
+    // Handle platformConfig field safely (may not exist if migration not applied)
+    let settingsData = settings;
+    if (settings) {
+      settingsData = { ...settings };
+      // Only include platformConfig if it exists (migration applied)
+      if (settings.platformConfig === undefined) {
+        // Field doesn't exist yet, don't include it
+        delete settingsData.platformConfig;
+      }
+    }
+
     return res.json({
       message: "Settings fetched!",
-      data: settings ? { ...settings, logoUrl } : null,
+      data: settingsData ? { ...settingsData, logoUrl } : null,
     });
   },
 );
@@ -89,16 +100,22 @@ router.patch(
 
     if (!existingSettings) {
       // Create new settings with defaults and apply provided values
+      const createData = {
+        schoolId: targetSchoolId,
+        studentFeeInstallments: updateData.studentFeeInstallments ?? 12,
+        studentFeeAmount: updateData.studentFeeAmount ?? 0,
+        currentInstallmentNumber: updateData.currentInstallmentNumber ?? 1,
+        logoId: updateData.logoId ?? null,
+        createdBy: currentUser.id,
+      };
+      
+      // Only include platformConfig if provided (migration may not be applied yet)
+      if (updateData.platformConfig !== undefined) {
+        createData.platformConfig = updateData.platformConfig;
+      }
+      
       resultSettings = await prisma.settings.create({
-        data: {
-          schoolId: targetSchoolId,
-          studentFeeInstallments: updateData.studentFeeInstallments ?? 12,
-          studentFeeAmount: updateData.studentFeeAmount ?? 0,
-          currentInstallmentNumber: updateData.currentInstallmentNumber ?? 1,
-          logoId: updateData.logoId ?? null,
-          platformConfig: updateData.platformConfig ?? {},
-          createdBy: currentUser.id,
-        },
+        data: createData,
       });
 
       let logoUrl = null;
@@ -134,7 +151,11 @@ router.patch(
     }
     if (updateData.platformConfig !== undefined) {
       // Merge with existing platform config if it exists
-      const existingConfig = existingSettings.platformConfig || {};
+      // Handle case where platformConfig field might not exist yet (migration not applied)
+      let existingConfig = {};
+      if (existingSettings.platformConfig !== undefined && existingSettings.platformConfig !== null) {
+        existingConfig = existingSettings.platformConfig;
+      }
       settingsUpdateData.platformConfig = {
         ...existingConfig,
         ...updateData.platformConfig,
@@ -143,10 +164,24 @@ router.patch(
 
     settingsUpdateData.updatedBy = currentUser.id;
 
-    resultSettings = await prisma.settings.update({
-      where: { id: existingSettings.id },
-      data: settingsUpdateData,
-    });
+    try {
+      resultSettings = await prisma.settings.update({
+        where: { id: existingSettings.id },
+        data: settingsUpdateData,
+      });
+    } catch (error) {
+      // If error is due to platformConfig field not existing (migration not applied),
+      // retry without platformConfig
+      if (error.message && error.message.includes('platform_config')) {
+        delete settingsUpdateData.platformConfig;
+        resultSettings = await prisma.settings.update({
+          where: { id: existingSettings.id },
+          data: settingsUpdateData,
+        });
+      } else {
+        throw error;
+      }
+    }
 
     let logoUrl = null;
     if (resultSettings.logoId) {
