@@ -99,15 +99,15 @@ export function PremiumStatCard({
     >
       <CardContent
         className={cn(
-          "p-5 lg:p-6 bg-gradient-to-br",
+          "p-4 bg-gradient-to-br",
           gradient,
           textColor
         )}
       >
-        <div className="flex items-start justify-between mb-4">
+        <div className="flex items-start justify-between mb-3">
           <div
             className={cn(
-              "w-12 h-12 lg:w-14 lg:h-14 rounded-full flex items-center justify-center",
+              "w-10 h-10 rounded-full flex items-center justify-center",
               "bg-white/25 backdrop-blur-sm transition-transform duration-300",
               "hover:scale-110 hover:bg-white/35"
             )}
@@ -115,13 +115,13 @@ export function PremiumStatCard({
               animation: isVisible ? "pulse-glow 2s infinite" : "none",
             }}
           >
-            <Icon className="w-6 h-6 lg:w-7 lg:h-7" />
+            <Icon className="w-5 h-5" />
           </div>
         </div>
-        <div className="ml-3 lg:ml-4">
+        <div className="ml-2.5">
           <p
             className={cn(
-              "text-3xl lg:text-4xl font-extrabold mb-1 transition-all duration-300",
+              "text-2xl font-extrabold mb-0.5 transition-all duration-300",
               "animate-count-up"
             )}
             style={{
@@ -130,7 +130,7 @@ export function PremiumStatCard({
           >
             {formattedValue}
           </p>
-          <p className={cn("text-sm lg:text-base font-semibold opacity-90")}>
+          <p className={cn("text-xs font-semibold opacity-90")}>
             {title}
           </p>
         </div>

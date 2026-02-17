@@ -20,14 +20,14 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out",
-          isOpen ? "ml-[220px] lg:ml-[300px]" : "ml-[70px] lg:ml-[80px]"
+          isOpen ? "ml-[200px] lg:ml-[240px]" : "ml-[60px] lg:ml-[64px]"
         )}
       >
         <EnhancedNavbar />
         <main
           className={cn(
-            "flex-1 overflow-y-auto p-4 lg:p-7 min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-5rem)]",
-            "mt-16 lg:mt-20"
+            "flex-1 overflow-y-auto p-3 min-h-[calc(100vh-3rem)]",
+            "mt-12"
           )}
         >
           {children}

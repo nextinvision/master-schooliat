@@ -155,6 +155,27 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-size: 14px; /* Base font size - compact and professional */
+    line-height: 1.5;
+  }
+  html {
+    font-size: 14px; /* Base rem size */
+  }
+  /* Compact typography scale */
+  h1 {
+    @apply text-xl font-semibold;
+  }
+  h2 {
+    @apply text-lg font-semibold;
+  }
+  h3 {
+    @apply text-base font-semibold;
+  }
+  h4 {
+    @apply text-sm font-semibold;
+  }
+  p {
+    @apply text-sm;
   }
 }
 

@@ -160,7 +160,7 @@ export function PlatformSettingsManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Platform Settings</h1>
+          <h1 className="text-xl font-bold">Platform Settings</h1>
           <p className="text-gray-600 mt-1">
             Comprehensive control over SchooliAT platform configuration
           </p>
@@ -170,7 +170,7 @@ export function PlatformSettingsManagement() {
         </Badge>
       </div>
 
-      <Tabs defaultValue="branding" className="space-y-6">
+      <Tabs defaultValue="branding" className="space-y-4">
         <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 h-auto p-1">
           <TabsTrigger value="branding" className="flex items-center gap-2">
             <Palette className="w-4 h-4" />
@@ -218,7 +218,7 @@ export function PlatformSettingsManagement() {
                 Configure platform-wide branding and visual identity
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="space-y-4">
               <FormCard title="Platform Logo">
                 <PhotoUpload
                   control={passwordForm.control}
@@ -265,8 +265,8 @@ export function PlatformSettingsManagement() {
 
               <Separator />
 
-              <div className="space-y-4">
-                <div className="space-y-2">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
                   <Label htmlFor="platformName">Platform Name</Label>
                   <Input
                     id="platformName"
@@ -279,7 +279,7 @@ export function PlatformSettingsManagement() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="primaryColor">Primary Color</Label>
                     <div className="flex gap-2">
                       <Input
@@ -300,7 +300,7 @@ export function PlatformSettingsManagement() {
                       />
                     </div>
                   </div>
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="secondaryColor">Secondary Color</Label>
                     <div className="flex gap-2">
                       <Input
@@ -339,8 +339,8 @@ export function PlatformSettingsManagement() {
                 Configure system-wide settings and preferences
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="space-y-0.5">
                     <Label>Maintenance Mode</Label>
@@ -357,7 +357,7 @@ export function PlatformSettingsManagement() {
                 </div>
 
                 {platformConfig?.system?.maintenanceMode && (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="maintenanceMessage">Maintenance Message</Label>
                     <Textarea
                       id="maintenanceMessage"
@@ -373,7 +373,7 @@ export function PlatformSettingsManagement() {
 
                 <Separator />
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <Label className="text-base font-semibold">SMTP Configuration</Label>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -467,9 +467,9 @@ export function PlatformSettingsManagement() {
                 Configure platform-wide security policies and access controls
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
                   <Label>IP Whitelisting</Label>
                   <Textarea
                     placeholder="Enter IP addresses or ranges (one per line)&#10;Example:&#10;192.168.1.1&#10;10.0.0.0/8&#10;172.16.0.0/12"
@@ -494,7 +494,7 @@ export function PlatformSettingsManagement() {
 
                 <Separator />
 
-                <div className="space-y-4">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
                       <Label>Enable Global 2FA</Label>
@@ -512,7 +512,7 @@ export function PlatformSettingsManagement() {
 
                   <Separator />
 
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     <Label className="text-base font-semibold">Password Policy</Label>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -548,7 +548,7 @@ export function PlatformSettingsManagement() {
                         />
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="requireUppercase" className="font-normal">
                           Require Uppercase Letters
@@ -666,8 +666,8 @@ export function PlatformSettingsManagement() {
                 Configure performance optimization and resource limits
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="space-y-0.5">
                     <Label>Enable Caching</Label>
@@ -765,8 +765,8 @@ export function PlatformSettingsManagement() {
                 Configure notification channels and preferences
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <Label>Email Notifications</Label>
@@ -826,8 +826,8 @@ export function PlatformSettingsManagement() {
                 Configure audit logging and activity tracking settings
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <Label>Enable Activity Tracking</Label>
@@ -894,8 +894,8 @@ export function PlatformSettingsManagement() {
                 Configure AI chatbot settings and behavior
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                   <div>
                     <Label>Enable AI Chatbot</Label>

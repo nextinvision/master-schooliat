@@ -66,46 +66,46 @@ export function EnhancedNavbar() {
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 h-16 lg:h-20 bg-white border-b border-gray-200 z-40 flex items-center justify-between px-4 lg:px-6 shadow-sm">
+    <nav className="fixed top-0 left-0 right-0 h-12 bg-white border-b border-gray-200 z-40 flex items-center justify-between px-3 shadow-sm">
       {/* Left Section */}
-      <div className="flex items-center gap-3 lg:gap-4">
+      <div className="flex items-center gap-2">
         <Button
           variant="ghost"
           size="icon"
           onClick={toggle}
-          className="rounded-full bg-gray-50 border border-gray-200 hover:bg-gray-100 h-9 w-9 lg:h-10 lg:w-10"
+          className="rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8"
           title={isOpen ? "Close Sidebar" : "Open Sidebar"}
         >
           {isOpen ? (
-            <X className="h-4 w-4 lg:h-5 lg:w-5 text-gray-600" />
+            <X className="h-3.5 w-3.5 text-gray-600" />
           ) : (
-            <Menu className="h-4 w-4 lg:h-5 lg:w-5 text-gray-600" />
+            <Menu className="h-3.5 w-3.5 text-gray-600" />
           )}
         </Button>
 
         {/* Search Bar */}
         <div className="hidden md:flex items-center relative">
-          <Search className="absolute left-3 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-2.5 h-3.5 w-3.5 text-gray-400" />
           <Input
             type="text"
             placeholder="Search..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 pr-4 h-9 lg:h-10 w-64 lg:w-80 border-gray-200 focus:border-primary focus:ring-primary"
+            className="pl-8 pr-3 h-8 w-56 text-sm border-gray-200 focus:border-primary focus:ring-primary"
           />
         </div>
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-2 lg:gap-3">
+      <div className="flex items-center gap-1.5">
         {/* Notifications */}
         <Button
           variant="ghost"
           size="icon"
-          className="relative rounded-full bg-gray-50 border border-gray-200 hover:bg-gray-100 h-9 w-9 lg:h-10 lg:w-10"
+          className="relative rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8"
         >
-          <Bell className="h-4 w-4 lg:h-5 lg:w-5 text-gray-600" />
-          <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+          <Bell className="h-3.5 w-3.5 text-gray-600" />
+          <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 bg-red-500 rounded-full"></span>
         </Button>
 
         {/* Settings */}
@@ -113,9 +113,9 @@ export function EnhancedNavbar() {
           variant="ghost"
           size="icon"
           onClick={() => router.push(settingsRoute)}
-          className="rounded-full bg-gray-50 border border-gray-200 hover:bg-gray-100 h-9 w-9 lg:h-10 lg:w-10"
+          className="rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8"
         >
-          <Settings className="h-4 w-4 lg:h-5 lg:w-5 text-gray-600" />
+          <Settings className="h-3.5 w-3.5 text-gray-600" />
         </Button>
 
         {/* User Menu */}
@@ -123,17 +123,17 @@ export function EnhancedNavbar() {
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className="flex items-center gap-2 h-9 lg:h-10 px-2 lg:px-3 rounded-full bg-gray-50 border border-gray-200 hover:bg-gray-100"
+              className="flex items-center gap-1.5 h-8 px-2 rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100"
             >
-              <Avatar className="h-7 w-7 lg:h-8 lg:w-8">
-                <AvatarFallback className="bg-primary text-primary-foreground text-xs lg:text-sm font-semibold">
+              <Avatar className="h-6 w-6">
+                <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                   {getUserInitials()}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden lg:block text-sm font-medium text-gray-700">
+              <span className="hidden lg:block text-xs font-medium text-gray-700">
                 {getUserName()}
               </span>
-              <ChevronDown className="h-4 w-4 text-gray-500 hidden lg:block" />
+              <ChevronDown className="h-3 w-3 text-gray-500 hidden lg:block" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">

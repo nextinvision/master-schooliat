@@ -56,34 +56,34 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-4 animate-fade-in">
       {/* Welcome Card with Premium Styling */}
       <Card 
         className={cn(
           "bg-gradient-to-r from-[#678d3d] via-[#8ab35c] to-[#b8df79] text-white",
-          "relative overflow-hidden shadow-2xl",
+          "relative overflow-hidden shadow-lg",
           "animate-slide-up"
         )}
       >
         {/* Animated Background Elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDelay: "1s" }} />
+        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 animate-pulse" />
+        <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDelay: "1s" }} />
         
-        <CardContent className="p-6 lg:p-8 relative z-10">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <CardContent className="p-4 relative z-10">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
             <div className="flex-1 animate-slide-in-left">
-              <h1 className="text-2xl lg:text-3xl font-bold mb-2 animate-fade-in">
+              <h1 className="text-lg font-bold mb-1.5 animate-fade-in">
                 Welcome, {school.name || "School Team"}! 👋
               </h1>
-              <p className="text-white/90 text-sm lg:text-base leading-relaxed">
+              <p className="text-white/90 text-xs leading-relaxed">
                 Manage your school operations with ease. Stay updated on
                 academics, attendance and finances, and more, all at one place.
                 Let's keep shaping a brighter future together.
               </p>
             </div>
             <div className="hidden lg:block animate-scale-in" style={{ animationDelay: "0.2s" }}>
-              <div className="w-48 h-32 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center border border-white/30 glass-effect">
-                <span className="text-white/70 text-sm">Illustration</span>
+              <div className="w-36 h-24 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center border border-white/30 glass-effect">
+                <span className="text-white/70 text-xs">Illustration</span>
               </div>
             </div>
           </div>
@@ -91,7 +91,7 @@ export default function AdminDashboardPage() {
       </Card>
 
       {/* Stats Grid with Premium Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
         <PremiumStatCard
           title="Students"
           value={totalStudents}
@@ -129,7 +129,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Second Row: Calendar and Notice Board with Animations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div 
           className="animate-slide-up"
           style={{ animationDelay: "0.5s", opacity: 0, animationFillMode: "forwards" }}
@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Third Row: Financial Overview and Fee Status with Animations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <div 
           className="animate-slide-up"
           style={{ animationDelay: "0.7s", opacity: 0, animationFillMode: "forwards" }}
