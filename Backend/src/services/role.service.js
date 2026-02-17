@@ -138,6 +138,78 @@ const createDefaultRoles = async () => {
       Permission.DELETE_GALLERY_IMAGE,
       Permission.GET_MESSAGES,
       Permission.SEND_MESSAGE,
+      // Attendance permissions
+      Permission.MARK_ATTENDANCE,
+      Permission.GET_ATTENDANCE,
+      Permission.EXPORT_ATTENDANCE,
+      // Homework permissions
+      Permission.CREATE_HOMEWORK,
+      Permission.GET_HOMEWORK,
+      Permission.EDIT_HOMEWORK,
+      Permission.DELETE_HOMEWORK,
+      Permission.SUBMIT_HOMEWORK,
+      Permission.GRADE_HOMEWORK,
+      // Marks & Results permissions
+      Permission.ENTER_MARKS,
+      Permission.GET_MARKS,
+      Permission.EDIT_MARKS,
+      Permission.PUBLISH_RESULTS,
+      Permission.GET_RESULTS,
+      // Leave permissions
+      Permission.CREATE_LEAVE_REQUEST,
+      Permission.GET_LEAVE_REQUESTS,
+      Permission.APPROVE_LEAVE,
+      Permission.REJECT_LEAVE,
+      // Timetable permissions
+      Permission.CREATE_TIMETABLE,
+      Permission.GET_TIMETABLE,
+      Permission.EDIT_TIMETABLE,
+      Permission.DELETE_TIMETABLE,
+      // Notes & Syllabus permissions
+      Permission.CREATE_NOTE,
+      Permission.EDIT_NOTE,
+      Permission.GET_NOTES,
+      Permission.DELETE_NOTE,
+      Permission.CREATE_SYLLABUS,
+      Permission.EDIT_SYLLABUS,
+      Permission.GET_SYLLABUS,
+      Permission.DELETE_SYLLABUS,
+      // Circular permissions
+      Permission.CREATE_CIRCULAR,
+      Permission.EDIT_CIRCULAR,
+      Permission.PUBLISH_CIRCULAR,
+      Permission.GET_CIRCULARS,
+      Permission.DELETE_CIRCULAR,
+      // Library permissions
+      Permission.CREATE_LIBRARY_BOOK,
+      Permission.EDIT_LIBRARY_BOOK,
+      Permission.GET_LIBRARY_BOOKS,
+      Permission.ISSUE_LIBRARY_BOOK,
+      Permission.RETURN_LIBRARY_BOOK,
+      Permission.RESERVE_LIBRARY_BOOK,
+      Permission.GET_LIBRARY_HISTORY,
+      // Reports permissions
+      Permission.GET_ATTENDANCE_REPORTS,
+      Permission.GET_FEE_ANALYTICS,
+      Permission.GET_ACADEMIC_REPORTS,
+      Permission.GET_SALARY_REPORTS,
+      // AI/Chatbot permissions
+      Permission.USE_CHATBOT,
+      Permission.GET_CHATBOT_HISTORY,
+      Permission.MANAGE_FAQ,
+      // Communication permissions
+      Permission.CREATE_ANNOUNCEMENT,
+      Permission.SEND_NOTIFICATION,
+      // Transport Routes permissions
+      Permission.MANAGE_ROUTES,
+      Permission.GET_ROUTES,
+      Permission.ASSIGN_STUDENTS_TO_ROUTE,
+      // Parent features permissions
+      Permission.GET_CHILDREN,
+      Permission.GET_CHILD_DATA,
+      Permission.GET_CONSOLIDATED_DASHBOARD,
+      // Security permissions
+      Permission.REQUEST_DELETION_OTP,
     ],
     [RoleName.STUDENT]: [
       Permission.GET_MY_SCHOOL,

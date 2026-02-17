@@ -63,31 +63,25 @@ router.get("/", async (req, res) => {
 
   const salaryStructures = await prisma.salaryStructure.findMany({
     where,
+    include: {
+      components: {
+        where: {
+          deletedAt: null,
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
     orderBy: {
       createdAt: "desc",
     },
     ...paginateUtil.getPaginationParams(req),
   });
 
-  // Fetch components for each structure
-  const structuresWithComponents = await Promise.all(
-    salaryStructures.map(async (structure) => {
-      const components = await prisma.salaryStructureComponent.findMany({
-        where: {
-          salaryStructureId: structure.id,
-          deletedAt: null,
-        },
-      });
-      return {
-        ...structure,
-        components,
-      };
-    }),
-  );
-
   return res.json({
     message: "Salary structures fetched!",
-    data: structuresWithComponents,
+    data: salaryStructures,
   });
 });
 

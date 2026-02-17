@@ -169,6 +169,53 @@ enum Permission {
   CREATE_ANNOUNCEMENT
   SEND_NOTIFICATION
 
+  // Notes & Syllabus Related Permissions
+  CREATE_NOTE
+  EDIT_NOTE
+  GET_NOTES
+  DELETE_NOTE
+  CREATE_SYLLABUS
+  EDIT_SYLLABUS
+  GET_SYLLABUS
+  DELETE_SYLLABUS
+
+  // Circular Related Permissions
+  CREATE_CIRCULAR
+  EDIT_CIRCULAR
+  PUBLISH_CIRCULAR
+  GET_CIRCULARS
+  DELETE_CIRCULAR
+
+  // Library Related Permissions
+  CREATE_LIBRARY_BOOK
+  EDIT_LIBRARY_BOOK
+  GET_LIBRARY_BOOKS
+  ISSUE_LIBRARY_BOOK
+  RETURN_LIBRARY_BOOK
+  RESERVE_LIBRARY_BOOK
+  GET_LIBRARY_HISTORY
+
+  // Reports Related Permissions
+  GET_ATTENDANCE_REPORTS
+  GET_FEE_ANALYTICS
+  GET_ACADEMIC_REPORTS
+  GET_SALARY_REPORTS
+
+  // AI/Chatbot Related Permissions
+  USE_CHATBOT
+  GET_CHATBOT_HISTORY
+  MANAGE_FAQ
+
+  // Transport Routes Related Permissions
+  MANAGE_ROUTES
+  GET_ROUTES
+  ASSIGN_STUDENTS_TO_ROUTE
+
+  // Parent Related Permissions
+  GET_CHILDREN
+  GET_CHILD_DATA
+  GET_CONSOLIDATED_DASHBOARD
+
   // Audit & Security Related Permissions
   VIEW_AUDIT_LOGS
   REQUEST_DELETION_OTP
@@ -1162,6 +1209,8 @@ model SalaryStructure {
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
+  components SalaryStructureComponent[]
+
   @@map("salary_structures")
 }
 
@@ -1182,6 +1231,8 @@ model SalaryStructureComponent {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
+
+  salaryStructure SalaryStructure? @relation(fields: [salaryStructureId], references: [id])
 
   @@map("salary_structure_components")
 }

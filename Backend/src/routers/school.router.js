@@ -93,7 +93,11 @@ router.get(
     }
 
     const schools = await prisma.school.findMany({
-      where,
+      where: {
+        ...where,
+        deletedAt: null,
+        deletedBy: null,
+      },
       select: {
         id: true,
         name: true,
@@ -102,10 +106,6 @@ router.get(
         phone: true,
         address: true,
         createdAt: true,
-      },
-      where: {
-        deletedAt: null,
-        deletedBy: null,
       },
     });
 
@@ -142,6 +142,7 @@ router.get(
   withPermission(Permission.GET_MY_SCHOOL),
   validateRequest(getMySchoolSchema),
   async (req, res) => {
+    const currentUser = req.context.user;
     const school = await prisma.school.findFirst({
       where: {
         id: currentUser.schoolId,
