@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/lib/hooks/use-auth";
 import { Sidebar } from "@/components/layout/sidebar";
-import { TopHeader } from "@/components/layout/top-header";
+import { EnhancedNavbar } from "@/components/layout/enhanced-navbar";
 import { ChatBot } from "@/components/layout/chatbot";
 import { usePathname } from "next/navigation";
 import { ClassesProvider } from "@/lib/context/classes-context";
@@ -26,10 +26,10 @@ export default function DashboardLayout({
   if (isLoading) {
     return (
       <div className="flex h-screen">
-        <Skeleton className="w-[220px] lg:w-[300px]" />
-        <div className="flex-1 flex flex-col">
-          <Skeleton className="h-[54px] lg:h-[72px]" />
-          <Skeleton className="flex-1" />
+        <Skeleton className="w-[220px] lg:w-[300px] fixed left-0 top-0 bottom-0" />
+        <div className="flex-1 flex flex-col ml-[220px] lg:ml-[300px]">
+          <Skeleton className="h-16 lg:h-20 fixed top-0 left-[220px] lg:left-[300px] right-0" />
+          <Skeleton className="flex-1 mt-16 lg:mt-20" />
         </div>
       </div>
     );
@@ -43,9 +43,9 @@ export default function DashboardLayout({
     <ClassesProvider>
       <div className="flex min-h-screen bg-gray-100">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <TopHeader />
-          <main className="flex-1 overflow-y-auto p-4 lg:p-7 min-h-[calc(100vh-70px)]">
+        <div className="flex-1 flex flex-col min-w-0 ml-[220px] lg:ml-[300px]">
+          <EnhancedNavbar />
+          <main className="flex-1 overflow-y-auto p-4 lg:p-7 mt-16 lg:mt-20 min-h-[calc(100vh-4rem)] lg:min-h-[calc(100vh-5rem)]">
             {children}
           </main>
         </div>

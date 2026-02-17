@@ -136,9 +136,9 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-[220px] lg:w-[300px] bg-black border-r border-gray-300 rounded-[22px] lg:rounded-[26px] mx-2 lg:mx-3 my-3 lg:my-4 flex flex-col h-[calc(100vh-24px)] lg:h-[calc(100vh-32px)]">
+    <aside className="fixed left-0 top-0 bottom-0 w-[220px] lg:w-[300px] bg-black border-r border-gray-300 flex flex-col h-screen z-30">
       {/* Logo Container */}
-      <div className="flex items-center px-4 lg:px-6 py-3 lg:py-5 gap-2 lg:gap-3">
+      <div className="flex items-center px-4 lg:px-6 py-4 lg:py-5 gap-2 lg:gap-3 border-b border-gray-800">
         <div className="w-9 h-9 lg:w-12 lg:h-12 bg-white rounded-lg lg:rounded-xl flex items-center justify-center">
           <Image
             src="/logo.png"
@@ -154,7 +154,7 @@ export function Sidebar() {
       </div>
 
       {/* Menu Container */}
-      <div className="flex-1 overflow-y-auto pb-2 lg:pb-4">
+      <div className="flex-1 overflow-y-auto pb-2 lg:pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
         {menuItems.map((item) => {
           const active = isActive(item.route);
           const hasSubmenu = item.hasSubmenu;
@@ -232,18 +232,18 @@ export function Sidebar() {
       </div>
 
       {/* Logout Button */}
-      <div className="px-2 lg:px-4 pb-4 lg:pb-6 mb-3 lg:mb-4">
+      <div className="px-4 lg:px-6 py-4 border-t border-gray-800">
         <button
           onClick={handleLogout}
-          className="flex items-center w-full py-1.5 lg:py-2.5 px-3 lg:px-5 rounded-[22px] lg:rounded-[26px] bg-white hover:bg-green-50 transition-colors cursor-pointer"
+          className="flex items-center w-full py-2 lg:py-2.5 px-3 lg:px-5 rounded-lg lg:rounded-xl bg-white hover:bg-green-50 transition-colors cursor-pointer"
         >
+          <LogOut className="w-5 h-5 lg:w-6 lg:h-6 text-black" />
           <span className="ml-2 lg:ml-3 text-sm lg:text-base text-black flex-1 text-left font-semibold">
             Log Out
           </span>
-          <LogOut className="w-5 h-5 lg:w-6 lg:h-6 text-black" />
         </button>
       </div>
-    </div>
+    </aside>
   );
 }
 
