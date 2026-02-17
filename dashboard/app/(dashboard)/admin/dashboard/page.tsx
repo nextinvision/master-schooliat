@@ -91,7 +91,7 @@ export default function AdminDashboardPage() {
       </Card>
 
       {/* Stats Grid with Premium Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <PremiumStatCard
           title="Students"
           value={totalStudents}
@@ -129,7 +129,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Second Row: Calendar and Notice Board with Animations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div 
           className="animate-slide-up"
           style={{ animationDelay: "0.5s", opacity: 0, animationFillMode: "forwards" }}
@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Third Row: Financial Overview and Fee Status with Animations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div 
           className="animate-slide-up"
           style={{ animationDelay: "0.7s", opacity: 0, animationFillMode: "forwards" }}
@@ -177,12 +177,12 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Charts Row with Premium Animations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Earnings Chart */}
         <Card 
           className={cn(
-            "card-hover-lift animate-scale-in",
-            "transition-all duration-300 hover:shadow-xl"
+            "animate-scale-in relative isolate",
+            "transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
           )}
           style={{ animationDelay: "0.9s", opacity: 0, animationFillMode: "forwards" }}
         >

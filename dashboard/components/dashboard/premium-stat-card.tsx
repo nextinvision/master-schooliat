@@ -87,8 +87,8 @@ export function PremiumStatCard({
       ref={cardRef}
       className={cn(
         "cursor-pointer border-0 overflow-hidden transition-all duration-300",
-        "hover:shadow-2xl hover:-translate-y-2 hover:scale-[1.02]",
-        "card-hover-lift",
+        "hover:shadow-xl hover:-translate-y-1",
+        "relative isolate",
         className
       )}
       style={{

@@ -168,7 +168,7 @@ export default function SuperAdminDashboardPage() {
       </div>
 
       {/* Statistics Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 -mt-7 lg:-mt-9">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 relative z-20 mt-4">
         {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -176,7 +176,8 @@ export default function SuperAdminDashboardPage() {
               key={index}
               className={cn(
                 "cursor-pointer hover:shadow-lg transition-all border-0 overflow-hidden",
-                "bg-gradient-to-br",
+                "bg-gradient-to-br relative isolate",
+                "hover:-translate-y-1",
                 stat.gradient
               )}
               onClick={() => router.push(stat.route)}
@@ -202,7 +203,7 @@ export default function SuperAdminDashboardPage() {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Left Column - Recent Schools */}
         <div className="lg:col-span-2 space-y-6">
           <Card>
