@@ -193,8 +193,8 @@ export default function AdminDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div style={{ width: "100%", height: "300px", minHeight: "300px" }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div style={{ width: "100%", height: "300px", minHeight: "300px", minWidth: 1 }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <LineChart 
                 data={earningsData}
                 margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
@@ -259,8 +259,8 @@ export default function AdminDashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center" style={{ width: "100%", height: "300px", minHeight: "300px" }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="flex items-center justify-center" style={{ width: "100%", height: "300px", minHeight: "300px", minWidth: 1 }}>
+              <ResponsiveContainer width="100%" height="100%" minWidth={1} minHeight={1}>
                 <PieChart>
                   <Pie
                     data={pieData}

@@ -8,6 +8,7 @@ import {
 import roleService from "./role.service.js";
 import dateUtil from "../utils/date.util.js";
 import cacheService from "./cache.service.js";
+import logger from "../config/logger.js";
 
 const getDashboard = async (currentUser) => {
   const roleName = currentUser?.role?.name;
@@ -136,13 +137,77 @@ const getSchoolAdminDashboard = async (currentUser) => {
 
   // Cache dashboard per school for 5 minutes
   const cacheKey = `dashboard:school_admin:${schoolId}`;
-  return await cacheService.getOrSet(
-    cacheKey,
-    async () => {
-      return await getSchoolAdminDashboardData(currentUser, schoolId);
+  try {
+    return await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        return await getSchoolAdminDashboardData(currentUser, schoolId);
+      },
+      5 * 60 * 1000, // 5 minutes TTL
+    );
+  } catch (err) {
+    logger.error(
+      { err: err.message, stack: err.stack, schoolId, userId: currentUser?.id },
+      "Dashboard cache/get failed, returning safe fallback",
+    );
+    return getSchoolAdminDashboardFallback(schoolId);
+  }
+};
+
+/**
+ * Return a safe fallback dashboard when getSchoolAdminDashboardData fails (e.g. 500).
+ * Fetches only school name/code so the UI can still render.
+ */
+const getSchoolAdminDashboardFallback = async (schoolId) => {
+  let school = { id: schoolId, name: "School", code: "", address: [] };
+  try {
+    const s = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { id: true, name: true, code: true, address: true },
+    });
+    if (s) {
+      school = {
+        id: s.id,
+        name: s.name || "School",
+        code: s.code || "",
+        address: Array.isArray(s.address) ? s.address : [],
+      };
+    }
+  } catch (e) {
+    logger.warn({ schoolId, err: e.message }, "Fallback: could not load school");
+  }
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1;
+  const currentYear = currentDate.getFullYear();
+  return {
+    school,
+    userCounts: {
+      students: { total: 0, boys: 0, girls: 0 },
+      teachers: 0,
+      staff: 0,
     },
-    5 * 60 * 1000, // 5 minutes TTL
-  );
+    installments: {
+      currentYear,
+      currentInstallmentNumber: 1,
+      paid: 0,
+      pending: 0,
+      partiallyPaid: 0,
+      total: 0,
+    },
+    financial: {
+      totalIncome: 0,
+      totalSalary: 0,
+      incomeChangePercent: "+0",
+      salaryChangePercent: "+0",
+      monthlyEarnings: Array.from({ length: 12 }, (_, i) => ({
+        month: new Date(currentYear, i, 1).toLocaleString("default", { month: "short" }),
+        income: 0,
+        expense: 0,
+      })),
+    },
+    calendar: { events: [], currentMonth, currentYear },
+    notices: [],
+  };
 };
 
 const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
@@ -151,11 +216,13 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
   const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
   const staffRole = await roleService.getRoleByName(RoleName.STAFF);
 
-  // Validate roles exist
+  // Validate roles exist - return fallback instead of throwing so admin still sees a page
   if (!studentRole || !teacherRole || !staffRole) {
-    throw new Error("Required roles not found. Please ensure all roles are initialized.");
+    logger.warn({ schoolId }, "Dashboard: required roles not found, returning fallback");
+    return getSchoolAdminDashboardFallback(schoolId);
   }
 
+  try {
   // Get current month date range
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
@@ -426,17 +493,21 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     ? ((totalSalary - previousYearSalary) / previousYearSalary * 100).toFixed(1)
     : "0";
 
-  // Validate school exists
+  // Validate school exists - return fallback instead of throwing so UI still loads
   if (!school) {
-    throw new Error(`School with ID ${schoolId} not found`);
+    logger.warn({ schoolId }, "Dashboard: school not found, returning fallback");
+    return getSchoolAdminDashboardFallback(schoolId);
   }
+
+  const schoolAddress = school.address;
+  const safeAddress = Array.isArray(schoolAddress) ? schoolAddress : [];
 
   return {
     school: {
       id: school.id,
       name: school.name || "Unknown School",
       code: school.code || "",
-      address: school.address || [],
+      address: safeAddress,
     },
     userCounts: {
       students: {
@@ -469,6 +540,13 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     },
     notices: notices || [],
   };
+  } catch (err) {
+    logger.error(
+      { err: err.message, stack: err.stack, schoolId, userId: currentUser?.id },
+      "Dashboard getSchoolAdminDashboardData failed",
+    );
+    return getSchoolAdminDashboardFallback(schoolId);
+  }
 };
 
 // Teacher Dashboard

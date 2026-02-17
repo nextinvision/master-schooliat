@@ -61,10 +61,25 @@ export function useChatMessage() {
   });
 }
 
+// Shape matching API response so chatbot does not break when user has no chatbot permission (403)
+const emptyConversationsResult = {
+  data: [],
+  pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+};
+
 export function useConversations(params: { page?: number; limit?: number } = {}) {
   return useQuery({
     queryKey: ["ai", "conversations", params],
-    queryFn: () => fetchConversations(params),
+    queryFn: async () => {
+      try {
+        return await fetchConversations(params);
+      } catch (err: unknown) {
+        // 403 when role lacks GET_CHATBOT_HISTORY - return empty so layout/chatbot does not break
+        const status = (err as { status?: number })?.status;
+        if (status === 403) return emptyConversationsResult;
+        throw err;
+      }
+    },
     staleTime: 30 * 1000,
   });
 }
