@@ -33,6 +33,9 @@ import {
   Image as ImageIcon,
   FileCheck,
   Settings,
+  Database,
+  ScrollText,
+  Activity,
 } from "lucide-react";
 import { clearToken } from "@/lib/auth/storage";
 import {
@@ -44,6 +47,7 @@ import {
   LIBRARY_SUBMENU,
   RESULTS_SUBMENU,
   STUDENTS_SUBMENU,
+  MASTER_DATA_SUBMENU,
   MenuItem,
   SubMenuItem,
 } from "@/lib/config/menu-items";
@@ -75,6 +79,9 @@ const iconMap: Record<string, LucideIcon> = {
   Image: ImageIcon,
   FileCheck,
   Settings,
+  Database,
+  ScrollText,
+  Activity,
 };
 
 export function Sidebar() {
@@ -124,6 +131,8 @@ export function Sidebar() {
         return RESULTS_SUBMENU;
       case "Students":
         return STUDENTS_SUBMENU;
+      case "Master Data":
+        return MASTER_DATA_SUBMENU;
       default:
         return [];
     }

@@ -203,6 +203,27 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     route: "/super-admin/vendors",
   },
   {
+    name: "Master Data",
+    icon: "Database",
+    route: "/super-admin/master-data",
+    hasSubmenu: true,
+  },
+  {
+    name: "Templates",
+    icon: "FileText",
+    route: "/super-admin/templates",
+  },
+  {
+    name: "Audit Logs",
+    icon: "ScrollText",
+    route: "/super-admin/audit-logs",
+  },
+  {
+    name: "System Health",
+    icon: "Activity",
+    route: "/super-admin/system-health",
+  },
+  {
     name: "About Us",
     icon: "Info",
     route: "/super-admin/about-us",
@@ -232,5 +253,11 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     icon: "Info",
     route: "/super-admin/help",
   },
+];
+
+// Submenu items for Master Data
+export const MASTER_DATA_SUBMENU: SubMenuItem[] = [
+  { name: "Regions", route: "/super-admin/master-data/regions" },
+  { name: "Locations", route: "/super-admin/master-data/locations" },
 ];
 

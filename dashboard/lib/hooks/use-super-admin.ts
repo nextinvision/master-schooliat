@@ -389,3 +389,159 @@ export interface GenerateLetterheadData {
   signatureName?: string | null;
   signatureDesignation?: string | null;
 }
+
+// Locations
+export function useLocations(params?: { employeeId?: string; regionId?: string }) {
+  return useQuery({
+    queryKey: ["locations", params],
+    queryFn: () => get("/locations", params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formData: CreateLocationData) =>
+      post("/locations", { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+    },
+  });
+}
+
+export function useUpdateLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateLocationData>) =>
+      patch(`/locations/${id}`, { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+    },
+  });
+}
+
+export function useDeleteLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/locations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+    },
+  });
+}
+
+export function useUpdateRegion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<{ name: string }>) =>
+      patch(`/regions/${id}`, { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regions"] });
+    },
+  });
+}
+
+export function useDeleteRegion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/regions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regions"] });
+    },
+  });
+}
+
+// Templates
+export function useTemplates(type?: string) {
+  return useQuery({
+    queryKey: ["templates", type],
+    queryFn: () => get("/templates", type ? { type } : {}),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useTemplateDefaults(templateId: string) {
+  return useQuery({
+    queryKey: ["templateDefaults", templateId],
+    queryFn: () => get(`/templates/${templateId}/default`),
+    enabled: !!templateId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Audit Logs
+export function useAuditLogs(params?: {
+  userId?: string;
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  result?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}) {
+  return useQuery({
+    queryKey: ["auditLogs", params],
+    queryFn: () => get("/audit", params),
+    staleTime: 30 * 1000,
+  });
+}
+
+// System Health
+export function useSystemHealth() {
+  return useQuery({
+    queryKey: ["systemHealth"],
+    queryFn: () => get("/health"),
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 10 * 1000,
+  });
+}
+
+// Types
+export interface Location {
+  id: string;
+  name: string;
+  regionId: string;
+  region?: Region;
+  employeeId?: string;
+  employee?: Employee;
+  createdAt: string;
+}
+
+export interface CreateLocationData {
+  name: string;
+  regionId: string;
+  employeeId: string;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+  imageId?: string;
+  imageUrl?: string;
+  sampleId?: string;
+  sampleUrl?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  action: string;
+  entityType: string;
+  entityId?: string;
+  result: "SUCCESS" | "FAILURE";
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
