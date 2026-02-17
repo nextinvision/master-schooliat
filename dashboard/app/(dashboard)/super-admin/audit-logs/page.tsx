@@ -173,7 +173,7 @@ export default function AuditLogsPage() {
                   {logs.map((log: AuditLog) => (
                     <TableRow key={log.id}>
                       <TableCell className="text-xs">
-                        {format(new Date(log.createdAt), "MMM dd, yyyy HH:mm:ss")}
+                        {format(new Date(log.timestamp), "MMM dd, yyyy HH:mm:ss")}
                       </TableCell>
                       <TableCell>
                         {log.user

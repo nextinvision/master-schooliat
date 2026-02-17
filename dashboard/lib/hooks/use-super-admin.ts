@@ -542,6 +542,7 @@ export interface AuditLog {
   result: "SUCCESS" | "FAILURE";
   ipAddress?: string;
   userAgent?: string;
-  metadata?: Record<string, any>;
-  createdAt: string;
+  changes?: Record<string, any>;
+  errorMessage?: string;
+  timestamp: string; // Backend uses 'timestamp' not 'createdAt'
 }
