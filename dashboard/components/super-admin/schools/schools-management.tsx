@@ -13,9 +13,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Eye, Receipt, Plus } from "lucide-react";
 import { useSchools, School } from "@/lib/hooks/use-super-admin";
-import { searchStudentsByName } from "@/lib/utils/search-utils";
+import { RegisterSchoolFormContent } from "./register-school-form-content";
 
 interface SchoolDisplay {
   id: string;
@@ -32,9 +39,10 @@ export function SchoolsManagement() {
   const router = useRouter();
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const itemsPerPage = 10;
 
-  const { data, isLoading, error } = useSchools(searchQuery || undefined);
+  const { data, isLoading, error, refetch } = useSchools(searchQuery || undefined);
 
   const schools = useMemo<SchoolDisplay[]>(() => {
     if (!data?.data) return [];
@@ -87,17 +95,17 @@ export function SchoolsManagement() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Registered Schools</h1>
+          <h1 className="text-2xl font-semibold">Schools</h1>
           <p className="text-gray-600 mt-1">
             View and manage all registered schools in the system
           </p>
         </div>
         <Button
-          onClick={() => router.push("/super-admin/schools/register")}
+          onClick={() => setIsRegisterDialogOpen(true)}
           className="gap-2"
         >
           <Plus className="w-4 h-4" />
-          Register School
+          Add School
         </Button>
       </div>
 
@@ -218,6 +226,25 @@ export function SchoolsManagement() {
           </div>
         </div>
       )}
+
+      {/* Register School Dialog */}
+      <Dialog open={isRegisterDialogOpen} onOpenChange={setIsRegisterDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Register New School</DialogTitle>
+            <DialogDescription>
+              Create a new school account in the system
+            </DialogDescription>
+          </DialogHeader>
+          <RegisterSchoolFormContent
+            onSuccess={() => {
+              setIsRegisterDialogOpen(false);
+              refetch();
+            }}
+            onCancel={() => setIsRegisterDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

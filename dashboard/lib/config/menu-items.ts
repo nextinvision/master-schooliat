@@ -173,9 +173,9 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     route: "/super-admin/dashboard",
   },
   {
-    name: "Register Schools",
+    name: "Schools",
     icon: "School",
-    route: "/super-admin/schools/register",
+    route: "/super-admin/schools",
   },
   {
     name: "Receipts",
