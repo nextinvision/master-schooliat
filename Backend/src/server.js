@@ -263,6 +263,8 @@ function addRouters(app) {
 async function setupData() {
   try {
     await roleService.createDefaultRoles();
+    // Update existing roles with latest permissions
+    await roleService.updateRolePermissions();
     await userService.createSuperAdmin();
     // Template loading is optional - server will work without it
     // Templates can be loaded later when Puppeteer is available

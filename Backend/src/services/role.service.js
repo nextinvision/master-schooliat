@@ -22,10 +22,10 @@ const getExistingRolesNames = async () => {
   return roles.map((role) => role.name);
 };
 
-const createDefaultRoles = async () => {
-  const defaultRolePermissionsMap = {
-    // App Roles
-    [RoleName.SUPER_ADMIN]: [
+// Define default role permissions map at module level so it can be reused
+const defaultRolePermissionsMap = {
+  // App Roles
+  [RoleName.SUPER_ADMIN]: [
       Permission.CREATE_EMPLOYEE,
       Permission.GET_EMPLOYEES,
       Permission.EDIT_EMPLOYEE,
@@ -245,6 +245,7 @@ const createDefaultRoles = async () => {
     ],
   };
 
+const createDefaultRoles = async () => {
   let roleNames = [
     RoleName.SUPER_ADMIN,
     RoleName.EMPLOYEE,
@@ -279,9 +280,60 @@ const createDefaultRoles = async () => {
   });
 };
 
+const updateRolePermissions = async () => {
+  const existingRoles = await prisma.role.findMany({
+    where: { deletedAt: null },
+  });
+
+  const updates = [];
+  for (const role of existingRoles) {
+    const expectedPermissions = defaultRolePermissionsMap[role.name];
+    if (expectedPermissions) {
+      // Check if permissions need updating
+      const currentPermissions = role.permissions || [];
+      const expectedSet = new Set(expectedPermissions);
+      const currentSet = new Set(currentPermissions);
+
+      // Check if permissions are different
+      const needsUpdate =
+        expectedPermissions.length !== currentPermissions.length ||
+        expectedPermissions.some((p) => !currentSet.has(p)) ||
+        currentPermissions.some((p) => !expectedSet.has(p));
+
+      if (needsUpdate) {
+        logger.info(
+          {
+            roleName: role.name,
+            currentPermissions: currentPermissions.length,
+            expectedPermissions: expectedPermissions.length,
+          },
+          "Updating role permissions",
+        );
+        updates.push(
+          prisma.role.update({
+            where: { id: role.id },
+            data: {
+              permissions: expectedPermissions,
+              updatedBy: "system",
+            },
+          }),
+        );
+      }
+    }
+  }
+
+  if (updates.length > 0) {
+    await Promise.all(updates);
+    logger.info(`Updated permissions for ${updates.length} role(s)`);
+  } else {
+    logger.info("All roles have up-to-date permissions");
+  }
+};
+
 const roleService = {
   getRoleByName,
   createDefaultRoles,
+  updateRolePermissions,
 };
 
 export default roleService;
