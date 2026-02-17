@@ -146,11 +146,15 @@ const getSchoolAdminDashboard = async (currentUser) => {
 };
 
 const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
-
-  // Get role IDs
+  // Get role IDs with null checks
   const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
   const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
   const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+
+  // Validate roles exist
+  if (!studentRole || !teacherRole || !staffRole) {
+    throw new Error("Required roles not found. Please ensure all roles are initialized.");
+  }
 
   // Get current month date range
   const currentDate = new Date();

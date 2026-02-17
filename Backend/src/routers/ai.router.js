@@ -48,6 +48,12 @@ router.get(
       const query = req.query;
       const currentUser = req.context.user;
 
+      if (!currentUser || !currentUser.id) {
+        return res.status(401).json({
+          message: "User not authenticated",
+        });
+      }
+
       const result = await aiService.getUserConversations(currentUser.id, {
         page: parseInt(query.page) || 1,
         limit: parseInt(query.limit) || 20,
@@ -59,6 +65,7 @@ router.get(
         pagination: result.pagination,
       });
     } catch (error) {
+      console.error("Get conversations error:", error);
       return res.status(400).json({
         message: error.message || "Failed to fetch conversations",
       });

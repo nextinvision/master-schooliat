@@ -187,13 +187,27 @@ router.get(
   "/dashboard",
   withPermission(Permission.GET_DASHBOARD_STATS),
   async (req, res) => {
-    const currentUser = req.context.user;
-    const data = await dashboardService.getDashboard(currentUser);
+    try {
+      const currentUser = req.context.user;
+      
+      if (!currentUser) {
+        return res.status(401).json({
+          message: "User not authenticated",
+        });
+      }
 
-    return res.json({
-      message: "Dashboard statistics fetched!",
-      data,
-    });
+      const data = await dashboardService.getDashboard(currentUser);
+
+      return res.json({
+        message: "Dashboard statistics fetched!",
+        data,
+      });
+    } catch (error) {
+      console.error("Dashboard statistics error:", error);
+      return res.status(500).json({
+        message: error.message || "Failed to fetch dashboard statistics",
+      });
+    }
   },
 );
 
