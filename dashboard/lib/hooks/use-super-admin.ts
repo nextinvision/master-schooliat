@@ -484,7 +484,18 @@ export function useAuditLogs(params?: {
 }) {
   return useQuery({
     queryKey: ["auditLogs", params],
-    queryFn: () => get("/audit", params),
+    queryFn: async () => {
+      // Filter out empty values to avoid sending empty query params
+      const cleanParams: Record<string, any> = {};
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            cleanParams[key] = value;
+          }
+        });
+      }
+      return get("/audit", cleanParams);
+    },
     staleTime: 30 * 1000,
   });
 }

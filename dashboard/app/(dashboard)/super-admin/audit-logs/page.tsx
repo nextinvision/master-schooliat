@@ -152,6 +152,13 @@ export default function AuditLogsPage() {
                 <Skeleton key={i} className="h-16 w-full" />
               ))}
             </div>
+          ) : error ? (
+            <div className="text-center py-8 text-red-500">
+              <p className="font-medium">Error loading audit logs</p>
+              <p className="text-sm text-gray-500 mt-1">
+                {error instanceof Error ? error.message : "Please try again later"}
+              </p>
+            </div>
           ) : logs.length === 0 ? (
             <div className="text-center py-8 text-gray-500">
               No audit logs found
@@ -170,32 +177,41 @@ export default function AuditLogsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logs.map((log: AuditLog) => (
-                    <TableRow key={log.id}>
-                      <TableCell className="text-xs">
-                        {format(new Date(log.timestamp), "MMM dd, yyyy HH:mm:ss")}
-                      </TableCell>
-                      <TableCell>
-                        {log.user
-                          ? `${log.user.firstName || ""} ${log.user.lastName || ""}`.trim() ||
-                            log.user.email
-                          : "System"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{log.action}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-xs">
-                          <div className="font-medium">{log.entityType}</div>
-                          {log.entityId && (
-                            <div className="text-gray-500">{log.entityId.substring(0, 8)}...</div>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getResultBadge(log.result)}</TableCell>
-                      <TableCell className="text-xs">{log.ipAddress || "-"}</TableCell>
-                    </TableRow>
-                  ))}
+                  {logs.map((log: AuditLog) => {
+                    try {
+                      return (
+                        <TableRow key={log.id}>
+                          <TableCell className="text-xs">
+                            {log.timestamp
+                              ? format(new Date(log.timestamp), "MMM dd, yyyy HH:mm:ss")
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell>
+                            {log.user
+                              ? `${log.user.firstName || ""} ${log.user.lastName || ""}`.trim() ||
+                                log.user.email
+                              : "System"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{log.action || "N/A"}</Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-xs">
+                              <div className="font-medium">{log.entityType || "N/A"}</div>
+                              {log.entityId && (
+                                <div className="text-gray-500">{log.entityId.substring(0, 8)}...</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>{getResultBadge(log.result || "SUCCESS")}</TableCell>
+                          <TableCell className="text-xs">{log.ipAddress || "-"}</TableCell>
+                        </TableRow>
+                      );
+                    } catch (error) {
+                      console.error("Error rendering audit log:", error, log);
+                      return null;
+                    }
+                  })}
                 </TableBody>
               </Table>
               {pagination && (
