@@ -69,15 +69,28 @@ router.get(
       if (error.message && (error.message.includes('platform_config') || error.message.includes('column') || error.code === '42703')) {
         try {
           // Use raw query to exclude platformConfig column
-          const rawSettings = await prisma.$queryRaw`
-            SELECT id, school_id, student_fee_installments, student_fee_amount, 
-                   current_installement_number, logo_id, created_by, updated_by, 
-                   deleted_by, created_at, updated_at, deleted_at
-            FROM settings
-            WHERE school_id ${targetSchoolId === null ? prisma.sql`IS NULL` : prisma.sql`= ${targetSchoolId}`}
-            AND deleted_at IS NULL
-            LIMIT 1
-          `;
+          let rawSettings;
+          if (targetSchoolId === null) {
+            rawSettings = await prisma.$queryRaw`
+              SELECT id, school_id, student_fee_installments, student_fee_amount, 
+                     current_installement_number, logo_id, created_by, updated_by, 
+                     deleted_by, created_at, updated_at, deleted_at
+              FROM settings
+              WHERE school_id IS NULL
+              AND deleted_at IS NULL
+              LIMIT 1
+            `;
+          } else {
+            rawSettings = await prisma.$queryRaw`
+              SELECT id, school_id, student_fee_installments, student_fee_amount, 
+                     current_installement_number, logo_id, created_by, updated_by, 
+                     deleted_by, created_at, updated_at, deleted_at
+              FROM settings
+              WHERE school_id = ${targetSchoolId}
+              AND deleted_at IS NULL
+              LIMIT 1
+            `;
+          }
           
           const settings = rawSettings[0] || null;
           
