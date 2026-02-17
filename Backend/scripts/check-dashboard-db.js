@@ -57,11 +57,16 @@ async function main() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
-  // 3. Settings
-  const settings = await prisma.settings.findFirst({
-    where: { schoolId, deletedAt: null },
-  });
-  console.log("Settings:", settings ? `currentInstallmentNumber=${settings.currentInstallmentNumber}` : "NONE (dashboard uses default 1)");
+  // 3. Settings (optional: production may have older schema without some columns)
+  let settings = null;
+  try {
+    settings = await prisma.settings.findFirst({
+      where: { schoolId, deletedAt: null },
+    });
+    console.log("Settings:", settings ? `currentInstallmentNumber=${settings.currentInstallmentNumber}` : "NONE (dashboard uses default 1)");
+  } catch (e) {
+    console.log("Settings: (skipped - schema mismatch:", e.message?.slice(0, 80) + ")");
+  }
 
   // 4. Users by role (school-scoped)
   const [students, teachers, staff, schoolAdmins] = await Promise.all([
@@ -131,10 +136,26 @@ async function main() {
   }
 }
 
+function isConnectionError(err) {
+  const code = err?.code || err?.meta?.code;
+  return code === "P1000" || code === "P1001" || code === "P1003" || /Authentication failed|ECONNREFUSED|ENOTFOUND/.test(err?.message || "");
+}
+
 main()
-  .then(() => process.exit(0))
+  .then(() => {
+    console.log("\nVerdict: DB has data (or minimum roles/school). If dashboard still fails, the issue is likely API/config, not missing data.");
+    process.exit(0);
+  })
   .catch((err) => {
-    console.error("Error:", err.message);
-    console.error(err.stack);
+    if (isConnectionError(err)) {
+      console.error("\n--- Connection error (not a data issue) ---");
+      console.error("Cannot reach the database. Check:");
+      console.error("  1. DATABASE_URL in .env (or env) is correct and the DB server is running.");
+      console.error("  2. On production: /opt/schooliat/backend/production/shared/.env has valid DATABASE_URL.");
+      console.error("  3. Run this script where the database is reachable (e.g. on the server).");
+      console.error("\nVerdict: CONNECTION/CREDENTIALS — fix .env and DB access, then re-run to check for data.");
+    } else {
+      console.error("Error:", err.message);
+    }
     process.exit(1);
   });

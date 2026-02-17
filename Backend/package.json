@@ -23,7 +23,7 @@
     "prisma:migrate:create": "prisma migrate dev --create-only --schema=src/prisma/db/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema=src/prisma/db/schema.prisma",
     "prisma:format": "prisma format --schema=src/prisma/db/schema.prisma",
-    "seed": "node prisma/seed.js",
+    "seed": "node prisma/seed-run.js",
     "test:phase1": "node test-phase1-apis.js",
     "test:all": "node test-all-apis.js",
     "test:comprehensive": "node test-comprehensive-apis.js",

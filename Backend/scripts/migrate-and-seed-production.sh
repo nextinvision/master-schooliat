@@ -121,13 +121,13 @@ echo "   - Sample schools, classes, and users"
 echo "   - Other initial data"
 echo ""
 
-# Check if seed script exists
+# Check if seed script exists (npm run seed uses prisma/seed-run.js which loads env then runs seed.js)
 if [ ! -f "prisma/seed.js" ]; then
   echo "   ⚠️  Seed file not found at prisma/seed.js"
   echo "   Skipping seeding..."
 else
-  # Run seed script
-  node prisma/seed.js || {
+  # Run seed via npm (uses seed-run.js: loads .env / deployment shared .env, then runs seed.js)
+  npm run seed || {
     echo "   ⚠️  Seeding encountered errors, but some data may have been created"
     echo "   Check the logs above for details"
   }

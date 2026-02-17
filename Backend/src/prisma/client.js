@@ -5,13 +5,22 @@ import config from "../config.js";
 
 const { Pool } = pg;
 
-// Configure connection pool for Supabase
-// Supabase recommends connection pooling for better performance
-// Remove quotes from connection string if present
-const connectionString = config.DATABASE_URL?.replace(/^["']|["']$/g, "").trim() || config.DATABASE_URL;
+// Remove quotes from connection string if present; ensure it's a non-empty string
+let connectionString =
+  typeof config.DATABASE_URL === "string"
+    ? config.DATABASE_URL.replace(/^["']|["']$/g, "").trim()
+    : config.DATABASE_URL;
+connectionString = connectionString || undefined;
+
+if (!connectionString) {
+  throw new Error(
+    "DATABASE_URL is not set. Set it in .env or environment (e.g. postgresql://user:password@host:5432/dbname). " +
+      "On production server, ensure /opt/schooliat/backend/production/shared/.env exists and is loaded."
+  );
+}
 
 const pool = new Pool({
-  connectionString: connectionString,
+  connectionString,
   // Supabase connection pool settings
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds

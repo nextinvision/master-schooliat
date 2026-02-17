@@ -28,7 +28,19 @@ if [ ! -f "$PRODUCTION_ENV" ]; then
 fi
 
 echo "Loading production environment variables..."
-export $(grep -v '^#' "$PRODUCTION_ENV" | xargs)
+set -a
+source "$PRODUCTION_ENV"
+set +a
+
+# Confirm we're on production DB (Prisma uses DATABASE_URL from env)
+DB_NAME_FROM_URL=$(echo "$DATABASE_URL" | sed -n 's|.*/\([^/?]*\).*|\1|p')
+if [ -n "$DB_NAME_FROM_URL" ]; then
+  echo "   DATABASE_URL points to database: $DB_NAME_FROM_URL"
+  if [ "$DB_NAME_FROM_URL" != "schooliat_production" ]; then
+    echo "   ERROR: Expected schooliat_production. Fix $PRODUCTION_ENV and re-run."
+    exit 1
+  fi
+fi
 
 # Navigate to backend directory
 cd "$(dirname "$0")/.."

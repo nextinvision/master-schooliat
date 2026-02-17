@@ -11,6 +11,13 @@ cd Backend
 npm run check:dashboard-db
 ```
 
+**On the production server** (uses production shared `.env`):
+
+```bash
+cd /opt/schooliat/backend/production/current
+bash scripts/check-production-db.sh
+```
+
 Or for a specific school:
 
 ```bash

@@ -64,11 +64,16 @@ The seed file (`prisma/seed.js`) creates a complete dataset including:
 ```bash
 npm run seed
 ```
+This runs `prisma/seed-run.js`, which loads `.env` (and on the server, deployment shared `.env`) and validates `DATABASE_URL` before running the seed. Use this so you never hit "SASL: client password must be a string" from a missing or invalid `DATABASE_URL`.
 
-### Option 2: Direct execution
+### Option 2: Direct execution (only when DATABASE_URL is already set)
 ```bash
 node prisma/seed.js
 ```
+
+### Production / deployment server
+- **Env file**: Put `DATABASE_URL` in `/opt/schooliat/backend/production/shared/.env` (or symlink `current/.env` to that file). Ensure the value is a full URL, e.g. `postgresql://user:YOUR_PASSWORD@host:5432/dbname`, and that the password is a real string (not empty or unset).
+- **Run seed**: From backend dir, `npm run seed` (preferred), or run `scripts/migrate-and-seed-production.sh` which sources the shared `.env` then runs the seed. If you see "DATABASE_URL is not set" or "client password must be a string", fix the env file and re-run.
 
 ## Default Login Credentials
 

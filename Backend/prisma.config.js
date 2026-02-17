@@ -17,6 +17,23 @@ try {
   // DATABASE_URL not set, use dummy URL for generation
 }
 
+// Log which DB will be used for migrations (avoid deploying to wrong env)
+function dbNameFromUrl(url) {
+  try {
+    const m = url.match(/\/\/(?:[^@]+@)?[^/]+\/([^?]+)/);
+    return m ? m[1] : "(unknown)";
+  } catch (_) {
+    return "(unknown)";
+  }
+}
+if (process.argv.includes("migrate") && process.argv.includes("deploy")) {
+  const name = dbNameFromUrl(databaseUrl);
+  console.warn("[prisma.config] Using database:", name);
+  if (name.includes("staging") && process.env.NODE_ENV === "production") {
+    console.warn("[prisma.config] WARNING: NODE_ENV=production but database is staging. Set DATABASE_URL to production.");
+  }
+}
+
 try {
   const directDbUrl = env("DATABASE_DIRECT_URL");
   if (directDbUrl && directDbUrl.trim() !== "") {

@@ -85,9 +85,9 @@ echo "   - Sample schools, classes, and users"
 echo "   - Other initial data"
 echo ""
 
-# Run seed script
+# Run seed via npm (uses seed-run.js: loads .env / deployment .env, then runs seed.js)
 if [ -f "prisma/seed.js" ]; then
-  node prisma/seed.js || {
+  npm run seed || {
     echo "   ⚠️  Seeding encountered errors, but some data may have been created"
     echo "   Check the logs above for details"
   }
