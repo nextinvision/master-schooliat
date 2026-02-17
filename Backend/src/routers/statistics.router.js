@@ -5,6 +5,7 @@ import { Permission, RoleName, UserType } from "../prisma/generated/index.js";
 import roleService from "../services/role.service.js";
 import dashboardService from "../services/dashboard.service.js";
 import paginateUtil from "../utils/paginate.util.js";
+import logger from "../config/logger.js";
 
 const router = Router();
 
@@ -203,7 +204,16 @@ router.get(
         data,
       });
     } catch (error) {
-      console.error("Dashboard statistics error:", error);
+      logger.error(
+        {
+          error: error.message,
+          stack: error.stack,
+          userId: req.context?.user?.id,
+          roleName: req.context?.user?.role?.name,
+          schoolId: req.context?.user?.schoolId,
+        },
+        "Dashboard statistics error",
+      );
       return res.status(500).json({
         message: error.message || "Failed to fetch dashboard statistics",
       });

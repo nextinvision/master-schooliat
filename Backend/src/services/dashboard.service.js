@@ -193,6 +193,16 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
   const firstDayOfYear = new Date(currentYear, 0, 1);
   const lastDayOfYear = new Date(currentYear, 11, 31, 23, 59, 59, 999);
 
+  // Build fee filter - if no fees exist, we need to handle this differently
+  // Prisma doesn't handle empty arrays in `in` filters well, so we conditionally add the filter
+  const buildFeeFilter = (baseWhere) => {
+    if (currentYearFeeIds.length > 0) {
+      return { ...baseWhere, feeId: { in: currentYearFeeIds } };
+    }
+    // If no fees exist, return a filter that matches nothing (using an impossible condition)
+    return { ...baseWhere, feeId: { in: ["00000000-0000-0000-0000-000000000000"] } };
+  };
+
   // Get counts for the school
   const [
     totalStudents,
@@ -285,40 +295,36 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
       take: 5,
     }),
     prisma.feeInstallements.count({
-      where: {
+      where: buildFeeFilter({
         schoolId,
         installementNumber: currentInstallmentNumber,
         paymentStatus: FeePaymentStatus.PAID,
         deletedAt: null,
-        feeId: { in: currentYearFeeIds },
-      },
+      }),
     }),
     prisma.feeInstallements.count({
-      where: {
+      where: buildFeeFilter({
         schoolId,
         installementNumber: currentInstallmentNumber,
         paymentStatus: FeePaymentStatus.PENDING,
         deletedAt: null,
-        feeId: { in: currentYearFeeIds },
-      },
+      }),
     }),
     prisma.feeInstallements.count({
-      where: {
+      where: buildFeeFilter({
         schoolId,
         installementNumber: currentInstallmentNumber,
         paymentStatus: FeePaymentStatus.PARTIALLY_PAID,
         deletedAt: null,
-        feeId: { in: currentYearFeeIds },
-      },
+      }),
     }),
     // Total fee income for current year (sum of all paid amounts)
     prisma.feeInstallements.aggregate({
-      where: {
+      where: buildFeeFilter({
         schoolId,
         paymentStatus: { in: [FeePaymentStatus.PAID, FeePaymentStatus.PARTIALLY_PAID] },
         deletedAt: null,
-        feeId: { in: currentYearFeeIds },
-      },
+      }),
       _sum: {
         paidAmount: true,
       },
@@ -361,8 +367,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     }),
   ]);
 
-  const totalIncome = Number(totalFeeIncome._sum.paidAmount || 0);
-  const totalSalary = Number(totalSalaryDistributed._sum.totalAmount || 0);
+  const totalIncome = Number(totalFeeIncome._sum?.paidAmount || 0);
+  const totalSalary = Number(totalSalaryDistributed._sum?.totalAmount || 0);
   
   // Calculate monthly earnings separately (to avoid complex async in Promise.all)
   const monthlyEarningsData = [];
@@ -374,16 +380,15 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     const [income, expense] = await Promise.all([
       // Income from fees
       prisma.feeInstallements.aggregate({
-        where: {
+        where: buildFeeFilter({
           schoolId,
           paymentStatus: { in: [FeePaymentStatus.PAID, FeePaymentStatus.PARTIALLY_PAID] },
           deletedAt: null,
-          feeId: { in: currentYearFeeIds },
           updatedAt: {
             gte: monthStart,
             lte: monthEnd,
           },
-        },
+        }),
         _sum: {
           paidAmount: true,
         },
@@ -406,8 +411,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     
     monthlyEarningsData.push({
       month: monthDate.toLocaleString('default', { month: 'short' }),
-      income: Number(income._sum.paidAmount || 0),
-      expense: Number(expense._sum.totalAmount || 0),
+      income: Number(income._sum?.paidAmount || 0),
+      expense: Number(expense._sum?.totalAmount || 0),
     });
   }
   
@@ -421,38 +426,48 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     ? ((totalSalary - previousYearSalary) / previousYearSalary * 100).toFixed(1)
     : "0";
 
+  // Validate school exists
+  if (!school) {
+    throw new Error(`School with ID ${schoolId} not found`);
+  }
+
   return {
-    school,
+    school: {
+      id: school.id,
+      name: school.name || "Unknown School",
+      code: school.code || "",
+      address: school.address || [],
+    },
     userCounts: {
       students: {
-        total: totalStudents,
-        boys: totalStudentsBoys,
-        girls: totalStudentsGirls,
+        total: totalStudents || 0,
+        boys: totalStudentsBoys || 0,
+        girls: totalStudentsGirls || 0,
       },
-      teachers: totalTeachers,
-      staff: totalStaff,
+      teachers: totalTeachers || 0,
+      staff: totalStaff || 0,
     },
     installments: {
       currentYear,
       currentInstallmentNumber,
-      paid: paidInstallments,
-      pending: pendingInstallments,
-      partiallyPaid: partialPaidInstallments,
-      total: paidInstallments + pendingInstallments + partialPaidInstallments,
+      paid: paidInstallments || 0,
+      pending: pendingInstallments || 0,
+      partiallyPaid: partialPaidInstallments || 0,
+      total: (paidInstallments || 0) + (pendingInstallments || 0) + (partialPaidInstallments || 0),
     },
     financial: {
-      totalIncome,
-      totalSalary,
+      totalIncome: totalIncome || 0,
+      totalSalary: totalSalary || 0,
       incomeChangePercent: `+${incomeChangePercent}`,
       salaryChangePercent: `+${salaryChangePercent}`,
-      monthlyEarnings: monthlyEarningsData,
+      monthlyEarnings: monthlyEarningsData || [],
     },
     calendar: {
-      events: calendarEvents,
+      events: calendarEvents || [],
       currentMonth,
       currentYear,
     },
-    notices,
+    notices: notices || [],
   };
 };
 
