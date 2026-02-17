@@ -201,8 +201,9 @@ export default function AuditLogsPage() {
               {pagination && (
                 <div className="flex items-center justify-between mt-4">
                   <div className="text-sm text-gray-600">
-                    Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, pagination.total)} of{" "}
-                    {pagination.total} logs
+                    Showing {logs.length > 0 ? ((page - 1) * (pagination.limit || 20) + 1) : 0} to{" "}
+                    {Math.min(page * (pagination.limit || 20), pagination.total || 0)} of{" "}
+                    {pagination.total || 0} logs
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -217,7 +218,7 @@ export default function AuditLogsPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => setPage(page + 1)}
-                      disabled={!pagination.hasNextPage}
+                      disabled={!pagination || page >= (pagination.totalPages || 1)}
                     >
                       <ChevronRight className="w-4 h-4" />
                     </Button>
