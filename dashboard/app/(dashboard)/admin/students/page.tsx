@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StudentsTable } from "@/components/students/students-table";
@@ -76,6 +76,17 @@ type CreateTCFormData = z.infer<typeof createTCSchema>;
 export default function StudentsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
+
+  // Handle tab from URL query parameter
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      if (tab && ["all", "add", "transfer"].includes(tab)) {
+        setActiveTab(tab);
+      }
+    }
+  }, []);
   const [page, setPage] = useState(1);
   const [tcPage, setTcPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
