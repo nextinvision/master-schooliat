@@ -26,13 +26,13 @@ export default function ReportsPage() {
     startDate: format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd"),
     endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
   });
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [selectedClassId, setSelectedClassId] = useState<string>("all");
 
   const { data: classesData } = useClasses({ page: 1, limit: 1000 });
   const classes = classesData?.data || [];
 
   const { data: attendanceData, isLoading: attendanceLoading } = useAttendanceReports({
-    classId: selectedClassId || undefined,
+    classId: selectedClassId && selectedClassId !== "all" ? selectedClassId : undefined,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
@@ -105,14 +105,14 @@ export default function ReportsPage() {
                 <SelectTrigger id="class">
                   <SelectValue placeholder="All Classes" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Classes</SelectItem>
-                  {classes.map((cls: any) => (
-                    <SelectItem key={cls.id} value={cls.id}>
-                      {cls.grade}{cls.division ? `-${cls.division}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="all">All Classes</SelectItem>
+                    {classes.map((cls: any) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.grade}{cls.division ? `-${cls.division}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
               </Select>
             </div>
             <div>

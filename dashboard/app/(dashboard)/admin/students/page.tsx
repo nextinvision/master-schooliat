@@ -90,7 +90,7 @@ export default function StudentsPage() {
   const [page, setPage] = useState(1);
   const [tcPage, setTcPage] = useState(1);
   const [tcSearchQuery, setTcSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ISSUED" | "COLLECTED" | "CANCELLED" | "">("");
+  const [statusFilter, setStatusFilter] = useState<"ISSUED" | "COLLECTED" | "CANCELLED" | "all">("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState(false);
   const limit = 15;
@@ -104,7 +104,7 @@ export default function StudentsPage() {
   const { data: tcsData, isLoading: tcsLoading, refetch: refetchTCs } = useTCs({
     page: tcPage,
     limit,
-    status: statusFilter || undefined,
+    status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
     tcNumber: tcSearchQuery || undefined,
   });
   const tcs = tcsData?.data || [];
@@ -368,7 +368,7 @@ export default function StudentsPage() {
                         <SelectValue placeholder="All Status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">All Status</SelectItem>
+                        <SelectItem value="all">All Status</SelectItem>
                         <SelectItem value="ISSUED">Issued</SelectItem>
                         <SelectItem value="COLLECTED">Collected</SelectItem>
                         <SelectItem value="CANCELLED">Cancelled</SelectItem>
@@ -917,7 +917,7 @@ export default function StudentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {allStudents.length === 0 ? (
-                    <SelectItem value="" disabled>No students available</SelectItem>
+                    <SelectItem value="none" disabled>No students available</SelectItem>
                   ) : (
                     allStudents.map((student: any) => (
                       <SelectItem key={student.id} value={student.id}>

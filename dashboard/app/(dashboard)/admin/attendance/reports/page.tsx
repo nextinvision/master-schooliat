@@ -65,8 +65,8 @@ export default function AttendanceReportsPage() {
     startDate: format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd"),
     endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
   });
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
-  const [selectedStudentId, setSelectedStudentId] = useState<string>("");
+  const [selectedClassId, setSelectedClassId] = useState<string>("all");
+  const [selectedStudentId, setSelectedStudentId] = useState<string>("all");
 
   // Fetch classes
   const { data: classesData, isLoading: classesLoading } = useClasses({ page: 1, limit: 1000 });
@@ -78,14 +78,14 @@ export default function AttendanceReportsPage() {
     limit: 1000,
   });
   const allStudents = studentsData?.data || [];
-  const filteredStudents = selectedClassId
+  const filteredStudents = selectedClassId && selectedClassId !== "all"
     ? allStudents.filter((s: any) => s.studentProfile?.classId === selectedClassId)
     : [];
 
   // Fetch attendance reports
   const { data: reportsData, isLoading: reportsLoading, refetch } = useAttendanceReports({
-    classId: selectedClassId || undefined,
-    studentId: selectedStudentId || undefined,
+    classId: selectedClassId && selectedClassId !== "all" ? selectedClassId : undefined,
+    studentId: selectedStudentId && selectedStudentId !== "all" ? selectedStudentId : undefined,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
@@ -241,7 +241,7 @@ export default function AttendanceReportsPage() {
                     <SelectValue placeholder="All Classes" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Classes</SelectItem>
+                    <SelectItem value="all">All Classes</SelectItem>
                     {classes.map((cls: any) => (
                       <SelectItem key={cls.id} value={cls.id}>
                         {cls.grade}
@@ -260,13 +260,13 @@ export default function AttendanceReportsPage() {
                 <Select
                   value={selectedStudentId}
                   onValueChange={setSelectedStudentId}
-                  disabled={!selectedClassId}
+                  disabled={!selectedClassId || selectedClassId === "all"}
                 >
                   <SelectTrigger id="student">
-                    <SelectValue placeholder={selectedClassId ? "Select Student" : "Select Class First"} />
+                    <SelectValue placeholder={selectedClassId && selectedClassId !== "all" ? "Select Student" : "Select Class First"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Students</SelectItem>
+                    <SelectItem value="all">All Students</SelectItem>
                     {filteredStudents.map((student: any) => (
                       <SelectItem key={student.id} value={student.id}>
                         {student.firstName} {student.lastName} - {student.publicUserId || student.id.slice(0, 8)}
