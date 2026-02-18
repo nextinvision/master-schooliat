@@ -49,10 +49,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useForm } from "react-hook-form";
+import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { FormProvider } from "react-hook-form";
 import { addStudentSchema, StudentFormData } from "@/lib/schemas/student-schema";
 import { FormTopBar } from "@/components/forms/form-top-bar";
 import { FormCard } from "@/components/forms/form-card";
@@ -61,7 +60,7 @@ import { ChipGroup } from "@/components/forms/chip-group";
 import { ClassDropdown } from "@/components/forms/class-dropdown";
 import { TransportDropdown } from "@/components/forms/transport-dropdown";
 import { PhotoUpload } from "@/components/forms/photo-upload";
-import { Controller } from "react-hook-form";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const createTCSchema = z.object({
   studentId: z.string().min(1, "Student is required"),
@@ -82,16 +81,18 @@ export default function StudentsPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       const tab = params.get("tab");
-      if (tab && ["all", "add", "transfer"].includes(tab)) {
-        setActiveTab(tab);
+      if (tab && ["all", "tc"].includes(tab)) {
+        setActiveTab(tab === "tc" ? "transfer" : tab);
       }
     }
   }, []);
+
   const [page, setPage] = useState(1);
   const [tcPage, setTcPage] = useState(1);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [tcSearchQuery, setTcSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ISSUED" | "COLLECTED" | "CANCELLED" | "">("");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState(false);
   const limit = 15;
 
   // Students data
@@ -104,7 +105,7 @@ export default function StudentsPage() {
     page: tcPage,
     limit,
     status: statusFilter || undefined,
-    tcNumber: searchQuery || undefined,
+    tcNumber: tcSearchQuery || undefined,
   });
   const tcs = tcsData?.data || [];
   const tcsTotalPages = tcsData?.pagination?.totalPages || 1;
@@ -169,8 +170,8 @@ export default function StudentsPage() {
       await createStudent.mutateAsync(data);
       toast.success("Student created successfully!");
       studentForm.reset();
+      setIsAddStudentDialogOpen(false);
       refetchStudents();
-      setActiveTab("all");
     } catch (error: any) {
       toast.error(error?.message || "Failed to create student");
     }
@@ -266,8 +267,15 @@ export default function StudentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Students</h1>
-          <p className="text-gray-600 mt-1">Manage students, add new students, and handle transfer certificates</p>
+          <p className="text-gray-600 mt-1">Manage students and transfer certificates</p>
         </div>
+        <Button 
+          onClick={() => setIsAddStudentDialogOpen(true)} 
+          className="gap-2"
+        >
+          <UserPlus className="h-4 w-4" />
+          Add Student
+        </Button>
       </div>
 
       {/* Tabs */}
@@ -281,21 +289,17 @@ export default function StudentsPage() {
             if (value === "all") {
               url.searchParams.delete("tab");
             } else {
-              url.searchParams.set("tab", value);
+              url.searchParams.set("tab", value === "transfer" ? "tc" : value);
             }
             window.history.replaceState({}, "", url.toString());
           }
         }} 
         className="w-full"
       >
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="all" className="gap-2">
             <Users className="h-4 w-4" />
             All Students
-          </TabsTrigger>
-          <TabsTrigger value="add" className="gap-2">
-            <UserPlus className="h-4 w-4" />
-            Add Student
           </TabsTrigger>
           <TabsTrigger value="transfer" className="gap-2">
             <GraduationCap className="h-4 w-4" />
@@ -307,7 +311,7 @@ export default function StudentsPage() {
         <TabsContent value="all" className="mt-6">
           <StudentsTable
             students={students}
-            onAddNew={() => setActiveTab("add")}
+            onAddNew={() => setIsAddStudentDialogOpen(true)}
             onEdit={handleEditStudent}
             onDelete={handleDeleteStudent}
             onBulkDelete={handleBulkDelete}
@@ -319,28 +323,227 @@ export default function StudentsPage() {
           />
         </TabsContent>
 
-        {/* Add Student Tab */}
-        <TabsContent value="add" className="mt-6">
-          <FormProvider {...studentForm}>
-            <div className="space-y-6">
-              <FormTopBar
-                title="Add New Student"
-                onCancel={() => {
-                  studentForm.reset();
-                  setActiveTab("all");
-                }}
-                onReset={() => studentForm.reset()}
-                onSave={studentForm.handleSubmit(handleCreateStudent)}
-                isSaving={createStudent.isPending}
-              />
+        {/* Transfer Certificates Tab */}
+        <TabsContent value="transfer" className="mt-6">
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold">Transfer Certificates</h2>
+                <p className="text-gray-600 mt-1">Manage student transfer certificates</p>
+              </div>
+              <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create TC
+              </Button>
+            </div>
 
+            {/* Filters */}
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      <Input
+                        placeholder="Search by TC number..."
+                        value={tcSearchQuery}
+                        onChange={(e) => {
+                          setTcSearchQuery(e.target.value);
+                          setTcPage(1); // Reset to first page on search
+                        }}
+                        className="pl-10"
+                      />
+                    </div>
+                  </div>
+                  <div className="w-48">
+                    <Select 
+                      value={statusFilter} 
+                      onValueChange={(v) => {
+                        setStatusFilter(v as any);
+                        setTcPage(1); // Reset to first page on filter change
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">All Status</SelectItem>
+                        <SelectItem value="ISSUED">Issued</SelectItem>
+                        <SelectItem value="COLLECTED">Collected</SelectItem>
+                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* TC Table */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Transfer Certificates</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tcsLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                    <Skeleton className="h-12 w-full" />
+                  </div>
+                ) : (
+                  <>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-[#e5ffc7]">
+                            <TableHead className="w-16">No</TableHead>
+                            <TableHead>TC Number</TableHead>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Class</TableHead>
+                            <TableHead>Reason</TableHead>
+                            <TableHead>Transfer Date</TableHead>
+                            <TableHead>Destination</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="w-40">Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {tcs.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                                No transfer certificates found
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            tcs.map((tc: any, index: number) => (
+                              <TableRow key={tc.id}>
+                                <TableCell className="font-medium">
+                                  {String((tcPage - 1) * limit + index + 1).padStart(2, "0")}
+                                </TableCell>
+                                <TableCell className="font-medium">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="h-4 w-4 text-gray-400" />
+                                    {tc.tcNumber || "N/A"}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {tc.student?.firstName || ""} {tc.student?.lastName || ""}
+                                </TableCell>
+                                <TableCell>
+                                  {tc.student?.studentProfile?.class?.grade || "N/A"}
+                                  {tc.student?.studentProfile?.class?.division
+                                    ? `-${tc.student.studentProfile.class.division}`
+                                    : ""}
+                                </TableCell>
+                                <TableCell className="max-w-xs truncate">{tc.reason || "N/A"}</TableCell>
+                                <TableCell>
+                                  {tc.transferDate
+                                    ? new Date(tc.transferDate).toLocaleDateString()
+                                    : "N/A"}
+                                </TableCell>
+                                <TableCell className="max-w-xs truncate">
+                                  {tc.destinationSchool || "N/A"}
+                                </TableCell>
+                                <TableCell>{getStatusBadge(tc.status)}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => router.push(`/admin/transfer-certificates/${tc.id}`)}
+                                      className="h-8 w-8"
+                                      title="View Details"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                    </Button>
+                                    {tc.status === "ISSUED" && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleStatusUpdate(tc.id, "COLLECTED")}
+                                        className="h-8 w-8 text-green-600 hover:text-green-700"
+                                        title="Mark as Collected"
+                                      >
+                                        <CheckCircle className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                    {tc.status !== "CANCELLED" && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => {
+                                          if (confirm("Are you sure you want to cancel this TC?")) {
+                                            handleStatusUpdate(tc.id, "CANCELLED");
+                                          }
+                                        }}
+                                        className="h-8 w-8 text-red-600 hover:text-red-700"
+                                        title="Cancel TC"
+                                      >
+                                        <XCircle className="h-4 w-4" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                    </div>
+
+                    {/* Pagination */}
+                    {tcsTotalPages > 1 && (
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="text-sm text-gray-600">
+                          Page {tcPage} of {tcsTotalPages} (Total: {tcsData?.pagination?.total || 0})
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTcPage(Math.max(1, tcPage - 1))}
+                            disabled={tcPage === 1 || tcsLoading}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setTcPage(Math.min(tcsTotalPages, tcPage + 1))}
+                            disabled={tcPage === tcsTotalPages || tcsLoading}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      {/* Add Student Dialog */}
+      <Dialog open={isAddStudentDialogOpen} onOpenChange={setIsAddStudentDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Add New Student</DialogTitle>
+            <DialogDescription>
+              Fill in the student information below. All required fields are marked with *.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="flex-1 pr-4">
+            <FormProvider {...studentForm}>
               <form onSubmit={studentForm.handleSubmit(handleCreateStudent)} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Basic Information */}
                   <FormCard title="Basic Information">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="firstName">First Name</Label>
+                        <Label htmlFor="firstName">First Name *</Label>
                         <Input
                           id="firstName"
                           {...studentForm.register("firstName")}
@@ -355,7 +558,7 @@ export default function StudentsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="lastName">Last Name</Label>
+                        <Label htmlFor="lastName">Last Name *</Label>
                         <Input
                           id="lastName"
                           {...studentForm.register("lastName")}
@@ -370,7 +573,7 @@ export default function StudentsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Gender</Label>
+                        <Label>Gender *</Label>
                         <Controller
                           control={studentForm.control}
                           name="gender"
@@ -393,7 +596,7 @@ export default function StudentsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="dob">Date of Birth</Label>
+                        <Label htmlFor="dob">Date of Birth *</Label>
                         <Input
                           id="dob"
                           type="date"
@@ -408,7 +611,7 @@ export default function StudentsPage() {
                       <div className="space-y-2 col-span-2">
                         <ClassDropdown
                           name="classId"
-                          label="Select Class"
+                          label="Select Class *"
                           rules={{ required: "Class is required" }}
                         />
                       </div>
@@ -461,7 +664,7 @@ export default function StudentsPage() {
                     <div className="mt-4">
                       <PhotoUpload
                         name="registrationPhotoId"
-                        label="Student Photo"
+                        label="Student Photo *"
                         rules={{ required: "Student photo is required" }}
                       />
                     </div>
@@ -662,194 +865,36 @@ export default function StudentsPage() {
                   </FormCard>
                 </div>
               </form>
-            </div>
-          </FormProvider>
-        </TabsContent>
-
-        {/* Transfer Certificates Tab */}
-        <TabsContent value="transfer" className="mt-6">
-          <div className="space-y-6">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold">Transfer Certificates</h2>
-                <p className="text-gray-600 mt-1">Manage student transfer certificates</p>
-              </div>
-              <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
-                <Plus className="h-4 w-4" />
-                Create TC
-              </Button>
-            </div>
-
-            {/* Filters */}
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                      <Input
-                        placeholder="Search by TC number..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-                  </div>
-                  <div className="w-48">
-                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="All Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">All Status</SelectItem>
-                        <SelectItem value="ISSUED">Issued</SelectItem>
-                        <SelectItem value="COLLECTED">Collected</SelectItem>
-                        <SelectItem value="CANCELLED">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* TC Table */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Transfer Certificates</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {tcsLoading ? (
-                  <Skeleton className="h-64 w-full" />
-                ) : (
-                  <>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow className="bg-[#e5ffc7]">
-                            <TableHead className="w-16">No</TableHead>
-                            <TableHead>TC Number</TableHead>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Class</TableHead>
-                            <TableHead>Reason</TableHead>
-                            <TableHead>Transfer Date</TableHead>
-                            <TableHead>Destination</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="w-40">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {tcs.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={9} className="text-center py-8">
-                                No transfer certificates found
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            tcs.map((tc: any, index: number) => (
-                              <TableRow key={tc.id}>
-                                <TableCell className="font-medium">
-                                  {String((tcPage - 1) * limit + index + 1).padStart(2, "0")}
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  <div className="flex items-center gap-2">
-                                    <FileText className="h-4 w-4 text-gray-400" />
-                                    {tc.tcNumber || "N/A"}
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  {tc.student?.firstName || ""} {tc.student?.lastName || ""}
-                                </TableCell>
-                                <TableCell>
-                                  {tc.student?.studentProfile?.class?.grade || "N/A"}
-                                  {tc.student?.studentProfile?.class?.division
-                                    ? `-${tc.student.studentProfile.class.division}`
-                                    : ""}
-                                </TableCell>
-                                <TableCell className="max-w-xs truncate">{tc.reason || "N/A"}</TableCell>
-                                <TableCell>
-                                  {tc.transferDate
-                                    ? new Date(tc.transferDate).toLocaleDateString()
-                                    : "N/A"}
-                                </TableCell>
-                                <TableCell className="max-w-xs truncate">
-                                  {tc.destinationSchool || "N/A"}
-                                </TableCell>
-                                <TableCell>{getStatusBadge(tc.status)}</TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      onClick={() => router.push(`/admin/transfer-certificates/${tc.id}`)}
-                                      className="h-8 w-8"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
-                                    {tc.status === "ISSUED" && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleStatusUpdate(tc.id, "COLLECTED")}
-                                        className="h-8 w-8 text-green-600"
-                                        title="Mark as Collected"
-                                      >
-                                        <CheckCircle className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                    {tc.status !== "CANCELLED" && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        onClick={() => handleStatusUpdate(tc.id, "CANCELLED")}
-                                        className="h-8 w-8 text-red-600"
-                                        title="Cancel TC"
-                                      >
-                                        <XCircle className="h-4 w-4" />
-                                      </Button>
-                                    )}
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
-                    </div>
-
-                    {/* Pagination */}
-                    {tcsTotalPages > 1 && (
-                      <div className="flex items-center justify-between mt-4">
-                        <div className="text-sm text-gray-600">
-                          Page {tcPage} of {tcsTotalPages}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setTcPage(tcPage - 1)}
-                            disabled={tcPage === 1}
-                          >
-                            Previous
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setTcPage(tcPage + 1)}
-                            disabled={tcPage === tcsTotalPages}
-                          >
-                            Next
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-      </Tabs>
+            </FormProvider>
+          </ScrollArea>
+          <DialogFooter className="mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                studentForm.reset();
+                setIsAddStudentDialogOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => studentForm.reset()}
+            >
+              Reset
+            </Button>
+            <Button
+              type="button"
+              onClick={studentForm.handleSubmit(handleCreateStudent)}
+              disabled={createStudent.isPending}
+            >
+              {createStudent.isPending ? "Creating..." : "Create Student"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create TC Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -871,11 +916,15 @@ export default function StudentsPage() {
                   <SelectValue placeholder="Select Student" />
                 </SelectTrigger>
                 <SelectContent>
-                  {allStudents.map((student: any) => (
-                    <SelectItem key={student.id} value={student.id}>
-                      {student.firstName} {student.lastName} - {student.publicUserId}
-                    </SelectItem>
-                  ))}
+                  {allStudents.length === 0 ? (
+                    <SelectItem value="" disabled>No students available</SelectItem>
+                  ) : (
+                    allStudents.map((student: any) => (
+                      <SelectItem key={student.id} value={student.id}>
+                        {student.firstName} {student.lastName} - {student.publicUserId || student.id.slice(0, 8)}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
               {tcForm.formState.errors.studentId && (
@@ -937,7 +986,10 @@ export default function StudentsPage() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
+                onClick={() => {
+                  setIsCreateDialogOpen(false);
+                  tcForm.reset();
+                }}
               >
                 Cancel
               </Button>
@@ -951,4 +1003,3 @@ export default function StudentsPage() {
     </div>
   );
 }
-

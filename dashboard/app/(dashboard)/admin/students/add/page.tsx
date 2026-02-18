@@ -7,8 +7,8 @@ export default function AddStudentRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to unified students page with "add" tab
-    router.replace("/admin/students?tab=add");
+    // Redirect to unified students page (Add Student button will open dialog)
+    router.replace("/admin/students");
   }, [router]);
 
   return null;
