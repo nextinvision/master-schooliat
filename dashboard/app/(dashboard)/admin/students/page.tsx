@@ -271,7 +271,23 @@ export default function StudentsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(value) => {
+          setActiveTab(value);
+          // Update URL with tab parameter
+          if (typeof window !== "undefined") {
+            const url = new URL(window.location.href);
+            if (value === "all") {
+              url.searchParams.delete("tab");
+            } else {
+              url.searchParams.set("tab", value);
+            }
+            window.history.replaceState({}, "", url.toString());
+          }
+        }} 
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="all" className="gap-2">
             <Users className="h-4 w-4" />
