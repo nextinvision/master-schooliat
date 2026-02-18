@@ -82,7 +82,7 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
     boardAffiliation: "",
     studentStrength: "",
     certificateLink: "",
-    regionId: "",
+    regionId: "" as string | null,
   });
 
   const school = data as School | null;
@@ -274,16 +274,16 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
                   <div className="space-y-2">
                     <Label>Region</Label>
                     <Select
-                      value={formData.regionId}
+                      value={formData.regionId || "none"}
                       onValueChange={(value) =>
-                        setFormData({ ...formData, regionId: value })
+                        setFormData({ ...formData, regionId: value === "none" ? (null as any) : value })
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select region" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {regions.map((region) => (
                           <SelectItem key={region.id} value={region.id}>
                             {region.name}

@@ -26,25 +26,25 @@ export default function SuperAdminReportsPage() {
     startDate: format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd"),
     endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
   });
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string>("all");
 
   const { data: schoolsData } = useSchools();
   const schools = schoolsData?.data || [];
 
   const { data: attendanceData, isLoading: attendanceLoading } = useAttendanceReports({
-    schoolId: selectedSchoolId || undefined,
+    schoolId: selectedSchoolId && selectedSchoolId !== "all" ? selectedSchoolId : undefined,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
 
   const { data: feeData, isLoading: feeLoading } = useFeeAnalytics({
-    schoolId: selectedSchoolId || undefined,
+    schoolId: selectedSchoolId && selectedSchoolId !== "all" ? selectedSchoolId : undefined,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
   });
 
   const { data: academicData, isLoading: academicLoading } = useAcademicReports({
-    schoolId: selectedSchoolId || undefined,
+    schoolId: selectedSchoolId && selectedSchoolId !== "all" ? selectedSchoolId : undefined,
   });
 
   const { data: salaryData, isLoading: salaryLoading } = useSalaryReports({
@@ -106,7 +106,7 @@ export default function SuperAdminReportsPage() {
                   <SelectValue placeholder="All Schools" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Schools</SelectItem>
+                  <SelectItem value="all">All Schools</SelectItem>
                   {schools.map((school: any) => (
                     <SelectItem key={school.id} value={school.id}>
                       {school.name}

@@ -29,15 +29,19 @@ import { format } from "date-fns";
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({
-    action: "",
-    entityType: "",
-    result: "",
+    action: "all",
+    entityType: "all",
+    result: "all",
     startDate: "",
     endDate: "",
   });
 
   const { data, isLoading, error } = useAuditLogs({
-    ...filters,
+    action: filters.action && filters.action !== "all" ? filters.action : undefined,
+    entityType: filters.entityType && filters.entityType !== "all" ? filters.entityType : undefined,
+    result: filters.result && filters.result !== "all" ? filters.result : undefined,
+    startDate: filters.startDate || undefined,
+    endDate: filters.endDate || undefined,
     page,
     limit: 20,
   });
@@ -103,7 +107,7 @@ export default function AuditLogsPage() {
                   <SelectValue placeholder="All results" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All Results</SelectItem>
+                  <SelectItem value="all">All Results</SelectItem>
                   <SelectItem value="SUCCESS">Success</SelectItem>
                   <SelectItem value="FAILURE">Failure</SelectItem>
                 </SelectContent>
@@ -131,9 +135,9 @@ export default function AuditLogsPage() {
               variant="outline"
               onClick={() => {
                 setFilters({
-                  action: "",
-                  entityType: "",
-                  result: "",
+                  action: "all",
+                  entityType: "all",
+                  result: "all",
                   startDate: "",
                   endDate: "",
                 });
