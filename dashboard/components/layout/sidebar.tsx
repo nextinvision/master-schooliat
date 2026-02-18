@@ -46,7 +46,6 @@ import {
   LEAVE_SUBMENU,
   LIBRARY_SUBMENU,
   RESULTS_SUBMENU,
-  STUDENTS_SUBMENU,
   MASTER_DATA_SUBMENU,
   MenuItem,
   SubMenuItem,
@@ -129,8 +128,6 @@ export function Sidebar() {
         return LIBRARY_SUBMENU;
       case "Result Management":
         return RESULTS_SUBMENU;
-      case "Students":
-        return STUDENTS_SUBMENU;
       case "Master Data":
         return MASTER_DATA_SUBMENU;
       default:

@@ -67,7 +67,6 @@ export const MENU_ITEMS: MenuItem[] = [
     name: "Students",
     icon: "UserCheck",
     route: "/admin/students",
-    hasSubmenu: true,
   },
   {
     name: "Attendance",
