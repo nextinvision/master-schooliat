@@ -4,6 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
+// Fetch exams (for marks entry - exams router)
+function fetchExams(params: { pageNumber?: number; pageSize?: number } = {}) {
+  return get("/exams", {
+    pageNumber: params.pageNumber ?? 1,
+    pageSize: params.pageSize ?? 100,
+  });
+}
+
 // Fetch marks
 function fetchMarks(params: {
   examId?: string;
@@ -64,6 +72,14 @@ function publishResultsApi(data: {
 }
 
 // Hooks
+export function useExams(params: { pageNumber?: number; pageSize?: number } = {}) {
+  return useQuery({
+    queryKey: ["exams", params],
+    queryFn: () => fetchExams(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useMarks(params: {
   examId?: string;
   studentId?: string;
@@ -74,6 +90,7 @@ export function useMarks(params: {
     queryFn: () => fetchMarks(params),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
+    enabled: !!(params.examId && params.classId) || !!params.studentId,
   });
 }
 

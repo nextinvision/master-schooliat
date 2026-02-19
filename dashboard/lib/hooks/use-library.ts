@@ -102,6 +102,49 @@ function calculateFinesApi() {
   return post("/library/calculate-fines");
 }
 
+/**
+ * Fetches all issued/overdue library issues (pending returns) for the school by aggregating
+ * history per student and teacher. Backend has no "all pending returns" endpoint.
+ */
+async function fetchPendingLibraryReturns(): Promise<any[]> {
+  const [studentsRes, teachersRes] = await Promise.all([
+    get("/users/students", { page: 1, limit: 100 }),
+    get("/users/teachers", { pageNumber: 1, pageSize: 100 }),
+  ]);
+  const students = studentsRes?.data ?? [];
+  const teachers = teachersRes?.data ?? [];
+  const userIds = [
+    ...students.map((u: { id: string }) => u.id),
+    ...teachers.map((u: { id: string }) => u.id),
+  ].filter(Boolean);
+  const userMap = new Map<string, string>();
+  [...students, ...teachers].forEach((u: any) => {
+    const name = `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.email;
+    if (u.id) userMap.set(u.id, name);
+  });
+
+  const results = await Promise.all(
+    userIds.map((userId: string) =>
+      get("/library/history", { userId, limit: 50 })
+    )
+  );
+  const allIssues: any[] = [];
+  results.forEach((res) => {
+    const issues = res?.data ?? [];
+    const pending = issues.filter(
+      (i: any) => i.status === "ISSUED" || i.status === "OVERDUE"
+    );
+    allIssues.push(...pending);
+  });
+  allIssues.sort(
+    (a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime()
+  );
+  return allIssues.map((issue) => ({
+    ...issue,
+    borrowerName: userMap.get(issue.userId) ?? issue.userId,
+  }));
+}
+
 // Hooks
 export function useBooks(params: {
   title?: string;
@@ -204,6 +247,7 @@ export function useReturnBook() {
       queryClient.invalidateQueries({ queryKey: ["library-books"] });
       queryClient.invalidateQueries({ queryKey: ["library-history"] });
       queryClient.invalidateQueries({ queryKey: ["library-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["library-pending-returns"] });
     },
   });
 }
@@ -249,7 +293,16 @@ export function useCalculateFines() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["library-history"] });
       queryClient.invalidateQueries({ queryKey: ["library-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["library-pending-returns"] });
     },
+  });
+}
+
+export function usePendingLibraryReturns() {
+  return useQuery({
+    queryKey: ["library-pending-returns"],
+    queryFn: fetchPendingLibraryReturns,
+    staleTime: 30 * 1000,
   });
 }
 
