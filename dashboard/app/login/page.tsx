@@ -129,10 +129,16 @@ export default function LoginPage() {
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
         <div className="z-10 text-center">
           <div className="mb-8">
-            <div className="w-24 h-24 bg-white rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center text-white font-bold text-2xl">
-                SA
-              </div>
+            <div className="w-28 h-28 rounded-full overflow-hidden mx-auto mb-6 flex items-center justify-center shadow-lg bg-white ring-2 ring-white/30">
+              <Image
+                src="/logo.png"
+                alt="SchooliAT Logo"
+                width={112}
+                height={112}
+                className="object-cover w-full h-full"
+                priority
+                unoptimized={false}
+              />
             </div>
             <h1 className="text-4xl font-bold text-white mb-2">SchooliAT</h1>
             <p className="text-white/90 text-lg">
