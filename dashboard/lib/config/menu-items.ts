@@ -161,7 +161,7 @@ export const MENU_ITEMS: MenuItem[] = [
   {
     name: "Contact Schooliat",
     icon: "MessageCircle",
-    route: "/admin/contact-schooliat",
+    route: "/admin/contact",
   },
 ];
 
