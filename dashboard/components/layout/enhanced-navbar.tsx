@@ -37,6 +37,12 @@ export function EnhancedNavbar() {
 
   const isSuperAdminRoute = pathname.startsWith("/super-admin");
   const settingsRoute = isSuperAdminRoute ? "/super-admin/settings" : "/admin/settings";
+  const profileRoute =
+    isSuperAdminRoute
+      ? "/super-admin/profile"
+      : pathname.startsWith("/employee")
+        ? "/employee/profile"
+        : "/admin/profile";
 
   const handleLogout = async () => {
     await clearToken();
@@ -144,10 +150,7 @@ export function EnhancedNavbar() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => {
-              const profileRoute = isSuperAdminRoute ? "/super-admin/profile" : "/admin/profile";
-              router.push(profileRoute);
-            }}>
+            <DropdownMenuItem onClick={() => router.push(profileRoute)}>
               <User className="mr-2 h-4 w-4" />
               Profile
             </DropdownMenuItem>

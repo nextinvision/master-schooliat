@@ -23,7 +23,7 @@ export function useUpdateSettings() {
 export function useChangePassword() {
   return useMutation({
     mutationFn: (payload: { currentPassword: string; newPassword: string }) =>
-      post("/auth/change-password", payload),
+      post("/auth/change-password", { request: payload }),
   });
 }
 
