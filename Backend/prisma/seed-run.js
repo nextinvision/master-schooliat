@@ -2,10 +2,13 @@
  * Seed runner: loads DATABASE_URL from .env or deployment paths, then runs seed.
  * Use: npm run seed (runs this file)
  *
- * Load order:
+ * Load order (credentials can be in Backend/.env or the shared env directories):
  * 1. dotenv/config → Backend/.env (when cwd is Backend)
- * 2. /opt/schooliat/backend/production/shared/.env (production deployment)
- * 3. /opt/schooliat/backend/staging/shared/.env (staging deployment)
+ * 2. Backend/.env (explicit)
+ * 3. /opt/schooliat/backend/production/shared/.env (production server)
+ * 4. /opt/schooliat/backend/staging/shared/.env (staging server)
+ *
+ * Seed is run manually (e.g. from repo root: ./seed-env.sh production|staging), not in deploy workflows.
  */
 
 import "dotenv/config";

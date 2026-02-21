@@ -17,8 +17,14 @@
  * - Settings
  * - Grievances
  * - Salary Structures and Payments
+ * - Library (books, issues)
+ * - Notes and Syllabus
+ * - Galleries and Gallery Images
+ * - Circulars
+ * - FAQs (global and school-specific)
+ * - Transport Routes, Route Stops, Vehicle Maintenance
  * 
- * Usage: node prisma/seed.js
+ * Usage: node prisma/seed.js  (or: npm run seed)
  */
 
 import prisma from "../src/prisma/client.js";
@@ -51,6 +57,9 @@ import {
   TCStatus,
   TemplateType,
   IdCardCollectionStatus,
+  LibraryIssueStatus,
+  GalleryPrivacy,
+  CircularStatus,
 } from "../src/prisma/generated/index.js";
 import logger from "../src/config/logger.js";
 
@@ -2300,43 +2309,383 @@ async function seedCommunication() {
 // ============================================
 
 /**
- * Seed Library (Note: Library models may not exist yet, so this is a placeholder)
+ * Seed Library (LibraryBook, LibraryIssue, LibraryReservation)
  */
 async function seedLibrary() {
   logger.info("Seeding library data...");
-  // Library models (LibraryBook, LibraryIssue, LibraryReservation) may not be in schema yet
-  // This is a placeholder for when they are added
-  logger.info("Library models not found in schema, skipping...");
+
+  const bookTitles = [
+    { title: "Mathematics for Class 10", author: "NCERT", category: "Academic", isbn: "978-81-7450-100-1" },
+    { title: "English Grammar", author: "Wren & Martin", category: "Academic", isbn: "978-81-7450-101-2" },
+    { title: "Science Experiments", author: "Dr. R. Sharma", category: "Academic", isbn: "978-81-7450-102-3" },
+    { title: "History of India", author: "Romila Thapar", category: "Academic", isbn: "978-81-7450-103-4" },
+    { title: "Computer Basics", author: "Tech Publications", category: "Reference", isbn: "978-81-7450-104-5" },
+    { title: "General Knowledge 2024", author: "Arihant", category: "Reference", isbn: "978-81-7450-105-6" },
+    { title: "Story Tales", author: "Various", category: "Fiction", isbn: "978-81-7450-106-7" },
+    { title: "Dictionary", author: "Oxford", category: "Reference", isbn: "978-81-7450-107-8" },
+  ];
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const books = [];
+
+    for (const b of bookTitles) {
+      const existing = await prisma.libraryBook.findFirst({
+        where: { schoolId, title: b.title, deletedAt: null },
+      });
+      if (existing) continue;
+
+      const book = await prisma.libraryBook.create({
+        data: {
+          title: b.title,
+          author: b.author,
+          isbn: b.isbn,
+          category: b.category,
+          totalCopies: randomInt(2, 5),
+          availableCopies: randomInt(1, 4),
+          language: "English",
+          schoolId,
+          createdBy,
+        },
+      });
+      books.push(book);
+    }
+
+    // Issue a few books to students
+    const students = await prisma.user.findMany({
+      where: { schoolId, role: { name: RoleName.STUDENT }, deletedAt: null },
+      take: 3,
+    });
+    const allBooks = await prisma.libraryBook.findMany({
+      where: { schoolId, deletedAt: null, availableCopies: { gt: 0 } },
+      take: 5,
+    });
+    for (let i = 0; i < Math.min(3, students.length, allBooks.length); i++) {
+      const issueExists = await prisma.libraryIssue.findFirst({
+        where: { bookId: allBooks[i].id, userId: students[i].id, status: LibraryIssueStatus.ISSUED, deletedAt: null },
+      });
+      if (issueExists) continue;
+      const due = new Date();
+      due.setDate(due.getDate() + 14);
+      await prisma.libraryIssue.create({
+        data: {
+          bookId: allBooks[i].id,
+          userId: students[i].id,
+          issuedDate: new Date(),
+          dueDate: due,
+          status: LibraryIssueStatus.ISSUED,
+          schoolId,
+          createdBy,
+        },
+      });
+      await prisma.libraryBook.update({
+        where: { id: allBooks[i].id },
+        data: { availableCopies: { decrement: 1 } },
+      });
+    }
+
+    logger.info(`Created ${books.length} library books and issues for school: ${schoolId}`);
+  }
 }
 
 /**
- * Seed Notes and Syllabus (Note: These models may not exist yet)
+ * Seed Notes and Syllabus
  */
 async function seedNotesAndSyllabus() {
   logger.info("Seeding notes and syllabus...");
-  // Note and Syllabus models may not be in schema yet
-  // This is a placeholder for when they are added
-  logger.info("Notes and Syllabus models not found in schema, skipping...");
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const classIds = seedData.classes[schoolId] || [];
+    const subjectIds = seedData.subjects[schoolId] || [];
+    if (classIds.length === 0 || subjectIds.length === 0) continue;
+
+    const noteTitles = [
+      "Algebra Basics", "Quadratic Equations", "Trigonometry Introduction",
+      "Essay Writing", "Comprehension Tips", "Grammar Rules",
+      "Physics Motion", "Chemistry Basics", "Biology Cells",
+    ];
+    for (let i = 0; i < noteTitles.length; i++) {
+      const existing = await prisma.note.findFirst({
+        where: { schoolId, title: noteTitles[i], deletedAt: null },
+      });
+      if (existing) continue;
+      await prisma.note.create({
+        data: {
+          title: noteTitles[i],
+          description: `Study notes for ${noteTitles[i]}. Use for revision.`,
+          subjectId: subjectIds[i % subjectIds.length],
+          classId: classIds[i % classIds.length],
+          chapter: `Chapter ${(i % 5) + 1}`,
+          topic: "Overview",
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+
+    const syllabusTitles = ["Mathematics Syllabus 2024-25", "Science Syllabus 2024-25", "English Syllabus 2024-25"];
+    for (let i = 0; i < syllabusTitles.length; i++) {
+      const existing = await prisma.syllabus.findFirst({
+        where: { schoolId, title: syllabusTitles[i], deletedAt: null },
+      });
+      if (existing) continue;
+      await prisma.syllabus.create({
+        data: {
+          title: syllabusTitles[i],
+          description: `Full syllabus for academic year 2024-25`,
+          subjectId: subjectIds[i % subjectIds.length],
+          classId: classIds[0],
+          academicYear: "2024-25",
+          chapters: ["Ch1", "Ch2", "Ch3", "Ch4", "Ch5"],
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+
+    logger.info(`Created notes and syllabi for school: ${schoolId}`);
+  }
 }
 
 /**
- * Seed Gallery (Note: Gallery models may not exist yet)
+ * Seed Gallery (Gallery + GalleryImage; creates minimal File records for images)
  */
 async function seedGallery() {
   logger.info("Seeding gallery data...");
-  // Gallery models may not be in schema yet
-  // This is a placeholder for when they are added
-  logger.info("Gallery models not found in schema, skipping...");
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const classIds = seedData.classes[schoolId] || [];
+    const events = await prisma.event.findMany({ where: { schoolId, deletedAt: null }, take: 2 });
+
+    const galleryTitles = ["Annual Day 2024", "Sports Day", "Science Exhibition", "Class Photos"];
+    for (let i = 0; i < galleryTitles.length; i++) {
+      const existing = await prisma.gallery.findFirst({
+        where: { schoolId, title: galleryTitles[i], deletedAt: null },
+      });
+      if (existing) continue;
+
+      const gallery = await prisma.gallery.create({
+        data: {
+          title: galleryTitles[i],
+          description: `${galleryTitles[i]} - School events gallery`,
+          eventId: events[i % events.length]?.id || null,
+          privacy: i === 0 ? GalleryPrivacy.PUBLIC : GalleryPrivacy.SCHOOL_ONLY,
+          classId: classIds[i % classIds.length] || null,
+          schoolId,
+          createdBy,
+        },
+      });
+
+      // Create a minimal file record for each gallery image (seed placeholder)
+      for (let j = 0; j < 2; j++) {
+        const file = await prisma.file.create({
+          data: {
+            extension: "jpg",
+            name: `gallery-${gallery.id}-${j}.jpg`,
+            contentType: "image/jpeg",
+            size: 1024,
+            createdBy,
+          },
+        });
+        await prisma.galleryImage.create({
+          data: {
+            galleryId: gallery.id,
+            fileId: file.id,
+            caption: `Image ${j + 1}`,
+            order: j,
+            schoolId,
+            createdBy,
+          },
+        });
+      }
+    }
+
+    logger.info(`Created galleries for school: ${schoolId}`);
+  }
 }
 
 /**
- * Seed Circulars (Note: Circular model may not exist yet)
+ * Seed Circulars
  */
 async function seedCirculars() {
   logger.info("Seeding circulars...");
-  // Circular model may not be in schema yet
-  // This is a placeholder for when it is added
-  logger.info("Circular model not found in schema, skipping...");
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const classIds = seedData.classes[schoolId] || [];
+
+    const circulars = [
+      { title: "School Reopening Notice", content: "School reopens on 1st June. All students must report by 8 AM.", status: CircularStatus.PUBLISHED },
+      { title: "Parent-Teacher Meeting", content: "PTM scheduled for 15th of this month. Please attend.", status: CircularStatus.PUBLISHED },
+      { title: "Holiday List 2024-25", content: "Please find the list of holidays for the academic year.", status: CircularStatus.DRAFT },
+      { title: "Exam Schedule", content: "Unit test schedule will be shared shortly.", status: CircularStatus.PUBLISHED },
+    ];
+
+    for (const c of circulars) {
+      const existing = await prisma.circular.findFirst({
+        where: { schoolId, title: c.title, deletedAt: null },
+      });
+      if (existing) continue;
+      await prisma.circular.create({
+        data: {
+          title: c.title,
+          content: c.content,
+          status: c.status,
+          targetRoles: ["TEACHER", "STAFF", "STUDENT"],
+          targetUserIds: [],
+          classIds: classIds.slice(0, 2),
+          attachments: [],
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          publishedAt: c.status === CircularStatus.PUBLISHED ? new Date() : null,
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+
+    logger.info(`Created circulars for school: ${schoolId}`);
+  }
+}
+
+/**
+ * Seed FAQs (school-specific and global)
+ */
+async function seedFAQs() {
+  logger.info("Seeding FAQs...");
+
+  const globalFaqs = [
+    { question: "How do I check my attendance?", answer: "Go to Dashboard > Attendance to view your attendance summary." },
+    { question: "Where can I see homework?", answer: "Homework is listed under Homework section. Submit before the due date." },
+    { question: "How to view exam results?", answer: "Results are published under Results after the exam. Check Marks for subject-wise breakdown." },
+    { question: "How to pay fees online?", answer: "Go to Finance > Fees and use the Pay option for pending installments." },
+    { question: "How do I apply for leave?", answer: "Go to Leave > My Leaves and submit a new leave request with dates and reason." },
+  ];
+
+  for (const faq of globalFaqs) {
+    const existing = await prisma.fAQ.findFirst({
+      where: { question: faq.question, schoolId: null, deletedAt: null },
+    });
+    if (existing) continue;
+    await prisma.fAQ.create({
+      data: {
+        question: faq.question,
+        answer: faq.answer,
+        category: "General",
+        keywords: ["help", "faq"],
+        schoolId: null,
+        createdBy: "seed",
+      },
+    });
+  }
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const schoolFaqs = [
+      { question: "What are the school timings?", answer: "School timings are 8:00 AM to 2:30 PM. Refer to the timetable for period details." },
+      { question: "How to collect transfer certificate?", answer: "Submit a written application at the admin office. TC will be issued within 5 working days." },
+    ];
+    for (const faq of schoolFaqs) {
+      const existing = await prisma.fAQ.findFirst({
+        where: { schoolId, question: faq.question, deletedAt: null },
+      });
+      if (existing) continue;
+      await prisma.fAQ.create({
+        data: {
+          question: faq.question,
+          answer: faq.answer,
+          category: "School",
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+  }
+
+  logger.info("Created global and school FAQs.");
+}
+
+/**
+ * Seed Routes and Vehicle Maintenance (for transports)
+ */
+async function seedRoutesAndMaintenance() {
+  logger.info("Seeding routes and vehicle maintenance...");
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const transports = seedData.transports[schoolId] || [];
+    if (transports.length === 0) continue;
+
+    const transportIds = seedData.transports[schoolId] || [];
+
+    for (let i = 0; i < Math.min(2, transportIds.length); i++) {
+      const routeName = `Route ${i + 1} - Main`;
+      const existingRoute = await prisma.route.findFirst({
+        where: { schoolId, name: routeName, deletedAt: null },
+      });
+      if (existingRoute) continue;
+
+      const route = await prisma.route.create({
+        data: {
+          name: routeName,
+          transportId: transportIds[i],
+          startPoint: "School Main Gate",
+          endPoint: i === 0 ? "Central Station" : "North Colony",
+          distance: 5.5 + i,
+          estimatedTime: 25 + i * 10,
+          schoolId,
+          createdBy,
+        },
+      });
+
+      await prisma.routeStop.create({
+        data: {
+          routeId: route.id,
+          name: "Stop 1 - Market",
+          address: "Near Central Market",
+          sequence: 1,
+          arrivalTime: "08:15",
+          schoolId,
+          createdBy,
+        },
+      });
+      await prisma.routeStop.create({
+        data: {
+          routeId: route.id,
+          name: "Stop 2 - Junction",
+          sequence: 2,
+          arrivalTime: "08:25",
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+
+    for (const transportId of transportIds.slice(0, 2)) {
+      const existing = await prisma.vehicleMaintenance.findFirst({
+        where: { transportId, deletedAt: null },
+      });
+      if (existing) continue;
+      const maintDate = new Date();
+      maintDate.setMonth(maintDate.getMonth() - 1);
+      await prisma.vehicleMaintenance.create({
+        data: {
+          transportId,
+          maintenanceType: "General Service",
+          description: "Oil change, brake check, tyre inspection",
+          cost: 3500,
+          maintenanceDate: maintDate,
+          nextMaintenanceDate: new Date(maintDate.getTime() + 90 * 24 * 60 * 60 * 1000),
+          serviceProvider: "Authorized Service Center",
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+  }
+
+  logger.info("Created routes and vehicle maintenance records.");
 }
 
 // ============================================
@@ -2595,6 +2944,16 @@ async function main() {
       await seedCirculars();
     } catch (error) {
       logger.warn(`Skipping circulars: ${error.message}`);
+    }
+    try {
+      await seedFAQs();
+    } catch (error) {
+      logger.warn(`Skipping FAQs: ${error.message}`);
+    }
+    try {
+      await seedRoutesAndMaintenance();
+    } catch (error) {
+      logger.warn(`Skipping routes and maintenance: ${error.message}`);
     }
     
     // Phase 3: Additional Features
