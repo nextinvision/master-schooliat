@@ -17,6 +17,30 @@ export const feesConfigSchema = z.object({
     }, "Fee amount must be 0 or greater"),
 });
 
+export const schoolProfileSchema = z.object({
+  name: z.string().min(1, "School name is required"),
+  code: z.string().min(1, "School code is required"),
+  email: z.string().email("Invalid email"),
+  phone: z.string().min(1, "Phone is required"),
+  address: z.array(z.string().min(1, "Address line required")).min(1, "At least one address line"),
+  certificateLink: z.string().url("Invalid URL").optional().or(z.literal("")),
+  gstNumber: z.string().optional(),
+  principalName: z.string().optional(),
+  principalEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+  principalPhone: z.string().optional(),
+  establishedYear: z
+    .string()
+    .optional()
+    .refine((v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 1800 && Number(v) <= 2100), "Invalid year"),
+  boardAffiliation: z.string().optional(),
+  studentStrength: z
+    .string()
+    .optional()
+    .refine((v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0), "Must be 0 or greater"),
+});
+
+export type SchoolProfileFormData = z.infer<typeof schoolProfileSchema>;
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),

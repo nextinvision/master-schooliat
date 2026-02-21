@@ -13,6 +13,7 @@ import updateSchoolSchema from "../schemas/school/update-school.schema.js";
 import updateClassSchema from "../schemas/school/update-class.schema.js";
 import getSchoolsSchema from "../schemas/school/get-schools.schema.js";
 import getMySchoolSchema from "../schemas/school/get-my-school.schema.js";
+import updateMySchoolSchema from "../schemas/school/update-my-school.schema.js";
 import getClassesSchema from "../schemas/school/get-classes.schema.js";
 import deleteSchoolSchema from "../schemas/school/delete-school.schema.js";
 import deleteClassSchema from "../schemas/school/delete-class.schema.js";
@@ -152,14 +153,79 @@ router.get(
       select: {
         id: true,
         name: true,
+        code: true,
         address: true,
+        email: true,
+        phone: true,
+        certificateLink: true,
+        logoId: true,
+        gstNumber: true,
+        principalName: true,
+        principalEmail: true,
+        principalPhone: true,
+        establishedYear: true,
+        boardAffiliation: true,
+        studentStrength: true,
       },
     });
 
     return res.json({
       message: "School fetched!",
-      data: { ...school },
+      data: school ? { ...school } : null,
     });
+  },
+);
+
+// PATCH my-school: school admin updates their own school (requires EDIT_SETTINGS)
+router.patch(
+  "/my-school",
+  withPermission(Permission.EDIT_SETTINGS),
+  validateRequest(updateMySchoolSchema),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const updateData = req.body.request || {};
+
+    if (!currentUser.schoolId) {
+      return res.status(403).json({
+        message: "School context required to update school profile.",
+      });
+    }
+
+    const existingSchool = await prisma.school.findFirst({
+      where: {
+        id: currentUser.schoolId,
+        deletedAt: null,
+        deletedBy: null,
+      },
+    });
+
+    if (!existingSchool) {
+      return res.status(404).json({ message: "School not found!" });
+    }
+
+    const schoolUpdateData = {};
+    if (updateData.name !== undefined) schoolUpdateData.name = updateData.name;
+    if (updateData.code !== undefined) schoolUpdateData.code = updateData.code;
+    if (updateData.email !== undefined) schoolUpdateData.email = updateData.email;
+    if (updateData.phone !== undefined) schoolUpdateData.phone = updateData.phone;
+    if (updateData.address !== undefined) schoolUpdateData.address = updateData.address;
+    if (updateData.certificateLink !== undefined) schoolUpdateData.certificateLink = updateData.certificateLink;
+    if (updateData.gstNumber !== undefined) schoolUpdateData.gstNumber = updateData.gstNumber;
+    if (updateData.principalName !== undefined) schoolUpdateData.principalName = updateData.principalName;
+    if (updateData.principalEmail !== undefined) schoolUpdateData.principalEmail = updateData.principalEmail;
+    if (updateData.principalPhone !== undefined) schoolUpdateData.principalPhone = updateData.principalPhone;
+    if (updateData.establishedYear !== undefined) schoolUpdateData.establishedYear = updateData.establishedYear;
+    if (updateData.boardAffiliation !== undefined) schoolUpdateData.boardAffiliation = updateData.boardAffiliation;
+    if (updateData.studentStrength !== undefined) schoolUpdateData.studentStrength = updateData.studentStrength;
+
+    schoolUpdateData.updatedBy = currentUser.id;
+
+    const updatedSchool = await prisma.school.update({
+      where: { id: currentUser.schoolId },
+      data: schoolUpdateData,
+    });
+
+    return res.json({ message: "School profile updated!", data: updatedSchool });
   },
 );
 

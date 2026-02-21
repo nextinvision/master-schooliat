@@ -107,5 +107,19 @@ export interface PlatformConfig {
   features?: {
     [key: string]: boolean;
   };
+  // School-level preferences (used when settings.schoolId is set)
+  school?: SchoolConfig;
+}
+
+export interface SchoolConfig {
+  timezone?: string;
+  dateFormat?: string;
+  currency?: string;
+  notifications?: {
+    feeReminders?: boolean;
+    attendanceAlerts?: boolean;
+    homeworkReminders?: boolean;
+    circulars?: boolean;
+  };
 }
 
