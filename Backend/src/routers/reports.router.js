@@ -5,6 +5,26 @@ import reportsService from "../services/reports.service.js";
 
 const router = Router();
 
+// Get dashboard summary (overview KPIs for reports page)
+router.get(
+  "/dashboard-summary",
+  withPermission(Permission.GET_ATTENDANCE_REPORTS), // reuse a reports permission
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const summary = await reportsService.getDashboardSummary(currentUser.schoolId);
+      return res.status(200).json({
+        message: "Dashboard summary fetched successfully",
+        data: summary,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch dashboard summary",
+      });
+    }
+  }
+);
+
 // Get attendance reports
 router.get(
   "/attendance",

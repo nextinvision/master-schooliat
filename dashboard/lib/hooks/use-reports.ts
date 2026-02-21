@@ -3,6 +3,32 @@
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api/client";
 
+// Dashboard summary (overview KPIs)
+function fetchDashboardSummary() {
+  return get("/reports/dashboard-summary");
+}
+
+export function useDashboardSummary() {
+  return useQuery({
+    queryKey: ["reports", "dashboard-summary"],
+    queryFn: fetchDashboardSummary,
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+// Exams list for academic filter
+function fetchExams(params: { page?: number; limit?: number } = {}) {
+  return get("/exams", { page: params.page ?? 1, limit: params.limit ?? 500 });
+}
+
+export function useExamsForReports(params: { page?: number; limit?: number } = {}) {
+  return useQuery({
+    queryKey: ["exams", "reports", params],
+    queryFn: () => fetchExams(params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 // Fetch attendance reports
 function fetchAttendanceReports(params: {
   classId?: string;

@@ -288,11 +288,94 @@ const getSalaryReports = async (schoolId, filters = {}) => {
   };
 };
 
+/**
+ * Get dashboard summary for reports overview (current month KPIs)
+ * @param {string} schoolId
+ * @returns {Promise<Object>}
+ */
+const getDashboardSummary = async (schoolId) => {
+  if (!schoolId) {
+    throw new Error("School context is required");
+  }
+  const now = new Date();
+  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+  const [attendanceRows, feeRows, marksRows, salaryRows, examCount] = await Promise.all([
+    prisma.attendance.findMany({
+      where: { schoolId, deletedAt: null, date: { gte: startOfThisMonth, lte: endOfThisMonth } },
+      select: { status: true, studentId: true },
+    }),
+    prisma.feeInstallements.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { amount: true, paidAmount: true, paymentStatus: true },
+    }),
+    prisma.marks.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { percentage: true },
+    }),
+    prisma.salaryPayments.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { totalAmount: true, userId: true },
+    }),
+    prisma.exam.count({ where: { schoolId } }),
+  ]);
+
+  const totalStudentsAttendance = new Set(attendanceRows.map((a) => a.studentId)).size;
+  const presentCount = attendanceRows.filter((a) => a.status === "PRESENT").length;
+  const attendanceRate =
+    attendanceRows.length > 0 ? Number(((presentCount / attendanceRows.length) * 100).toFixed(2)) : 0;
+
+  const totalFeeAmount = feeRows.reduce((s, f) => s + Number(f.amount || 0), 0);
+  const paidFeeAmount = feeRows
+    .filter((f) => f.paymentStatus === "PAID")
+    .reduce((s, f) => s + Number(f.paidAmount != null ? f.paidAmount : f.amount || 0), 0);
+  const pendingFeeAmount = feeRows
+    .filter((f) => f.paymentStatus === "PENDING")
+    .reduce((s, f) => s + Number(f.amount || 0), 0);
+  const collectionRate = totalFeeAmount > 0 ? Number(((paidFeeAmount / totalFeeAmount) * 100).toFixed(2)) : 0;
+
+  const avgScore =
+    marksRows.length > 0
+      ? Number(
+          (marksRows.reduce((s, m) => s + Number(m.percentage || 0), 0) / marksRows.length).toFixed(2)
+        )
+      : 0;
+  const passCount = marksRows.filter((m) => Number(m.percentage || 0) >= 40).length;
+  const passRate = marksRows.length > 0 ? Number(((passCount / marksRows.length) * 100).toFixed(2)) : 0;
+
+  const totalSalaryPaid = salaryRows.reduce((s, p) => s + Number(p.totalAmount || 0), 0);
+  const salaryEmployees = new Set(salaryRows.map((p) => p.userId)).size;
+
+  return {
+    attendance: {
+      totalStudents: totalStudentsAttendance,
+      averageRate: attendanceRate,
+      periodLabel: "This month",
+    },
+    fees: {
+      totalRevenue: totalFeeAmount,
+      totalPending: pendingFeeAmount,
+      collectionRate,
+    },
+    academic: {
+      totalExams: examCount,
+      averageScore: avgScore,
+      passRate,
+    },
+    salary: {
+      totalPaid: totalSalaryPaid,
+      totalEmployees: salaryEmployees,
+    },
+  };
+};
+
 const reportsService = {
   getAttendanceReports,
   getFeeAnalytics,
   getAcademicReports,
   getSalaryReports,
+  getDashboardSummary,
 };
 
 export default reportsService;
