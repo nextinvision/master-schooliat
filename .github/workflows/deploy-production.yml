@@ -65,12 +65,19 @@ jobs:
             npm ci
             echo "Generating Prisma client..."
             npm run prisma:generate
-            echo "Creating database backup..."
-            mkdir -p /opt/schooliat/shared/backups
-            pg_dump -U schooliat_user schooliat_production > /opt/schooliat/shared/backups/pre-migration-$(date +%Y%m%d-%H%M%S).sql || echo "WARNING: Backup failed, continuing..."
-            echo "Running database migrations..."
             export DATABASE_URL="${{ secrets.PRODUCTION_DATABASE_URL }}"
-            npm run prisma:migrate:deploy
+            echo "Creating database backup (using DATABASE_URL for TCP auth)..."
+            mkdir -p /opt/schooliat/shared/backups
+            pg_dump -d "$DATABASE_URL" -F p -f /opt/schooliat/shared/backups/pre-migration-$(date +%Y%m%d-%H%M%S).sql 2>/dev/null || echo "WARNING: Backup failed, continuing..."
+            echo "Running database migrations..."
+            if ! npm run prisma:migrate:deploy; then
+              echo "Migration deploy failed. Attempting to resolve failed migration and retry (P3009 recovery)..."
+              npx prisma migrate resolve --rolled-back "20260221053404_add_missing_models" --schema=src/prisma/db/schema.prisma || true
+              if ! npm run prisma:migrate:deploy; then
+                echo "Migration still failed. On the server run: npx prisma migrate resolve --rolled-back 20260221053404_add_missing_models then re-deploy, or see https://pris.ly/d/migrate-resolve"
+                exit 1
+              fi
+            fi
             echo "Copying code to deployment directory..."
             mkdir -p /opt/schooliat/backend/production/current
             rsync -av --exclude 'node_modules' --exclude '.git' --exclude 'prisma/migrations' /opt/schooliat/repo/Backend/ /opt/schooliat/backend/production/current/
