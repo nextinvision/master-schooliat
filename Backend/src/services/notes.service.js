@@ -77,6 +77,13 @@ const getNotes = async (schoolId, filters = {}, options = {}) => {
   const { page = 1, limit = 20 } = options;
   const skip = (page - 1) * limit;
 
+  if (!schoolId) {
+    return {
+      notes: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
+
   const where = {
     schoolId,
     deletedAt: null,
@@ -105,27 +112,27 @@ const getNotes = async (schoolId, filters = {}, options = {}) => {
     };
   }
 
-  const [notes, total] = await Promise.all([
-    prisma.note.findMany({
-      where,
-      orderBy: {
-        createdAt: "desc",
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.note.count({ where }),
-  ]);
-
-  return {
-    notes,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  try {
+    const [notes, total] = await Promise.all([
+      prisma.note.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.note.count({ where }),
+    ]);
+    return {
+      notes,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId }, "notes getNotes failed");
+    return {
+      notes: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 };
 
 /**

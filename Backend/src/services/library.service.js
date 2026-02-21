@@ -300,6 +300,13 @@ const searchBooks = async (schoolId, filters = {}, options = {}) => {
   const { page = 1, limit = 20 } = options;
   const skip = (page - 1) * limit;
 
+  if (!schoolId) {
+    return {
+      books: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
+
   const where = {
     schoolId,
     deletedAt: null,
@@ -327,27 +334,27 @@ const searchBooks = async (schoolId, filters = {}, options = {}) => {
     where.isbn = filters.isbn;
   }
 
-  const [books, total] = await Promise.all([
-    prisma.libraryBook.findMany({
-      where,
-      orderBy: {
-        title: "asc",
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.libraryBook.count({ where }),
-  ]);
-
-  return {
-    books,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  try {
+    const [books, total] = await Promise.all([
+      prisma.libraryBook.findMany({
+        where,
+        orderBy: { title: "asc" },
+        skip,
+        take: limit,
+      }),
+      prisma.libraryBook.count({ where }),
+    ]);
+    return {
+      books,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId }, "library searchBooks failed");
+    return {
+      books: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 };
 
 /**

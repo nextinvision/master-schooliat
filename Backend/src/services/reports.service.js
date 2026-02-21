@@ -75,54 +75,40 @@ const getAttendanceReports = async (schoolId, filters = {}) => {
  * @returns {Promise<Object>} - Fee analytics
  */
 const getFeeAnalytics = async (schoolId, filters = {}) => {
-  const { startDate = null, endDate = null, classId = null } = filters;
+  const { startDate = null, endDate = null, studentId = null } = filters;
 
   const where = {
     schoolId,
     deletedAt: null,
   };
 
-  if (classId) {
-    where.classId = classId;
+  if (studentId) {
+    where.studentId = studentId;
   }
 
   const installments = await prisma.feeInstallements.findMany({
     where,
-    include: {
-      student: {
-        include: {
-          studentProfile: {
-            include: {
-              class: true,
-            },
-          },
-        },
-      },
-    },
   });
 
-  // Filter by date if provided
+  // Filter by date if provided (use createdAt or paidAt)
   let filteredInstallments = installments;
   if (startDate && endDate) {
     filteredInstallments = installments.filter((inst) => {
-      const instDate = new Date(inst.dueDate);
+      const instDate = new Date(inst.createdAt || inst.paidAt || 0);
       return instDate >= new Date(startDate) && instDate <= new Date(endDate);
     });
   }
 
-  // Calculate statistics
+  // Use paymentStatus (schema field), not status
   const totalAmount = filteredInstallments.reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
   const paidAmount = filteredInstallments
-    .filter((inst) => inst.status === "PAID")
-    .reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
+    .filter((inst) => inst.paymentStatus === "PAID")
+    .reduce((sum, inst) => sum + Number(inst.paidAmount ?? inst.amount || 0), 0);
   const pendingAmount = filteredInstallments
-    .filter((inst) => inst.status === "PENDING")
+    .filter((inst) => inst.paymentStatus === "PENDING")
     .reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
   const overdueAmount = filteredInstallments
-    .filter((inst) => {
-      const dueDate = new Date(inst.dueDate);
-      return inst.status === "PENDING" && dueDate < new Date();
-    })
+    .filter((inst) => inst.paymentStatus === "PENDING" && inst.paidAt == null && new Date(inst.createdAt) < new Date())
     .reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
 
   const collectionRate = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
@@ -136,8 +122,8 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
       overdueAmount,
       collectionRate: collectionRate.toFixed(2),
       totalInstallments: filteredInstallments.length,
-      paidInstallments: filteredInstallments.filter((inst) => inst.status === "PAID").length,
-      pendingInstallments: filteredInstallments.filter((inst) => inst.status === "PENDING").length,
+      paidInstallments: filteredInstallments.filter((inst) => inst.paymentStatus === "PAID").length,
+      pendingInstallments: filteredInstallments.filter((inst) => inst.paymentStatus === "PENDING").length,
     },
   };
 };
