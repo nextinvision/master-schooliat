@@ -122,7 +122,7 @@ export function SchoolsManagement() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead>School Name</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Contact</TableHead>
@@ -160,7 +160,7 @@ export function SchoolsManagement() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className="bg-green-100 text-green-800 border-green-300"
+                        className="bg-schooliat-tint text-primary border-primary/30"
                       >
                         {school.status}
                       </Badge>

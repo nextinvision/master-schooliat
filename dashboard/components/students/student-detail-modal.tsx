@@ -121,7 +121,7 @@ export function StudentDetailModal({ visible, onClose, student }: StudentDetailM
   return (
     <Dialog open={visible} onOpenChange={onClose}>
       <DialogContent className="max-w-3xl max-h-[80vh] p-0">
-        <DialogHeader className="bg-[#e5ffc7] px-6 py-4 rounded-t-lg border-b-2 border-[#1f5e00]/15">
+        <DialogHeader className="bg-schooliat-tint px-6 py-4 rounded-t-lg border-b-2 border-primary/15">
           <DialogTitle className="text-lg font-bold text-[#1f5e00]">
             {student.firstName
               ? `${student.firstName} ${student.lastName || ""}`
@@ -132,7 +132,7 @@ export function StudentDetailModal({ visible, onClose, student }: StudentDetailM
         <ScrollArea className="max-h-[60vh]">
           <div className="p-6">
             {/* Avatar Section */}
-            <div className="flex flex-col items-center mb-8 pb-6 border-b border-[#e5ffc7]/40">
+            <div className="flex flex-col items-center mb-8 pb-6 border-b border-schooliat-tint/40">
               {fileId ? (
                 loadingUserFile ? (
                   <div className="w-28 h-28 rounded-full bg-gray-200 animate-pulse flex items-center justify-center">
@@ -173,7 +173,7 @@ export function StudentDetailModal({ visible, onClose, student }: StudentDetailM
               {entries.map(([key, value]) => (
                 <div
                   key={key}
-                  className="p-5 bg-[#e5ffc7]/25 rounded-xl border border-[#1f5e00]/15 shadow-sm min-h-[70px]"
+                  className="p-5 bg-schooliat-tint/25 rounded-xl border border-primary/15 shadow-sm min-h-[70px]"
                 >
                   <p className="text-xs font-semibold text-[#2d5a1a] uppercase tracking-wide opacity-80 mb-2">
                     {getFieldLabel(key)}

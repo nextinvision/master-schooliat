@@ -101,7 +101,7 @@ export default function EmployeeContactPage() {
           </div>
           <Button
             onClick={() => setShowCreateModal(true)}
-            className="bg-white text-green-600 hover:bg-gray-100"
+            className="bg-white text-primary hover:bg-gray-100"
             size="icon"
           >
             <Plus className="w-5 h-5" />

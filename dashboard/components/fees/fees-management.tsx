@@ -227,7 +227,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Total Paid</span>
-              <span className="font-semibold text-green-600">{feeStats.totalPaid}</span>
+              <span className="font-semibold text-primary">{feeStats.totalPaid}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Total Remaining</span>
@@ -235,7 +235,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
             </div>
             <div className="flex gap-4 pt-2 border-t">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className="w-3 h-3 rounded-full bg-primary"></div>
                 <span className="text-sm">Paid: {feeStats.paid}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -288,7 +288,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-16">No</TableHead>
                 <TableHead>Student</TableHead>
                 <TableHead className="w-32">Amount</TableHead>
@@ -333,7 +333,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                           variant={status === "Paid" ? "default" : "secondary"}
                           className={
                             status === "Paid"
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-schooliat-tint text-primary"
                               : "bg-orange-100 text-orange-800"
                           }
                         >

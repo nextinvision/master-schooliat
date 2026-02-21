@@ -50,7 +50,7 @@ export default function LeavePage() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "APPROVED":
-        return <Badge className="bg-green-500 hover:bg-green-600">Approved</Badge>;
+        return <Badge className="bg-primary hover:bg-schooliat-primary-dark">Approved</Badge>;
       case "REJECTED":
         return <Badge variant="destructive">Rejected</Badge>;
       case "PENDING":
@@ -104,7 +104,7 @@ export default function LeavePage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-[#e5ffc7]">
+                      <TableRow className="bg-schooliat-tint">
                         <TableHead>Leave Type</TableHead>
                         <TableHead>Start Date</TableHead>
                         <TableHead>End Date</TableHead>
@@ -211,7 +211,7 @@ export default function LeavePage() {
                           </div>
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-gray-600">Remaining:</span>
-                            <span className="font-semibold text-green-600">
+                            <span className="font-semibold text-primary">
                               {balanceInfo.remaining || 0}
                             </span>
                           </div>

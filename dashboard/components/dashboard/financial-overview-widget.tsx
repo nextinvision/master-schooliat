@@ -42,7 +42,7 @@ export function FinancialOverviewWidget({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-[#678d3d]" />
+            <TrendingUp className="h-5 w-5 text-primary" />
             Financial Overview
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -76,16 +76,16 @@ export function FinancialOverviewWidget({
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Total Income Card */}
-          <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
+          <div className="p-4 bg-gradient-to-br from-schooliat-tint/50 to-schooliat-tint rounded-lg border border-primary/20 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Total Income</span>
-              <TrendingUp className="h-4 w-4 text-green-600" />
+              <TrendingUp className="h-4 w-4 text-primary" />
             </div>
             <p className="text-2xl font-bold text-gray-900 mb-1">
               {formatCurrency(totalIncome)}
             </p>
             <div className="flex items-center gap-1">
-              <span className="text-xs font-medium text-green-600">
+              <span className="text-xs font-medium text-primary">
                 {incomeChangePercent}
               </span>
               <span className="text-xs text-gray-500">from last year</span>
@@ -96,13 +96,13 @@ export function FinancialOverviewWidget({
           <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Salary Distributed</span>
-              <TrendingUp className="h-4 w-4 text-blue-600" />
+              <TrendingUp className="h-4 w-4 text-primary" />
             </div>
             <p className="text-2xl font-bold text-gray-900 mb-1">
               {formatCurrency(totalSalary)}
             </p>
             <div className="flex items-center gap-1">
-              <span className="text-xs font-medium text-blue-600">
+              <span className="text-xs font-medium text-primary">
                 {salaryChangePercent}
               </span>
               <span className="text-xs text-gray-500">from last year</span>

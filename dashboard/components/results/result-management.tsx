@@ -135,7 +135,7 @@ export function ResultManagement({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-16">No</TableHead>
                 <TableHead>Class</TableHead>
                 <TableHead>Division</TableHead>
@@ -164,7 +164,7 @@ export function ResultManagement({
                         variant={item.status === "Generated" ? "default" : "secondary"}
                         className={
                           item.status === "Generated"
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-schooliat-tint text-primary"
                             : "bg-gray-100 text-gray-800"
                         }
                       >

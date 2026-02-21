@@ -235,14 +235,14 @@ export default function StudentsPage() {
     switch (status) {
       case "ISSUED":
         return (
-          <Badge className="bg-blue-500 hover:bg-blue-600">
+          <Badge className="bg-primary/80 hover:bg-primary">
             <CheckCircle className="h-3 w-3 mr-1" />
             Issued
           </Badge>
         );
       case "COLLECTED":
         return (
-          <Badge className="bg-green-500 hover:bg-green-600">
+          <Badge className="bg-primary hover:bg-schooliat-primary-dark">
             <CheckCircle className="h-3 w-3 mr-1" />
             Collected
           </Badge>
@@ -396,7 +396,7 @@ export default function StudentsPage() {
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-[#e5ffc7]">
+                          <TableRow className="bg-schooliat-tint">
                             <TableHead className="w-16">No</TableHead>
                             <TableHead>TC Number</TableHead>
                             <TableHead>Student</TableHead>
@@ -462,7 +462,7 @@ export default function StudentsPage() {
                                         variant="ghost"
                                         size="icon"
                                         onClick={() => handleStatusUpdate(tc.id, "COLLECTED")}
-                                        className="h-8 w-8 text-green-600 hover:text-green-700"
+                                        className="h-8 w-8 text-primary hover:text-primary/90"
                                         title="Mark as Collected"
                                       >
                                         <CheckCircle className="h-4 w-4" />

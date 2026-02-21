@@ -286,7 +286,7 @@ export function TeachersTable({
                     checked={allSelected}
                     onCheckedChange={toggleSelectAll}
                     aria-label="Select all"
-                    className="border-white data-[state=checked]:bg-white data-[state=checked]:text-green-600"
+                    className="border-white data-[state=checked]:bg-white data-[state=checked]:text-primary"
                   />
                 </TableHead>
                 {TEACHER_COLUMNS.map((column) => (
@@ -342,7 +342,7 @@ export function TeachersTable({
                             {registrationPhotoUrl ? (
                               <AvatarImage src={registrationPhotoUrl} alt={`${teacher.firstName} ${teacher.lastName}`} />
                             ) : null}
-                            <AvatarFallback className="bg-green-100 text-green-700">
+                            <AvatarFallback className="bg-schooliat-tint text-primary">
                               {getInitials(teacher.firstName, teacher.lastName)}
                             </AvatarFallback>
                           </Avatar>

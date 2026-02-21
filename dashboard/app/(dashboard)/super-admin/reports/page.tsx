@@ -203,7 +203,7 @@ export default function SuperAdminReportsPage() {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Line type="monotone" dataKey="present" stroke="#678d3d" strokeWidth={2} />
+                      <Line type="monotone" dataKey="present" stroke="var(--primary)" strokeWidth={2} />
                       <Line type="monotone" dataKey="absent" stroke="#ef4444" strokeWidth={2} />
                       <Line type="monotone" dataKey="late" stroke="#f59e0b" strokeWidth={2} />
                     </LineChart>
@@ -259,7 +259,7 @@ export default function SuperAdminReportsPage() {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Bar dataKey="paid" fill="#678d3d" />
+                      <Bar dataKey="paid" fill="var(--primary)" />
                       <Bar dataKey="pending" fill="#ef4444" />
                     </BarChart>
                   </ResponsiveContainer>

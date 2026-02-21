@@ -38,7 +38,7 @@ export function FeeStatusWidget({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-[#678d3d] animate-pulse" />
+            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
             Fee Status
           </CardTitle>
           <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
@@ -55,10 +55,10 @@ export function FeeStatusWidget({
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Paid Fees Card */}
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
+          <div className="p-4 bg-schooliat-tint/50 rounded-lg border border-primary/20 transition-all duration-300 hover:shadow-md hover:-translate-y-1">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">Paid</span>
-              <Badge className="bg-green-500 hover:bg-green-600 text-white">
+              <Badge className="bg-primary hover:bg-schooliat-primary-dark text-white">
                 {paidPercentage}%
               </Badge>
             </div>

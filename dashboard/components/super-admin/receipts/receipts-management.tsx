@@ -171,7 +171,7 @@ export function ReceiptsManagement() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead>Receipt Number</TableHead>
                 <TableHead>School</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
@@ -210,7 +210,7 @@ export function ReceiptsManagement() {
                         variant="outline"
                         className={
                           receipt.status === "PAID"
-                            ? "bg-green-100 text-green-800 border-green-300"
+                            ? "bg-schooliat-tint text-primary border-primary/30"
                             : receipt.status === "PENDING"
                             ? "bg-yellow-100 text-yellow-800 border-yellow-300"
                             : "bg-gray-100 text-gray-800 border-gray-300"

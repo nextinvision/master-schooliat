@@ -62,8 +62,8 @@ export default function ForgotPasswordPage() {
         <Card className="w-full max-w-md shadow-2xl border-0">
           <CardHeader className="text-center space-y-4">
             <div className="flex justify-center">
-              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="w-8 h-8 text-green-600" />
+              <div className="w-16 h-16 rounded-full bg-schooliat-tint flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-primary" />
               </div>
             </div>
             <CardTitle className="text-2xl">Check Your Email</CardTitle>
@@ -74,7 +74,7 @@ export default function ForgotPasswordPage() {
           <CardContent className="space-y-4">
             <Button
               onClick={() => router.push("/login")}
-              className="w-full bg-[#678d3d] hover:bg-[#5a7a33] text-white"
+              className="w-full bg-primary hover:bg-schooliat-primary-dark text-white"
             >
               Back to Login
             </Button>
@@ -137,7 +137,7 @@ export default function ForgotPasswordPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-[#678d3d] hover:bg-[#5a7a33] text-white"
+                className="w-full bg-primary hover:bg-schooliat-primary-dark text-white"
                 disabled={isLoading}
               >
                 {isLoading ? "Sending..." : "Send Reset Link"}
@@ -146,7 +146,7 @@ export default function ForgotPasswordPage() {
               <div className="text-center">
                 <Link
                   href="/login"
-                  className="text-sm text-[#678d3d] hover:underline font-medium"
+                  className="text-sm text-primary hover:underline font-medium"
                 >
                   Back to Login
                 </Link>

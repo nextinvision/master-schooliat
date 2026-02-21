@@ -21,11 +21,11 @@ export default function GalleryViewPage() {
   const getPrivacyBadge = (privacy: string) => {
     switch (privacy) {
       case "PUBLIC":
-        return <Badge className="bg-green-500 hover:bg-green-600">Public</Badge>;
+        return <Badge className="bg-primary hover:bg-schooliat-primary-dark">Public</Badge>;
       case "PRIVATE":
         return <Badge variant="destructive">Private</Badge>;
       case "CLASS_ONLY":
-        return <Badge className="bg-blue-500 hover:bg-blue-600">Class Only</Badge>;
+        return <Badge className="bg-primary/80 hover:bg-primary">Class Only</Badge>;
       default:
         return <Badge>{privacy}</Badge>;
     }

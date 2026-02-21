@@ -125,16 +125,16 @@ export default function LibraryPage() {
     } else if (percentage < 30) {
       return <Badge className="bg-orange-500 hover:bg-orange-600">Low Stock</Badge>;
     } else {
-      return <Badge className="bg-green-500 hover:bg-green-600">Available</Badge>;
+      return <Badge className="bg-primary hover:bg-schooliat-primary-dark">Available</Badge>;
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ISSUED":
-        return <Badge className="bg-blue-500 hover:bg-blue-600">Issued</Badge>;
+        return <Badge className="bg-primary/80 hover:bg-primary">Issued</Badge>;
       case "RETURNED":
-        return <Badge className="bg-green-500 hover:bg-green-600">Returned</Badge>;
+        return <Badge className="bg-primary hover:bg-schooliat-primary-dark">Returned</Badge>;
       case "OVERDUE":
         return <Badge variant="destructive">Overdue</Badge>;
       default:
@@ -200,7 +200,7 @@ export default function LibraryPage() {
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-[#e5ffc7]">
+                        <TableRow className="bg-schooliat-tint">
                           <TableHead className="w-16">No</TableHead>
                           <TableHead>Title</TableHead>
                           <TableHead>Author</TableHead>
@@ -267,7 +267,7 @@ export default function LibraryPage() {
                                       variant="ghost"
                                       size="icon"
                                       onClick={() => handleIssue(book)}
-                                      className="h-8 w-8 text-green-600"
+                                      className="h-8 w-8 text-primary"
                                       title="Issue Book"
                                     >
                                       <BookCheck className="h-4 w-4" />
@@ -337,7 +337,7 @@ export default function LibraryPage() {
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
-                        <TableRow className="bg-[#e5ffc7]">
+                        <TableRow className="bg-schooliat-tint">
                           <TableHead>Book</TableHead>
                           <TableHead>User</TableHead>
                           <TableHead>Issue Date</TableHead>
@@ -435,7 +435,7 @@ export default function LibraryPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <Library className="h-8 w-8 text-[#678d3d]" />
+                    <Library className="h-8 w-8 text-primary" />
                     <div className="text-3xl font-bold">{dashboard.totalBooks || 0}</div>
                   </div>
                 </CardContent>
@@ -449,7 +449,7 @@ export default function LibraryPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <BookOpen className="h-8 w-8 text-green-600" />
+                    <BookOpen className="h-8 w-8 text-primary" />
                     <div className="text-3xl font-bold">{dashboard.availableBooks || 0}</div>
                   </div>
                 </CardContent>
@@ -463,7 +463,7 @@ export default function LibraryPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <BookCheck className="h-8 w-8 text-blue-600" />
+                    <BookCheck className="h-8 w-8 text-primary" />
                     <div className="text-3xl font-bold">{dashboard.issuedBooks || 0}</div>
                   </div>
                 </CardContent>

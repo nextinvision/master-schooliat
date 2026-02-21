@@ -22,7 +22,7 @@ const features = [
     title: "Comprehensive Management",
     description:
       "Manage all aspects of school operations from a single platform.",
-    color: "#678d3d",
+    color: "var(--primary)",
   },
   {
     icon: Users,
@@ -131,7 +131,7 @@ export default function AboutUsPage() {
       <div
         className="rounded-2xl p-12 text-white text-center"
         style={{
-          background: "linear-gradient(135deg, #678d3d 0%, #8ab35c 100%)",
+          background: "linear-gradient(135deg, var(--primary) 0%, var(--chart-2) 100%)",
         }}
       >
         <h1 className="text-5xl font-bold mb-4">SchooliAT</h1>
@@ -152,7 +152,7 @@ export default function AboutUsPage() {
           return (
             <Card key={index} className="text-center">
               <CardContent className="p-6">
-                <Icon className="w-8 h-8 mx-auto mb-3 text-green-600" />
+                <Icon className="w-8 h-8 mx-auto mb-3 text-primary" />
                 <p className="text-3xl font-bold text-gray-900 mb-1">
                   {stat.value}
                 </p>
@@ -170,7 +170,7 @@ export default function AboutUsPage() {
         <Card>
           <CardContent className="p-8">
             <div className="w-16 h-16 rounded-xl bg-green-50 flex items-center justify-center mb-6">
-              <Target className="w-8 h-8 text-green-600" />
+              <Target className="w-8 h-8 text-primary" />
             </div>
             <h2 className="text-2xl font-bold mb-4">Our Mission</h2>
             <p className="text-gray-600 leading-relaxed">
@@ -184,7 +184,7 @@ export default function AboutUsPage() {
         <Card>
           <CardContent className="p-8">
             <div className="w-16 h-16 rounded-xl bg-blue-50 flex items-center justify-center mb-6">
-              <Eye className="w-8 h-8 text-blue-600" />
+              <Eye className="w-8 h-8 text-primary" />
             </div>
             <h2 className="text-2xl font-bold mb-4">Our Vision</h2>
             <p className="text-gray-600 leading-relaxed">
@@ -233,8 +233,8 @@ export default function AboutUsPage() {
       <Card>
         <CardContent className="p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
-              <Headphones className="w-8 h-8 text-green-600" />
+            <div className="w-16 h-16 rounded-full bg-schooliat-tint flex items-center justify-center mx-auto mb-4">
+              <Headphones className="w-8 h-8 text-primary" />
             </div>
             <h2 className="text-2xl font-bold mb-2">Get in Touch</h2>
             <p className="text-gray-600">We&apos;re here to help you succeed</p>
@@ -243,7 +243,7 @@ export default function AboutUsPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg">
               <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center">
-                <span className="text-green-600">✉️</span>
+                <span className="text-primary">✉️</span>
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">Email Us</p>
@@ -255,7 +255,7 @@ export default function AboutUsPage() {
 
             <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-lg">
               <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center">
-                <span className="text-blue-600">📞</span>
+                <span className="text-primary">📞</span>
               </div>
               <div>
                 <p className="text-xs text-gray-500 mb-1">Call Us</p>

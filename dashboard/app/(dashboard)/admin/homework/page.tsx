@@ -229,7 +229,7 @@ export default function HomeworkPage() {
     }
     if (allSubmitted) {
       return (
-        <Badge className="bg-green-500 hover:bg-green-600 gap-1">
+        <Badge className="bg-primary hover:bg-schooliat-primary-dark gap-1">
           <CheckCircle2 className="h-3 w-3" />
           All Submitted
         </Badge>
@@ -247,14 +247,14 @@ export default function HomeworkPage() {
     switch (status) {
       case "SUBMITTED":
         return (
-          <Badge className="bg-blue-500 hover:bg-blue-600">
+          <Badge className="bg-primary/80 hover:bg-primary">
             <CheckCircle2 className="h-3 w-3 mr-1" />
             Submitted
           </Badge>
         );
       case "GRADED":
         return (
-          <Badge className="bg-green-500 hover:bg-green-600">
+          <Badge className="bg-primary hover:bg-schooliat-primary-dark">
             <Star className="h-3 w-3 mr-1" />
             Graded
           </Badge>
@@ -383,7 +383,7 @@ export default function HomeworkPage() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <FileText className="h-8 w-8 text-blue-600" />
+              <FileText className="h-8 w-8 text-primary" />
               <div className="text-3xl font-bold">{pagination.total || 0}</div>
             </div>
           </CardContent>
@@ -460,7 +460,7 @@ export default function HomeworkPage() {
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
-                    <TableRow className="bg-[#e5ffc7]">
+                    <TableRow className="bg-schooliat-tint">
                       <TableHead className="w-16">No</TableHead>
                       <TableHead>Title</TableHead>
                       <TableHead>Subject</TableHead>

@@ -36,7 +36,7 @@ export default function SuperAdminDashboardPage() {
         title: "Total Schools",
         value: (stats.totalSchools || 0).toLocaleString(),
         icon: School,
-        gradient: "from-[#678d3d] to-[#8ab35c]",
+        gradient: "from-primary to-chart-2",
         route: "/super-admin/schools",
       },
       {
@@ -50,7 +50,7 @@ export default function SuperAdminDashboardPage() {
         title: "Total Students",
         value: (stats.totalStudents || 0).toLocaleString(),
         icon: UserCheck,
-        gradient: "from-[#678d3d] to-[#8ab35c]",
+        gradient: "from-primary to-chart-2",
         route: "/super-admin/statistics",
       },
       {
@@ -69,7 +69,7 @@ export default function SuperAdminDashboardPage() {
       subtitle: "Add a new school",
       icon: Building2,
       route: "/super-admin/schools/register",
-      color: "#678d3d",
+      color: "var(--primary)",
       bgColor: "#f0f7e8",
     },
     {
@@ -138,7 +138,7 @@ export default function SuperAdminDashboardPage() {
   return (
     <div className="space-y-6 pb-8">
       {/* Hero Header with Gradient */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#678d3d] via-[#8ab35c] to-[#b8df79] p-6 lg:p-10">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-chart-2 to-chart-4 p-6 lg:p-10">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
         <div className="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -209,7 +209,7 @@ export default function SuperAdminDashboardPage() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-2">
-                <School className="h-5 w-5 lg:h-6 lg:w-6 text-[#678d3d]" />
+                <School className="h-5 w-5 lg:h-6 lg:w-6 text-primary" />
                 <CardTitle>Recent Registrations</CardTitle>
               </div>
               <Button
@@ -233,7 +233,7 @@ export default function SuperAdminDashboardPage() {
                           className={cn(
                             "w-14 h-14 lg:w-16 lg:h-16 rounded-xl flex items-center justify-center",
                             school.status === "Active"
-                              ? "bg-gradient-to-br from-[#678d3d] to-[#8ab35c]"
+                              ? "bg-gradient-to-br from-primary to-chart-2"
                               : "bg-gradient-to-br from-[#f5a623] to-[#ffb74d]"
                           )}
                         >
@@ -262,7 +262,7 @@ export default function SuperAdminDashboardPage() {
                           className={cn(
                             "flex items-center gap-1.5",
                             school.status === "Active"
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-schooliat-tint text-primary"
                               : "bg-orange-100 text-orange-800"
                           )}
                         >
@@ -270,7 +270,7 @@ export default function SuperAdminDashboardPage() {
                             className={cn(
                               "w-2 h-2 rounded-full",
                               school.status === "Active"
-                                ? "bg-green-500"
+                                ? "bg-primary"
                                 : "bg-orange-500"
                             )}
                           />
@@ -297,8 +297,8 @@ export default function SuperAdminDashboardPage() {
           <Card>
             <CardHeader>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#678d3d]/10 flex items-center justify-center">
-                  <div className="w-4 h-4 rounded-full bg-[#678d3d]" />
+                <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-full bg-primary" />
                 </div>
                 <CardTitle>Quick Actions</CardTitle>
               </div>

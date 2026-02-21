@@ -124,7 +124,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding Section */}
-      <div className="hidden lg:flex lg:flex-1 bg-[linear-gradient(to_bottom_right,#678d3d,#8ab35c)] relative overflow-hidden items-center justify-center p-12">
+      <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary to-chart-2 relative overflow-hidden items-center justify-center p-12">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
         <div className="z-10 text-center">
@@ -223,7 +223,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-end">
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-[#678d3d] hover:underline font-medium"
+                  className="text-sm text-primary hover:underline font-medium"
                 >
                   Forgot password?
                 </Link>
@@ -231,7 +231,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-[#678d3d] hover:bg-[#5a7a33] text-white"
+                className="w-full bg-primary hover:bg-schooliat-primary-dark text-white"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign In"}

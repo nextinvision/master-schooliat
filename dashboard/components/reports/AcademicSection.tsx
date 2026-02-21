@@ -50,7 +50,7 @@ export function AcademicSection({ data, statistics, isLoading }: AcademicSection
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Users className="h-8 w-8 text-[#678d3d]" />
+              <Users className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{statistics.totalStudents ?? 0}</span>
             </div>
           </CardContent>
@@ -61,7 +61,7 @@ export function AcademicSection({ data, statistics, isLoading }: AcademicSection
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <GraduationCap className="h-8 w-8 text-blue-600" />
+              <GraduationCap className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{statistics.averageScore ?? 0}%</span>
             </div>
           </CardContent>
@@ -72,7 +72,7 @@ export function AcademicSection({ data, statistics, isLoading }: AcademicSection
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-8 w-8 text-green-600" />
+              <TrendingUp className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{statistics.passRate ?? 0}%</span>
             </div>
           </CardContent>

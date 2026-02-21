@@ -243,7 +243,7 @@ export default function EmployeeDashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold">Recent Vendors</h2>
-          <Link href="/employee/vendors" className="text-green-600 font-semibold">
+          <Link href="/employee/vendors" className="text-primary font-semibold">
             See All →
           </Link>
         </div>

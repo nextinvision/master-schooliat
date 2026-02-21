@@ -170,7 +170,7 @@ export function EmergencyContactsSection({ studentId }: EmergencyContactsSection
                       </div>
                     </div>
                     {contact.isPrimary && (
-                      <Badge className="bg-green-500">Primary</Badge>
+                      <Badge className="bg-primary">Primary</Badge>
                     )}
                   </div>
 

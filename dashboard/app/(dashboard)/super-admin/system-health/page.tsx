@@ -16,7 +16,7 @@ export default function SystemHealthPage() {
   const getStatusBadge = (status: string) => {
     if (status === "healthy") {
       return (
-        <Badge className="bg-green-500">
+        <Badge className="bg-primary">
           <CheckCircle2 className="w-3 h-3 mr-1" />
           Healthy
         </Badge>

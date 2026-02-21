@@ -244,8 +244,8 @@ export default function MarksEntryPage() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-sm">
                   <thead>
-                    <tr className="bg-[#e5ffc7]">
-                      <th className="border p-2 text-left font-medium sticky left-0 bg-[#e5ffc7] min-w-[120px]">
+                    <tr className="bg-schooliat-tint">
+                      <th className="border p-2 text-left font-medium sticky left-0 bg-schooliat-tint min-w-[120px]">
                         Student
                       </th>
                       <th className="border p-2 text-left font-medium w-16">Roll</th>

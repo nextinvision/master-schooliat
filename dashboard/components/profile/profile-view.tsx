@@ -32,16 +32,16 @@ const themeConfig: Record<
   { gradient: string; iconColor: string; badgeColor: string; borderColor: string }
 > = {
   admin: {
-    gradient: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)",
-    iconColor: "text-blue-600",
-    badgeColor: "bg-blue-500",
-    borderColor: "border-blue-600",
+    gradient: "linear-gradient(135deg, var(--primary) 0%, var(--chart-3) 100%)",
+    iconColor: "text-primary",
+    badgeColor: "bg-primary",
+    borderColor: "border-primary",
   },
   "super-admin": {
-    gradient: "linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)",
-    iconColor: "text-violet-600",
-    badgeColor: "bg-violet-500",
-    borderColor: "border-violet-600",
+    gradient: "linear-gradient(135deg, var(--primary) 0%, var(--chart-2) 100%)",
+    iconColor: "text-primary",
+    badgeColor: "bg-primary",
+    borderColor: "border-primary",
   },
 };
 

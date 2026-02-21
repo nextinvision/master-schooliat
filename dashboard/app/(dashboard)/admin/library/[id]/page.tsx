@@ -83,7 +83,7 @@ export default function LibraryBookViewPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-[#678d3d]" />
+            <BookOpen className="h-6 w-6 text-primary" />
             <CardTitle>{book.title}</CardTitle>
           </div>
           <div className="flex flex-wrap gap-2 mt-2">

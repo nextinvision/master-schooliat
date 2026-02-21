@@ -187,7 +187,7 @@ export function StudentsTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-12">
                   <Checkbox
                     checked={isAllSelected}
@@ -249,7 +249,7 @@ export function StudentsTable({
                         }
                         className={
                           student.fees === "PAID"
-                            ? "bg-green-500 hover:bg-green-600"
+                            ? "bg-primary hover:bg-schooliat-primary-dark"
                             : ""
                         }
                       >

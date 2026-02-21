@@ -95,10 +95,10 @@ export default function ParentDashboardPage() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-green-600">Attendance</CardTitle>
+                <CardTitle className="text-sm font-medium text-primary">Attendance</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-green-600">
+                <div className="text-2xl font-bold text-primary">
                   {selectedChild?.attendance?.percentage || 0}%
                 </div>
                 <p className="text-xs text-gray-500 mt-1">This month</p>
@@ -106,10 +106,10 @@ export default function ParentDashboardPage() {
             </Card>
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-blue-600">Fees Status</CardTitle>
+                <CardTitle className="text-sm font-medium text-primary">Fees Status</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-blue-600">
+                <div className="text-2xl font-bold text-primary">
                   {selectedChild?.fees?.status || "N/A"}
                 </div>
                 <p className="text-xs text-gray-500 mt-1">Current status</p>
@@ -204,7 +204,7 @@ export default function ParentDashboardPage() {
                               <Badge
                                 className={
                                   record.status === "PRESENT"
-                                    ? "bg-green-500 hover:bg-green-600"
+                                    ? "bg-primary hover:bg-schooliat-primary-dark"
                                     : "bg-red-500 hover:bg-red-600"
                                 }
                               >
@@ -244,7 +244,7 @@ export default function ParentDashboardPage() {
                               <Badge
                                 className={
                                   fee.status === "PAID"
-                                    ? "bg-green-500 hover:bg-green-600"
+                                    ? "bg-primary hover:bg-schooliat-primary-dark"
                                     : "bg-red-500 hover:bg-red-600"
                                 }
                               >

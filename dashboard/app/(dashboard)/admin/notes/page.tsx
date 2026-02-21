@@ -137,7 +137,7 @@ export default function NotesPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-[#e5ffc7]">
+                      <TableRow className="bg-schooliat-tint">
                         <TableHead className="w-16">No</TableHead>
                         <TableHead>Title</TableHead>
                         <TableHead>Subject</TableHead>
@@ -253,7 +253,7 @@ export default function NotesPage() {
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-[#e5ffc7]">
+                      <TableRow className="bg-schooliat-tint">
                         <TableHead>Subject</TableHead>
                         <TableHead>Class</TableHead>
                         <TableHead>Academic Year</TableHead>

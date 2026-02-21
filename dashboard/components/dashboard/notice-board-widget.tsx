@@ -37,12 +37,12 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Bell className="h-5 w-5 text-[#678d3d]" />
+            <Bell className="h-5 w-5 text-primary" />
             Notice Board
           </CardTitle>
           <Link
             href="/admin/circulars"
-            className="text-sm text-green-600 hover:text-green-700 font-medium transition-colors duration-200 hover:underline"
+            className="text-sm text-primary hover:text-primary/90 font-medium transition-colors duration-200 hover:underline"
           >
             View all →
           </Link>
@@ -72,7 +72,7 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
                 }}
               >
                 <div className="flex-shrink-0 mt-0.5">
-                  <Bell className="h-5 w-5 text-green-600" />
+                  <Bell className="h-5 w-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm text-gray-900 mb-1">
@@ -95,7 +95,7 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 transition-all duration-300 hover:bg-[#678d3d] hover:text-white hover:shadow-md hover:-translate-y-0.5"
+            className="flex-1 transition-all duration-300 hover:bg-primary hover:text-white hover:shadow-md hover:-translate-y-0.5"
             onClick={handleAddNew}
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -104,7 +104,7 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
           <Button
             variant="outline"
             size="sm"
-            className="transition-all duration-300 hover:bg-[#678d3d] hover:text-white hover:shadow-md hover:scale-110"
+            className="transition-all duration-300 hover:bg-primary hover:text-white hover:shadow-md hover:scale-110"
             onClick={handleViewAll}
           >
             <ExternalLink className="h-4 w-4" />

@@ -44,7 +44,7 @@ export function SalarySection({ data, statistics, isLoading }: SalarySectionProp
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <DollarSign className="h-8 w-8 text-green-600" />
+              <DollarSign className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{formatCurrency(statistics.totalPaid ?? 0)}</span>
             </div>
           </CardContent>
@@ -55,7 +55,7 @@ export function SalarySection({ data, statistics, isLoading }: SalarySectionProp
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <Users className="h-8 w-8 text-[#678d3d]" />
+              <Users className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{statistics.totalEmployees ?? 0}</span>
             </div>
           </CardContent>
@@ -66,7 +66,7 @@ export function SalarySection({ data, statistics, isLoading }: SalarySectionProp
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-8 w-8 text-blue-600" />
+              <TrendingUp className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{formatCurrency(statistics.averageSalary ?? 0)}</span>
             </div>
           </CardContent>

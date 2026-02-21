@@ -168,7 +168,7 @@ export default function TeacherDashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-blue-600" />
+                <Calendar className="h-4 w-4 text-primary" />
                 Today's Schedule
               </CardTitle>
               <Button
@@ -333,7 +333,7 @@ export default function TeacherDashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                <CheckCircle2 className="h-4 w-4 text-primary" />
                 Recently Submitted
               </CardTitle>
               <Button
@@ -353,7 +353,7 @@ export default function TeacherDashboardPage() {
                 {submittedHomeworks.slice(0, 5).map((submission: any) => (
                   <div
                     key={submission.id}
-                    className="p-3 bg-green-50 rounded-lg border border-green-200 hover:bg-green-100 transition-colors cursor-pointer"
+                    className="p-3 bg-schooliat-tint/50 rounded-lg border border-primary/20 hover:bg-schooliat-tint transition-colors cursor-pointer"
                     onClick={() => router.push(`/admin/homework/${submission.homework?.id}`)}
                   >
                     <div className="flex items-start justify-between">
@@ -368,7 +368,7 @@ export default function TeacherDashboardPage() {
                           Submitted: {submission.submittedAt ? format(new Date(submission.submittedAt), "MMM dd, yyyy HH:mm") : "N/A"}
                         </p>
                       </div>
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-200 text-green-800">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-schooliat-tint text-primary">
                         Submitted
                       </span>
                     </div>
@@ -452,7 +452,7 @@ export default function TeacherDashboardPage() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <Bell className="h-4 w-4 text-blue-600" />
+                <Bell className="h-4 w-4 text-primary" />
                 Recent Notices
               </CardTitle>
               <Button

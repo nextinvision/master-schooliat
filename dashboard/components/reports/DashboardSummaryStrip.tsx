@@ -35,8 +35,8 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
       <CardContent className="py-4">
         <div className="flex flex-wrap gap-6">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-green-100 dark:bg-green-900/30 p-2">
-              <Users className="h-5 w-5 text-green-600" />
+            <div className="rounded-lg bg-schooliat-tint/80 dark:bg-primary/20 p-2">
+              <Users className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Attendance ({attendance.periodLabel})</p>
@@ -45,7 +45,7 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
           </div>
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-blue-100 dark:bg-blue-900/30 p-2">
-              <DollarSign className="h-5 w-5 text-blue-600" />
+              <DollarSign className="h-5 w-5 text-primary" />
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Fees</p>

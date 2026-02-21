@@ -61,7 +61,7 @@ export default function AuditLogsPage() {
 
   const getResultBadge = (result: string) => {
     if (result === "SUCCESS") {
-      return <Badge className="bg-green-500">Success</Badge>;
+      return <Badge className="bg-primary">Success</Badge>;
     }
     return <Badge variant="destructive">Failure</Badge>;
   };

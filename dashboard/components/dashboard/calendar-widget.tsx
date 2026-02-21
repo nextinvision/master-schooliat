@@ -70,7 +70,7 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <CalendarIcon className="h-5 w-5 text-[#678d3d]" />
+            <CalendarIcon className="h-5 w-5 text-primary" />
             {format(displayMonth, "MMMM yyyy")}
           </CardTitle>
           <div className="flex items-center gap-1">
@@ -123,14 +123,14 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
                 className={cn(
                   "aspect-square rounded-md text-sm transition-all duration-200 relative",
                   "hover:bg-gray-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500",
-                  isToday && "bg-green-100 font-semibold ring-2 ring-green-400",
+                  isToday && "bg-schooliat-tint font-semibold ring-2 ring-primary",
                   isSelected && !isToday && "bg-green-200 scale-105",
                   !isToday && !isSelected && "hover:bg-gray-50"
                 )}
               >
                 <span className={cn(
                   isToday && "text-green-700",
-                  isSelected && !isToday && "text-green-800",
+                  isSelected && !isToday && "text-primary",
                   !isToday && !isSelected && "text-gray-700"
                 )}>
                   {format(date, "d")}
@@ -148,7 +148,7 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
         {/* Manage Calendar button */}
         <Button
           variant="outline"
-          className="w-full mt-4 transition-all duration-300 hover:bg-[#678d3d] hover:text-white hover:shadow-md hover:-translate-y-0.5"
+          className="w-full mt-4 transition-all duration-300 hover:bg-primary hover:text-white hover:shadow-md hover:-translate-y-0.5"
           onClick={handleManageCalendar}
         >
           <CalendarIcon className="h-4 w-4 mr-2" />

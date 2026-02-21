@@ -80,7 +80,7 @@ export default function AdminDashboardPage() {
       {/* Welcome Card with Premium Styling */}
       <Card 
         className={cn(
-          "bg-gradient-to-r from-[#678d3d] via-[#8ab35c] to-[#b8df79] text-white",
+          "bg-gradient-to-r from-primary via-chart-2 to-chart-4 text-white",
           "relative overflow-hidden shadow-lg",
           "animate-slide-up"
         )}
@@ -116,7 +116,7 @@ export default function AdminDashboardPage() {
           title="Students"
           value={totalStudents}
           icon={UserCheck}
-          gradient="from-[#4B7D3A] to-[#678d3d]"
+          gradient="from-schooliat-primary-dark to-primary"
           delay={0.1}
           animateCount={true}
         />
@@ -133,7 +133,7 @@ export default function AdminDashboardPage() {
           title="Staff"
           value={totalStaff}
           icon={Briefcase}
-          gradient="from-[#4B7D3A] to-[#678d3d]"
+          gradient="from-schooliat-primary-dark to-primary"
           delay={0.3}
           animateCount={true}
         />
@@ -208,7 +208,7 @@ export default function AdminDashboardPage() {
         >
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
               Earnings
             </CardTitle>
           </CardHeader>

@@ -37,7 +37,7 @@ export function FeeSection({ data, statistics, isLoading }: FeeSectionProps) {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <DollarSign className="h-8 w-8 text-green-600" />
+              <DollarSign className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{formatCurrency(statistics.totalRevenue ?? 0)}</span>
             </div>
           </CardContent>
@@ -48,7 +48,7 @@ export function FeeSection({ data, statistics, isLoading }: FeeSectionProps) {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-8 w-8 text-blue-600" />
+              <TrendingUp className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{formatCurrency(statistics.totalPaid ?? 0)}</span>
             </div>
           </CardContent>

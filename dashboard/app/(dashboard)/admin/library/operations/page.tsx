@@ -98,7 +98,7 @@ export default function LibraryOperationsPage() {
       case "OVERDUE":
         return <Badge variant="destructive">Overdue</Badge>;
       case "ISSUED":
-        return <Badge className="bg-blue-500 hover:bg-blue-600">Issued</Badge>;
+        return <Badge className="bg-primary/80 hover:bg-primary">Issued</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -209,7 +209,7 @@ export default function LibraryOperationsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#e5ffc7]">
+                  <TableRow className="bg-schooliat-tint">
                     <TableHead>Book</TableHead>
                     <TableHead>Borrower</TableHead>
                     <TableHead>Issue date</TableHead>

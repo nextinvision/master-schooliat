@@ -84,7 +84,7 @@ export function ClassesTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 {CLASS_COLUMNS.map((column) => (
                   <TableHead key={column.key} className={column.width}>
                     {column.title}

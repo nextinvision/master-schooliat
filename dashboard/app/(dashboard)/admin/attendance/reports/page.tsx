@@ -186,7 +186,7 @@ export default function AttendanceReportsPage() {
     switch (status) {
       case "PRESENT":
         return (
-          <Badge className="bg-green-500 hover:bg-green-600">
+          <Badge className="bg-primary hover:bg-schooliat-primary-dark">
             <CheckCircle className="h-3 w-3 mr-1" />
             Present
           </Badge>
@@ -313,19 +313,19 @@ export default function AttendanceReportsPage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <FileText className="h-8 w-8 text-blue-600" />
+                <FileText className="h-8 w-8 text-primary" />
                 <div className="text-3xl font-bold">{statistics.totalDays || 0}</div>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-green-600">Present</CardTitle>
+              <CardTitle className="text-sm font-medium text-primary">Present</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <CheckCircle className="h-8 w-8 text-green-600" />
-                <div className="text-3xl font-bold text-green-600">
+                <CheckCircle className="h-8 w-8 text-primary" />
+                <div className="text-3xl font-bold text-primary">
                   {statistics.presentCount || 0}
                 </div>
               </div>
@@ -503,7 +503,7 @@ export default function AttendanceReportsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#e5ffc7]">
+                  <TableRow className="bg-schooliat-tint">
                     <TableHead>Date</TableHead>
                     <TableHead>Student</TableHead>
                     <TableHead>Class</TableHead>

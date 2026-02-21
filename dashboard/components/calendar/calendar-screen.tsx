@@ -230,7 +230,7 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
                   onClick={() => handleDayClick(day)}
                   className={`
                     aspect-square p-2 text-sm rounded
-                    ${isSelected ? "bg-blue-500 text-white" : "hover:bg-gray-100"}
+                    ${isSelected ? "bg-primary text-white" : "hover:bg-gray-100"}
                     ${isToday ? "ring-2 ring-blue-400" : ""}
                     ${hasEvents ? "font-semibold" : ""}
                   `}
@@ -279,7 +279,7 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-[#e5ffc7]">
+                <TableRow className="bg-schooliat-tint">
                   <TableHead className="w-16">No</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Date</TableHead>

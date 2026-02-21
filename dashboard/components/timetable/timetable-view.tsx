@@ -107,7 +107,7 @@ export function TimetableView() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-32">Period/Time</TableHead>
                 {DAYS.map((day) => (
                   <TableHead key={day} className="min-w-[150px]">

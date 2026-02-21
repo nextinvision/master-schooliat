@@ -123,7 +123,7 @@ export function InventoryManagement() {
           onClick={() => setActiveTab("Non Consumable")}
           className={`px-4 py-2 font-medium border-b-2 transition-colors ${
             activeTab === "Non Consumable"
-              ? "border-blue-500 text-blue-600"
+              ? "border-primary text-primary"
               : "border-transparent text-gray-600 hover:text-gray-900"
           }`}
         >
@@ -133,7 +133,7 @@ export function InventoryManagement() {
           onClick={() => setActiveTab("Consumable")}
           className={`px-4 py-2 font-medium border-b-2 transition-colors ${
             activeTab === "Consumable"
-              ? "border-blue-500 text-blue-600"
+              ? "border-primary text-primary"
               : "border-transparent text-gray-600 hover:text-gray-900"
           }`}
         >
@@ -206,7 +206,7 @@ export function InventoryManagement() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-12">
                   <Checkbox
                     checked={allSelected}
@@ -273,7 +273,7 @@ export function InventoryManagement() {
                           variant="outline"
                           className={
                             item.condition === "New"
-                              ? "bg-green-100 text-green-800 border-green-300"
+                              ? "bg-schooliat-tint text-primary border-primary/30"
                               : item.condition === "Good"
                               ? "bg-blue-100 text-blue-800 border-blue-300"
                               : item.condition === "Fair"

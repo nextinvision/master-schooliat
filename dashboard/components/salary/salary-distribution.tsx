@@ -149,9 +149,9 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
         <div className="border rounded-lg p-4">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-gray-600">Paid</p>
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <div className="w-3 h-3 rounded-full bg-primary"></div>
           </div>
-          <p className="text-xl font-bold text-green-600">{salaryStats.paidAmount}</p>
+          <p className="text-xl font-bold text-primary">{salaryStats.paidAmount}</p>
           <p className="text-xs text-gray-500 mt-1">{salaryStats.paid} employees</p>
         </div>
         <div className="border rounded-lg p-4">
@@ -205,7 +205,7 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-16">No</TableHead>
                 <TableHead>Employee</TableHead>
                 <TableHead className="w-40">Employee ID</TableHead>
@@ -262,7 +262,7 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
                           variant={status === "Paid" ? "default" : "secondary"}
                           className={
                             status === "Paid"
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-schooliat-tint text-primary"
                               : "bg-orange-100 text-orange-800"
                           }
                         >

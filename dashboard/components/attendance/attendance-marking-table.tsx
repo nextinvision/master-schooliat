@@ -146,7 +146,7 @@ export function AttendanceMarkingTable({
   const getStatusIcon = (status: "PRESENT" | "ABSENT" | "LATE") => {
     switch (status) {
       case "PRESENT":
-        return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+        return <CheckCircle2 className="h-4 w-4 text-primary" />;
       case "ABSENT":
         return <XCircle className="h-4 w-4 text-red-600" />;
       case "LATE":
@@ -157,7 +157,7 @@ export function AttendanceMarkingTable({
   const getStatusBadge = (status: "PRESENT" | "ABSENT" | "LATE") => {
     switch (status) {
       case "PRESENT":
-        return <Badge className="bg-green-500 hover:bg-green-600">Present</Badge>;
+        return <Badge className="bg-primary hover:bg-schooliat-primary-dark">Present</Badge>;
       case "ABSENT":
         return <Badge variant="destructive">Absent</Badge>;
       case "LATE":
@@ -207,7 +207,7 @@ export function AttendanceMarkingTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-12">
                   <Checkbox
                     checked={selectedStudents.size === students.length && students.length > 0}
@@ -264,7 +264,7 @@ export function AttendanceMarkingTable({
                           <SelectContent>
                             <SelectItem value="PRESENT">
                               <div className="flex items-center gap-2">
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <CheckCircle2 className="h-4 w-4 text-primary" />
                                 Present
                               </div>
                             </SelectItem>

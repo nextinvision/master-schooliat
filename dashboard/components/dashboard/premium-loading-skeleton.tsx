@@ -7,7 +7,7 @@ export function PremiumLoadingSkeleton() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Welcome Banner Skeleton */}
-      <Card className="bg-gradient-to-r from-[#678d3d] to-[#8ab35c]">
+      <Card className="bg-gradient-to-r from-primary to-chart-2">
         <CardContent className="p-6 lg:p-8">
           <Skeleton className="h-8 w-64 mb-4 bg-white/20" />
           <Skeleton className="h-4 w-full max-w-2xl bg-white/20" />

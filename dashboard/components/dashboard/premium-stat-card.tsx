@@ -20,7 +20,7 @@ export function PremiumStatCard({
   title,
   value,
   icon: Icon,
-  gradient = "from-[#678d3d] to-[#8ab35c]",
+  gradient = "from-primary to-chart-2",
   textColor = "text-white",
   delay = 0,
   animateCount = true,

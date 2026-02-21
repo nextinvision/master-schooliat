@@ -122,7 +122,7 @@ export default function LeaveApprovalsPage() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-[#e5ffc7]">
+                  <TableRow className="bg-schooliat-tint">
                     <TableHead>Requester</TableHead>
                     <TableHead>Leave Type</TableHead>
                     <TableHead>Start Date</TableHead>
