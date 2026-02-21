@@ -119,6 +119,10 @@ const getNotes = async (schoolId, filters = {}, options = {}) => {
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
+        include: {
+          subject: { select: { name: true } },
+          class: { select: { grade: true, division: true } },
+        },
       }),
       prisma.note.count({ where }),
     ]);
@@ -208,8 +212,14 @@ const updateSyllabus = async (syllabusId, data) => {
  * @returns {Promise<Object>} - Syllabus with pagination
  */
 const getSyllabus = async (schoolId, filters = {}, options = {}) => {
-  const { page = 1, limit = 20 } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
+
+  if (!schoolId) {
+    return {
+      syllabus: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 
   const where = {
     schoolId,
@@ -237,6 +247,10 @@ const getSyllabus = async (schoolId, filters = {}, options = {}) => {
       },
       skip,
       take: limit,
+      include: {
+        subject: { select: { name: true } },
+        class: { select: { grade: true, division: true } },
+      },
     }),
     prisma.syllabus.count({ where }),
   ]);
