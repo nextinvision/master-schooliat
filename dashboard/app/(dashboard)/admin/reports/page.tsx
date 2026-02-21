@@ -17,8 +17,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { BarChart3, TrendingUp, Users, DollarSign, GraduationCap, Calendar } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
-import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, subMonths, startOfMonth, endOfMonth, isValid } from "date-fns";
 import { useClasses } from "@/lib/hooks/use-classes";
+
+function safeFormatDate(value: string | Date | null | undefined, fmt: string): string {
+  if (value == null) return "—";
+  const d = typeof value === "string" ? new Date(value) : value;
+  return isValid(d) ? format(d, fmt) : "—";
+}
 
 export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState<"attendance" | "fees" | "academic" | "salary">("attendance");
@@ -61,27 +67,59 @@ export default function ReportsPage() {
   const salaryReport = salaryData?.data || [];
   const salaryStats = salaryData?.statistics || {};
 
+  // Map academic marks to chart shape (studentName, totalMarks, percentage) with safe values
+  const academicChartData = (academicReport || []).slice(0, 10).map((m: any) => {
+    const student = m?.student;
+    const name = student
+      ? [student.firstName, student.lastName].filter(Boolean).join(" ").trim() || "—"
+      : "—";
+    return {
+      studentName: name,
+      totalMarks: Number(m?.totalMarks ?? m?.marksObtained ?? 0),
+      percentage: Number(m?.percentage ?? 0),
+    };
+  });
+
+  // Salary chart data: ensure amount and employeeName are safe
+  const salaryChartData = (salaryReport || []).slice(0, 10).map((p: any) => ({
+    employeeName: p?.employeeName ?? p?.userId ?? "—",
+    amount: Number(p?.amount ?? p?.totalAmount ?? 0),
+  }));
+
   const getChartData = (data: any[], type: string) => {
     if (!data || data.length === 0) return [];
-    
+
     if (type === "attendance") {
-      return data.map((item: any) => ({
-        date: format(new Date(item.date), "MMM dd"),
-        present: item.present || 0,
-        absent: item.absent || 0,
-        late: item.late || 0,
-      }));
+      // Backend returns flat attendance records; aggregate by date
+      const byDate: Record<string, { present: number; absent: number; late: number }> = {};
+      for (const item of data) {
+        const dateKey = item.date ? (typeof item.date === "string" ? item.date : item.date.toISOString?.()?.slice(0, 10) ?? "") : "";
+        if (!dateKey) continue;
+        if (!byDate[dateKey]) byDate[dateKey] = { present: 0, absent: 0, late: 0 };
+        const status = (item.status || "").toUpperCase();
+        if (status === "PRESENT") byDate[dateKey].present += 1;
+        else if (status === "ABSENT") byDate[dateKey].absent += 1;
+        else if (status === "LATE") byDate[dateKey].late += 1;
+      }
+      return Object.entries(byDate)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([dateKey, counts]) => ({
+          date: safeFormatDate(dateKey, "MMM dd"),
+          present: counts.present,
+          absent: counts.absent,
+          late: counts.late,
+        }));
     }
-    
+
     if (type === "fees") {
       return data.map((item: any) => ({
-        month: format(new Date(item.dueDate), "MMM"),
-        paid: item.paid || 0,
-        pending: item.pending || 0,
-        amount: item.amount || 0,
+        month: safeFormatDate(item.dueDate ?? item.createdAt, "MMM"),
+        paid: item.paymentStatus === "PAID" ? Number(item.paidAmount ?? item.amount ?? 0) : 0,
+        pending: item.paymentStatus === "PENDING" ? Number(item.amount ?? 0) : 0,
+        amount: Number(item.amount ?? 0),
       }));
     }
-    
+
     return [];
   };
 
@@ -370,7 +408,7 @@ export default function ReportsPage() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={academicReport.slice(0, 10)}>
+                    <BarChart data={academicChartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="studentName" />
                       <YAxis />
@@ -451,7 +489,7 @@ export default function ReportsPage() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={salaryReport.slice(0, 10)}>
+                    <BarChart data={salaryChartData}>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="employeeName" />
                       <YAxis />

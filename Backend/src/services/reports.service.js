@@ -53,17 +53,21 @@ const getAttendanceReports = async (schoolId, filters = {}) => {
   const presentCount = attendance.filter((a) => a.status === "PRESENT").length;
   const absentCount = attendance.filter((a) => a.status === "ABSENT").length;
   const lateCount = attendance.filter((a) => a.status === "LATE").length;
-
+  const totalStudents = new Set(attendance.map((a) => a.studentId)).size;
   const attendanceRate = totalDays > 0 ? (presentCount / totalDays) * 100 : 0;
 
   return {
     attendance,
     statistics: {
       totalDays,
+      totalStudents,
       presentCount,
       absentCount,
       lateCount,
-      attendanceRate: attendanceRate.toFixed(2),
+      attendanceRate: Number(attendanceRate.toFixed(2)),
+      averageAttendance: Number(attendanceRate.toFixed(2)),
+      totalPresent: presentCount,
+      totalAbsent: absentCount,
     },
   };
 };
@@ -117,10 +121,13 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
     installments: filteredInstallments,
     statistics: {
       totalAmount,
+      totalRevenue: totalAmount,
       paidAmount,
+      totalPaid: paidAmount,
       pendingAmount,
+      totalPending: pendingAmount,
       overdueAmount,
-      collectionRate: collectionRate.toFixed(2),
+      collectionRate: Number(collectionRate.toFixed(2)),
       totalInstallments: filteredInstallments.length,
       paidInstallments: filteredInstallments.filter((inst) => inst.paymentStatus === "PAID").length,
       pendingInstallments: filteredInstallments.filter((inst) => inst.paymentStatus === "PENDING").length,
@@ -190,27 +197,36 @@ const getAcademicReports = async (schoolId, filters = {}) => {
   }).length;
 
   const failCount = marks.length - passCount;
+  const topPerformers = marks.filter((m) => Number(m.percentage || 0) >= 80).length;
+  const passRateNum = marks.length > 0 ? (passCount / marks.length) * 100 : 0;
 
   return {
     marks,
     statistics: {
       totalStudents,
       totalMarks: marks.length,
-      averagePercentage: averagePercentage.toFixed(2),
+      averagePercentage: Number(averagePercentage.toFixed(2)),
+      averageScore: Number(averagePercentage.toFixed(2)),
       passCount,
       failCount,
-      passRate: marks.length > 0 ? ((passCount / marks.length) * 100).toFixed(2) : 0,
+      passRate: Number(passRateNum.toFixed(2)),
+      topPerformers,
     },
   };
 };
 
 /**
  * Get salary/expense reports
+ * SalaryPayments has: schoolId, userId (teacher_id), month (YYYY-MM), totalAmount, createdAt (no paymentDate/employee relation)
  * @param {string} schoolId - School ID
  * @param {Object} filters - Filter options
  * @returns {Promise<Object>} - Salary reports
  */
 const getSalaryReports = async (schoolId, filters = {}) => {
+  if (!schoolId) {
+    throw new Error("School context is required for salary reports");
+  }
+
   const { startDate = null, endDate = null } = filters;
 
   const where = {
@@ -220,42 +236,54 @@ const getSalaryReports = async (schoolId, filters = {}) => {
 
   const payments = await prisma.salaryPayments.findMany({
     where,
-    include: {
-      employee: {
-        include: {
-          teacherProfile: true,
-        },
-      },
-      salaryStructure: true,
-    },
     orderBy: {
-      paymentDate: "desc",
+      createdAt: "desc",
     },
   });
 
-  // Filter by date if provided
+  // Filter by date: use month (YYYY-MM) or createdAt
   let filteredPayments = payments;
   if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new Error("Invalid start or end date for salary report");
+    }
     filteredPayments = payments.filter((payment) => {
-      const paymentDate = new Date(payment.paymentDate);
-      return paymentDate >= new Date(startDate) && paymentDate <= new Date(endDate);
+      const paymentDate = payment.createdAt;
+      return paymentDate >= start && paymentDate <= end;
     });
   }
 
-  // Calculate statistics
-  const totalSalary = filteredPayments.reduce(
-    (sum, payment) => sum + Number(payment.amount || 0),
-    0,
-  );
-  const totalEmployees = new Set(filteredPayments.map((p) => p.employeeId)).size;
+  // Resolve user names for display (SalaryPayments has userId = teacher_id)
+  const userIds = [...new Set(filteredPayments.map((p) => p.userId))];
+  const users = userIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, firstName: true, lastName: true },
+      })
+    : [];
+  const userMap = Object.fromEntries(users.map((u) => [u.id, `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.id]));
+
+  const paymentsForResponse = filteredPayments.map((p) => ({
+    ...p,
+    amount: Number(p.totalAmount || 0),
+    employeeName: userMap[p.userId] || p.userId,
+    paymentDate: p.createdAt,
+  }));
+
+  const totalSalary = paymentsForResponse.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+  const totalEmployees = new Set(paymentsForResponse.map((p) => p.userId)).size;
 
   return {
-    payments: filteredPayments,
+    payments: paymentsForResponse,
     statistics: {
       totalSalary,
+      totalPaid: totalSalary,
       totalEmployees,
-      totalPayments: filteredPayments.length,
-      averageSalary: filteredPayments.length > 0 ? totalSalary / filteredPayments.length : 0,
+      totalPayments: paymentsForResponse.length,
+      averageSalary: paymentsForResponse.length > 0 ? totalSalary / paymentsForResponse.length : 0,
+      pendingPayments: 0,
     },
   };
 };
