@@ -45,14 +45,15 @@ router.get(
       limit: q.limit ?? q.pageSize,
     });
 
+    const where = { schoolId: schoolId || null };
     const [exams, total] = await Promise.all([
       prisma.exam.findMany({
-        where: { schoolId: schoolId || null },
+        where,
         skip,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ year: "desc" }, { name: "asc" }],
       }),
-      prisma.exam.count({ where: { schoolId: schoolId || null } }),
+      prisma.exam.count({ where }),
     ]);
 
     return res.json({

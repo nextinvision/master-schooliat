@@ -145,11 +145,12 @@ const publishCircular = async (circularId, publishedBy) => {
  */
 const getCirculars = async (schoolId, userId = null, filters = {}, options = {}) => {
   const { page, limit, skip } = parsePagination(options);
+  const publishedStatus = (CircularStatus || StatusEnum)?.PUBLISHED ?? "PUBLISHED";
 
   const where = {
     schoolId,
     deletedAt: null,
-    status: CircularStatus.PUBLISHED,
+    status: publishedStatus,
   };
 
   if (filters.status) {
@@ -158,48 +159,60 @@ const getCirculars = async (schoolId, userId = null, filters = {}, options = {})
 
   // If user ID provided, filter by user's role/class
   if (userId) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        role: true,
-        studentProfile: {
-          include: { class: true },
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          role: true,
+          studentProfile: {
+            include: { class: true },
+          },
         },
-      },
-    });
+      });
 
-    if (user) {
-          where.OR = [
-            { targetRoles: { has: user.role.name } },
-            { targetUserIds: { has: userId } },
-            ...(user.studentProfile
-              ? [{ classIds: { has: user.studentProfile.classId } }]
-              : []),
-          ];
+      if (user?.role) {
+        where.OR = [
+          { targetRoles: { has: user.role.name } },
+          { targetUserIds: { has: userId } },
+          ...(user.studentProfile?.classId
+            ? [{ classIds: { has: user.studentProfile.classId } }]
+            : []),
+        ];
+      }
+    } catch (err) {
+      logger.warn({ err: err.message, userId }, "getCirculars: user lookup failed, returning all for school");
     }
   }
 
-  const [circulars, total] = await Promise.all([
-    prisma.circular.findMany({
-      where,
-      orderBy: {
-        publishedAt: "desc",
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.circular.count({ where }),
-  ]);
+  try {
+    const [circulars, total] = await Promise.all([
+      prisma.circular.findMany({
+        where,
+        orderBy: {
+          publishedAt: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.circular.count({ where }),
+    ]);
 
-  return {
-    circulars,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+    return {
+      circulars,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId }, "getCirculars: findMany failed, returning empty");
+    return {
+      circulars: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 };
 
 const circularService = {
