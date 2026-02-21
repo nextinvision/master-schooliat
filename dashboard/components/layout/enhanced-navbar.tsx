@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Settings,
   Bell,
@@ -12,6 +12,7 @@ import {
   LogOut,
   ChevronDown,
   CheckCheck,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -33,6 +34,7 @@ import {
   useMarkNotificationRead,
   useMarkAllNotificationsRead,
 } from "@/lib/hooks/use-notifications";
+import { getAdminSearchItems, getSuperAdminSearchItems } from "@/lib/config/menu-items";
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -42,7 +44,31 @@ export function EnhancedNavbar() {
   const { user } = useAuth();
   const { isOpen, toggle } = useSidebar();
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const searchItems = useMemo(
+    () => (pathname.startsWith("/super-admin") ? getSuperAdminSearchItems() : getAdminSearchItems()),
+    [pathname]
+  );
+  const filteredSearchItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return searchItems.slice(0, 8);
+    return searchItems
+      .filter((item) => item.name.toLowerCase().includes(q) || item.route.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [searchQuery, searchItems]);
+
+  useEffect(() => {
+    if (!searchOpen) setSearchQuery("");
+  }, [searchOpen]);
+
+  const handleSearchSelect = (route: string) => {
+    router.push(route);
+    setSearchOpen(false);
+    setSearchQuery("");
+  };
 
   const { data: notificationsRes, isLoading: notificationsLoading } = useNotifications({
     page: 1,
@@ -109,7 +135,7 @@ export function EnhancedNavbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 h-12 bg-white border-b border-gray-200 z-40 flex items-center justify-between px-3 shadow-sm">
       {/* Left Section */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <Button
           variant="ghost"
           size="icon"
@@ -123,22 +149,58 @@ export function EnhancedNavbar() {
             <Menu className="h-3.5 w-3.5 text-gray-600" />
           )}
         </Button>
+      </div>
 
-        {/* Search Bar */}
-        <div className="hidden md:flex items-center relative">
-          <Search className="absolute left-2.5 h-3.5 w-3.5 text-gray-400" />
-          <Input
-            type="text"
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-8 pr-3 h-8 w-56 text-sm border-gray-200 focus:border-primary focus:ring-primary"
-          />
-        </div>
+      {/* Center: Quick navigation search */}
+      <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-xl mx-2">
+        <DropdownMenu open={searchOpen} onOpenChange={setSearchOpen}>
+          <DropdownMenuTrigger asChild>
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
+              <Input
+                ref={searchInputRef}
+                type="text"
+                placeholder="Search pages (e.g. Students, Library, Fees)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchOpen(true)}
+                className="pl-8 pr-3 h-8 w-full text-sm border-gray-200 focus:border-primary focus:ring-primary"
+                aria-label="Quick navigation search"
+              />
+            </div>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="center"
+            className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-md max-h-[min(20rem,60vh)] overflow-y-auto"
+            onCloseAutoFocus={(e) => e.preventDefault()}
+          >
+            {filteredSearchItems.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                {searchQuery.trim() ? "No matching pages" : "Type to search pages"}
+              </div>
+            ) : (
+              <div className="py-1">
+                {filteredSearchItems.map((item) => (
+                  <DropdownMenuItem
+                    key={item.route}
+                    className="flex items-center justify-between gap-2 cursor-pointer py-2"
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      handleSearchSelect(item.route);
+                    }}
+                  >
+                    <span className="truncate">{item.name}</span>
+                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  </DropdownMenuItem>
+                ))}
+              </div>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* Right Section */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-1.5 flex-shrink-0">
         {/* Notifications */}
         <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
           <DropdownMenuTrigger asChild>

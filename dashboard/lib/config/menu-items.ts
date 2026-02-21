@@ -260,3 +260,41 @@ export const MASTER_DATA_SUBMENU: SubMenuItem[] = [
   { name: "Locations", route: "/super-admin/master-data/locations" },
 ];
 
+/** Flat list of { name, route } for navbar quick search (admin + all submenus) */
+export function getAdminSearchItems(): { name: string; route: string }[] {
+  const out: { name: string; route: string }[] = [];
+  for (const item of MENU_ITEMS) {
+    if (item.hasSubmenu) {
+      const sub =
+        item.name === "Finance"
+          ? FINANCE_SUBMENU
+          : item.name === "Attendance"
+            ? ATTENDANCE_SUBMENU
+            : item.name === "Leave Management"
+              ? LEAVE_SUBMENU
+              : item.name === "Library"
+                ? LIBRARY_SUBMENU
+                : item.name === "Result Management"
+                  ? RESULTS_SUBMENU
+                  : [];
+      sub.forEach((s) => out.push({ name: s.name, route: s.route }));
+    } else {
+      out.push({ name: item.name, route: item.route });
+    }
+  }
+  return out;
+}
+
+/** Flat list of { name, route } for navbar quick search (super-admin + submenus) */
+export function getSuperAdminSearchItems(): { name: string; route: string }[] {
+  const out: { name: string; route: string }[] = [];
+  for (const item of SUPER_ADMIN_MENU_ITEMS) {
+    if (item.hasSubmenu) {
+      MASTER_DATA_SUBMENU.forEach((s) => out.push({ name: s.name, route: s.route }));
+    } else {
+      out.push({ name: item.name, route: item.route });
+    }
+  }
+  return out;
+}
+
