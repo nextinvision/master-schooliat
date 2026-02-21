@@ -49,6 +49,8 @@ import {
   ConversationType,
   NotificationType,
   TCStatus,
+  TemplateType,
+  IdCardCollectionStatus,
 } from "../src/prisma/generated/index.js";
 import logger from "../src/config/logger.js";
 
@@ -102,10 +104,28 @@ const seedData = {
 };
 
 /**
+ * Get permission enum values that exist in the database (handles DB behind migrations).
+ */
+async function getDbPermissionValues() {
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT enumlabel FROM pg_enum
+      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'permission')
+      ORDER BY enumsortorder
+    `;
+    return new Set(rows.map((r) => r.enumlabel));
+  } catch {
+    return null; // e.g. raw not supported or different DB
+  }
+}
+
+/**
  * Seed Roles with Permissions
  */
 async function seedRoles() {
   logger.info("Seeding Roles...");
+
+  const dbPermissions = await getDbPermissionValues();
 
   const defaultRolePermissionsMap = {
     [RoleName.SUPER_ADMIN]: [
@@ -248,12 +268,7 @@ async function seedRoles() {
       Permission.EDIT_SYLLABUS,
       Permission.GET_SYLLABUS,
       Permission.DELETE_SYLLABUS,
-      Permission.CREATE_GALLERY,
-      Permission.EDIT_GALLERY,
-      Permission.GET_GALLERIES,
-      Permission.DELETE_GALLERY,
-      Permission.UPLOAD_GALLERY_IMAGE,
-      Permission.DELETE_GALLERY_IMAGE,
+      // Gallery permissions not in schema yet - add when Gallery model exists
       Permission.CREATE_HOMEWORK,
       Permission.GET_HOMEWORK,
       Permission.GRADE_HOMEWORK,
@@ -310,6 +325,12 @@ async function seedRoles() {
   };
 
   for (const [roleName, permissions] of Object.entries(defaultRolePermissionsMap)) {
+    // Filter out undefined and permissions not present in DB enum (e.g. DB behind migrations)
+    let validPermissions = permissions.filter((p) => p != null);
+    if (dbPermissions && dbPermissions.size > 0) {
+      validPermissions = validPermissions.filter((p) => dbPermissions.has(p));
+    }
+
     const existingRole = await prisma.role.findUnique({
       where: { name: roleName },
     });
@@ -318,7 +339,7 @@ async function seedRoles() {
       const role = await prisma.role.create({
         data: {
           name: roleName,
-          permissions: permissions,
+          permissions: validPermissions,
           createdBy: "seed",
         },
       });
@@ -329,7 +350,7 @@ async function seedRoles() {
       const updatedRole = await prisma.role.update({
         where: { name: roleName },
         data: {
-          permissions: permissions,
+          permissions: validPermissions,
           updatedBy: "seed",
         },
       });
@@ -1356,6 +1377,77 @@ async function seedSettings() {
 }
 
 /**
+ * Seed ID Card template, config, and collections (so ID Cards page has rows per class).
+ */
+async function seedIdCards() {
+  logger.info("Seeding ID Card template, config, and collections...");
+
+  const currentYear = new Date().getFullYear();
+
+  // 1. Ensure one ID_CARD template exists (required for IdCardConfig)
+  let template = await prisma.template.findFirst({
+    where: { type: TemplateType.ID_CARD },
+  });
+  if (!template) {
+    template = await prisma.template.create({
+      data: {
+        type: TemplateType.ID_CARD,
+        path: "id-card/default",
+        title: "Default ID Card",
+      },
+    });
+    logger.info("Created ID_CARD template");
+  }
+
+  for (const schoolId of seedData.schools) {
+    const schoolAdminId = seedData.users.schoolAdmins[schoolId] || "seed";
+
+    // 2. IdCardConfig for current year (so school can manage config and generate)
+    const existingConfig = await prisma.idCardConfig.findFirst({
+      where: { schoolId, year: currentYear, deletedAt: null },
+    });
+    if (!existingConfig) {
+      await prisma.idCardConfig.create({
+        data: {
+          schoolId,
+          year: currentYear,
+          templateId: template.id,
+          config: {},
+          createdBy: schoolAdminId,
+        },
+      });
+      logger.info(`Created IdCardConfig for school ${schoolId} (year ${currentYear})`);
+    }
+
+    // 3. IdCardCollection per class (so ID Cards page shows one row per class)
+    const classes = await prisma.class.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { id: true },
+    });
+    const classIds = classes.map((c) => c.id);
+    for (const classId of classIds) {
+      const existing = await prisma.idCardCollection.findUnique({
+        where: {
+          schoolId_classId_year: { schoolId, classId, year: currentYear },
+        },
+      });
+      if (!existing) {
+        await prisma.idCardCollection.create({
+          data: {
+            schoolId,
+            classId,
+            year: currentYear,
+            status: IdCardCollectionStatus.NOT_GENERATED,
+            createdBy: schoolAdminId,
+          },
+        });
+      }
+    }
+    logger.info(`Created IdCardCollection for ${classIds.length} classes in school ${schoolId}`);
+  }
+}
+
+/**
  * Seed Grievances
  */
 async function seedGrievances() {
@@ -1617,7 +1709,7 @@ async function seedAttendance() {
 
     // Create attendance for last 30 days
     const today = new Date();
-    const attendanceStatuses = ["PRESENT", "ABSENT", "LATE", "HALF_DAY"];
+    const attendanceStatuses = [AttendanceStatus.PRESENT, AttendanceStatus.ABSENT, AttendanceStatus.LATE, AttendanceStatus.HALF_DAY];
 
     for (let day = 0; day < 30; day++) {
       const date = new Date(today);
@@ -1639,8 +1731,8 @@ async function seedAttendance() {
             status: status,
             markedBy: teacher.id,
             schoolId: schoolId,
-            lateArrivalTime: status === "LATE" ? new Date(date.setHours(8, 30)) : null,
-            absenceReason: status === "ABSENT" ? "Sick" : null,
+            lateArrivalTime: status === AttendanceStatus.LATE ? (() => { const d = new Date(date); d.setHours(8, 30); return d; })() : null,
+            absenceReason: status === AttendanceStatus.ABSENT ? "Sick" : null,
             createdBy: teacher.id,
           },
         });
@@ -1687,9 +1779,10 @@ async function seedTimetables() {
       const effectiveFrom = new Date();
       effectiveFrom.setMonth(effectiveFrom.getMonth() - 1);
 
+      const classLabel = `${classItem.grade}${classItem.division ? "-" + classItem.division : ""}`;
       const timetable = await prisma.timetable.create({
         data: {
-          name: `Timetable - ${classItem.name}`,
+          name: `Timetable - ${classLabel}`,
           classId: classItem.id,
           schoolId: schoolId,
           effectiveFrom: effectiveFrom,
@@ -1731,7 +1824,7 @@ async function seedTimetables() {
         }
       }
 
-      logger.info(`Created timetable with ${days.length * periods.length} slots for class: ${classItem.name}`);
+      logger.info(`Created timetable with ${days.length * periods.length} slots for class: ${classLabel}`);
     }
   }
 }
@@ -1827,8 +1920,8 @@ async function seedHomeworks() {
       });
 
       for (const student of students) {
-        const status = Math.random() > 0.3 ? "SUBMITTED" : "PENDING";
-        const submittedAt = status === "SUBMITTED" ? new Date() : null;
+        const status = Math.random() > 0.3 ? SubmissionStatus.SUBMITTED : SubmissionStatus.PENDING;
+        const submittedAt = status === SubmissionStatus.SUBMITTED ? new Date() : null;
 
         await prisma.homeworkSubmission.create({
           data: {
@@ -1837,8 +1930,8 @@ async function seedHomeworks() {
             submittedAt: submittedAt,
             status: status,
             files: [],
-            feedback: status === "SUBMITTED" && Math.random() > 0.5 ? "Good work!" : null,
-            grade: status === "SUBMITTED" && Math.random() > 0.5 ? "A" : null,
+            feedback: status === SubmissionStatus.SUBMITTED && Math.random() > 0.5 ? "Good work!" : null,
+            grade: status === SubmissionStatus.SUBMITTED && Math.random() > 0.5 ? "A" : null,
             createdBy: student.id,
           },
         });
@@ -2075,7 +2168,7 @@ async function seedLeaveRequests() {
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + Math.floor(Math.random() * 3) + 1);
 
-      const statuses = ["PENDING", "APPROVED", "REJECTED"];
+      const statuses = [LeaveStatus.PENDING, LeaveStatus.APPROVED, LeaveStatus.REJECTED];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
 
       await prisma.leaveRequest.create({
@@ -2086,8 +2179,8 @@ async function seedLeaveRequests() {
           endDate: endDate,
           reason: "Personal work",
           status: status,
-          approvedBy: status === "APPROVED" ? (schoolAdmin?.id || "seed") : null,
-          approvedAt: status === "APPROVED" ? new Date() : null,
+          approvedBy: status === LeaveStatus.APPROVED ? (schoolAdmin?.id || "seed") : null,
+          approvedAt: status === LeaveStatus.APPROVED ? new Date() : null,
           schoolId: schoolId,
           createdBy: user.id,
         },
@@ -2157,7 +2250,7 @@ async function seedCommunication() {
         const conversation = await prisma.conversation.create({
           data: {
             participants: [teacher.id, student.id],
-            type: "DIRECT",
+            type: ConversationType.DIRECT,
             schoolId: schoolId,
             createdBy: teacher.id,
           },
@@ -2182,7 +2275,7 @@ async function seedCommunication() {
 
     // Create notifications
     for (const student of students) {
-      const notificationTypes = ["ATTENDANCE", "HOMEWORK", "EXAM", "FEE", "ANNOUNCEMENT"];
+      const notificationTypes = [NotificationType.ATTENDANCE, NotificationType.HOMEWORK, NotificationType.EXAM, NotificationType.FEE, NotificationType.ANNOUNCEMENT];
       for (let i = 0; i < 5; i++) {
         await prisma.notification.create({
           data: {
@@ -2343,7 +2436,7 @@ async function seedTransferCertificates() {
 
     for (const student of students) {
       const tcNumber = `TC-${schoolId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const statuses = ["ISSUED", "COLLECTED", "CANCELLED"];
+      const statuses = [TCStatus.ISSUED, TCStatus.COLLECTED, TCStatus.CANCELLED];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
 
       await prisma.transferCertificate.create({
@@ -2395,7 +2488,7 @@ async function seedEmergencyContacts() {
           data: {
             studentId: student.id,
             schoolId: schoolId,
-            name: `${relationship} of ${student.name}`,
+            name: `${relationship} of ${[student.firstName, student.lastName].filter(Boolean).join(" ")}`,
             relationship: relationship,
             contact: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
             alternateContact: i === 0 ? `+91${Math.floor(Math.random() * 9000000000) + 1000000000}` : null,
@@ -2432,6 +2525,11 @@ async function main() {
     await seedLicenses();
     await seedVendors();
     await seedSettings();
+    try {
+      await seedIdCards();
+    } catch (error) {
+      logger.warn(`Skipping ID cards seed: ${error.message}`);
+    }
     await seedGrievances();
     await seedSalaries();
     

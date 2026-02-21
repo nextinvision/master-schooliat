@@ -52,10 +52,7 @@ export default defineConfig({
     path: "src/prisma/db/migrations",
   },
   datasource: {
-    // For migrations, Prisma 7.3.0 uses directUrl automatically
-    // But we need to ensure url is set for client generation
-    // Set both to directUrl to ensure migrations work correctly
-    url: directUrl, // Use direct connection for migrations
-    directUrl: directUrl, // Explicit direct connection for migrations (Supabase)
+    url: env("DATABASE_URL")?.trim() || directUrl,
+    directUrl: directUrl,
   },
 });

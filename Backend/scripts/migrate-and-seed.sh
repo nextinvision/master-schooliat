@@ -54,6 +54,9 @@ fi
 # Navigate to backend directory
 cd "$(dirname "$0")/.."
 
+# Ensure Prisma CLI sees DATABASE_URL (config reads env at load time)
+export NODE_OPTIONS="${NODE_OPTIONS:-} -r dotenv/config"
+
 echo ""
 echo "Step 1: Generating Prisma Client..."
 npm run prisma:generate || {
