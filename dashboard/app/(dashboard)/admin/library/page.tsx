@@ -364,8 +364,8 @@ export default function LibraryPage() {
                                 {item.user?.firstName || ""} {item.user?.lastName || ""}
                               </TableCell>
                               <TableCell>
-                                {item.issueDate
-                                  ? new Date(item.issueDate).toLocaleDateString()
+                                {item.issuedDate
+                                  ? new Date(item.issuedDate).toLocaleDateString()
                                   : "N/A"}
                               </TableCell>
                               <TableCell>

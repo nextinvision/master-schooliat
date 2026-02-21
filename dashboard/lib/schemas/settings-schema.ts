@@ -58,6 +58,14 @@ export const changePasswordSchema = z
     path: ["confirmPassword"],
   });
 
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(100),
+  lastName: z.string().max(100).optional(),
+  contact: z.string().min(1, "Contact is required").max(50),
+});
+
+export type UpdateProfileFormData = z.infer<typeof updateProfileSchema>;
+
 export type FeesConfigFormData = z.infer<typeof feesConfigSchema>;
 export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
 

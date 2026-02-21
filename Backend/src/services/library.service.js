@@ -57,6 +57,40 @@ const createBook = async (data) => {
 };
 
 /**
+ * Get single book by id (must belong to school)
+ * @param {string} schoolId - School ID
+ * @param {string} bookId - Book ID
+ * @returns {Promise<Object|null>} - Book or null
+ */
+const getBookById = async (schoolId, bookId) => {
+  if (!schoolId || !bookId) return null;
+  const book = await prisma.libraryBook.findFirst({
+    where: { id: bookId, schoolId, deletedAt: null },
+  });
+  return book;
+};
+
+/**
+ * Soft-delete library book
+ * @param {string} bookId - Book ID
+ * @param {string} deletedBy - User ID
+ * @returns {Promise<Object>} - Updated book
+ */
+const deleteBook = async (bookId, deletedBy) => {
+  const book = await prisma.libraryBook.findUnique({
+    where: { id: bookId },
+  });
+  if (!book) throw new Error("Book not found");
+  return prisma.libraryBook.update({
+    where: { id: bookId },
+    data: {
+      deletedAt: new Date(),
+      deletedBy,
+    },
+  });
+};
+
+/**
  * Update library book
  * @param {string} bookId - Book ID
  * @param {Object} data - Update data
@@ -246,14 +280,14 @@ const reserveBook = async (data) => {
 };
 
 /**
- * Get library history for user
+ * Get library history for a user
  * @param {string} userId - User ID
  * @param {Object} options - Query options
  * @returns {Promise<Object>} - History with pagination
  */
 const getUserHistory = async (userId, options = {}) => {
-  const { page = 1, limit = 20, status = null } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
+  const { status = null } = options;
 
   const where = {
     userId,
@@ -269,10 +303,9 @@ const getUserHistory = async (userId, options = {}) => {
       where,
       include: {
         book: true,
+        user: { select: { id: true, firstName: true, lastName: true } },
       },
-      orderBy: {
-        issuedDate: "desc",
-      },
+      orderBy: { issuedDate: "desc" },
       skip,
       take: limit,
     }),
@@ -288,6 +321,84 @@ const getUserHistory = async (userId, options = {}) => {
       totalPages: Math.ceil(total / limit),
     },
   };
+};
+
+/**
+ * Get library history for entire school (all issues)
+ * @param {string} schoolId - School ID
+ * @param {Object} options - Query options
+ * @returns {Promise<Object>} - History with pagination
+ */
+const getSchoolHistory = async (schoolId, options = {}) => {
+  const { page, limit, skip } = parsePagination(options);
+  const { status = null } = options;
+
+  if (!schoolId) {
+    return {
+      issues: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
+
+  const where = {
+    schoolId,
+    deletedAt: null,
+  };
+
+  if (status) {
+    where.status = status;
+  }
+
+  const [issues, total] = await Promise.all([
+    prisma.libraryIssue.findMany({
+      where,
+      include: {
+        book: true,
+        user: { select: { id: true, firstName: true, lastName: true } },
+      },
+      orderBy: { issuedDate: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.libraryIssue.count({ where }),
+  ]);
+
+  return {
+    issues,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+    },
+  };
+};
+
+/**
+ * Get all pending returns (ISSUED or OVERDUE) for the school
+ * @param {string} schoolId - School ID
+ * @returns {Promise<Array>} - Issues with book and user
+ */
+const getPendingReturns = async (schoolId) => {
+  if (!schoolId) return [];
+
+  const issues = await prisma.libraryIssue.findMany({
+    where: {
+      schoolId,
+      deletedAt: null,
+      status: { in: [IssueStatusEnum.ISSUED, IssueStatusEnum.OVERDUE] },
+    },
+    include: {
+      book: true,
+      user: { select: { id: true, firstName: true, lastName: true } },
+    },
+    orderBy: { dueDate: "asc" },
+  });
+
+  return issues.map((issue) => ({
+    ...issue,
+    borrowerName: [issue.user?.firstName, issue.user?.lastName].filter(Boolean).join(" ").trim() || issue.userId,
+  }));
 };
 
 /**
@@ -376,6 +487,7 @@ const calculateOverdueFines = async (schoolId) => {
       },
       deletedAt: null,
     },
+    include: { book: true },
   });
 
   let updatedCount = 0;
@@ -417,6 +529,17 @@ const calculateOverdueFines = async (schoolId) => {
  * @returns {Promise<Object>} - Dashboard statistics
  */
 const getLibrarianDashboard = async (schoolId) => {
+  if (!schoolId) {
+    return {
+      totalBooks: 0,
+      availableBooks: 0,
+      issuedBooks: 0,
+      overdueBooks: 0,
+      pendingReservations: 0,
+      totalIssues: 0,
+    };
+  }
+
   const [
     totalBooks,
     availableBooks,
@@ -482,10 +605,14 @@ const getLibrarianDashboard = async (schoolId) => {
 const libraryService = {
   createBook,
   updateBook,
+  getBookById,
+  deleteBook,
   issueBook,
   returnBook,
   reserveBook,
   getUserHistory,
+  getSchoolHistory,
+  getPendingReturns,
   searchBooks,
   calculateOverdueFines,
   getLibrarianDashboard,

@@ -500,12 +500,12 @@ model File {
   contentType String  @map("content_type")
   size        Int
 
-  createdBy     String    @map("created_by")
-  updatedBy     String?   @map("updated_by")
-  deletedBy     String?   @map("deleted_by")
-  createdAt     DateTime  @default(now()) @map("created_at")
-  updatedAt     DateTime? @updatedAt @map("updated_at")
-  deletedAt     DateTime? @map("deleted_at")
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   notes         Note[]
   syllabi       Syllabus[]
@@ -662,8 +662,8 @@ model Subject {
   homeworks      Homework[]
   timetableSlots TimetableSlot[]
   marks          Marks[]
-  notes         Note[]
-  syllabi       Syllabus[]
+  notes          Note[]
+  syllabi        Syllabus[]
 
   @@unique(name: "subjects_unique_name_school_id", [name, schoolId])
   @@map("subjects")
@@ -865,9 +865,9 @@ model Transport {
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  students          StudentProfile[]
-  teachers          TeacherProfile[]
-  routes            Route[]
+  students            StudentProfile[]
+  teachers            TeacherProfile[]
+  routes              Route[]
   vehicleMaintenances VehicleMaintenance[]
 
   @@unique(name: "transports_unique_vehicle_number_school_id", [vehicleNumber, schoolId])
@@ -1925,35 +1925,35 @@ model LibraryBook {
   publishedYear   Int?     @map("published_year")
   schoolId        String   @map("school_id")
 
-  school        School                @relation(fields: [schoolId], references: [id])
-  issues        LibraryIssue[]
-  reservations  LibraryReservation[]
+  school       School               @relation(fields: [schoolId], references: [id])
+  issues       LibraryIssue[]
+  reservations LibraryReservation[]
 
   createdBy String    @map("created_by")
-  updatedBy String?    @map("updated_by")
+  updatedBy String?   @map("updated_by")
   deletedBy String?   @map("deleted_by")
   createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt  DateTime? @updatedAt @map("updated_at")
-  deletedAt  DateTime? @map("deleted_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
 
   @@index([schoolId, deletedAt], name: "library_books_school_id_deleted_at_idx")
   @@map("library_books")
 }
 
 model LibraryIssue {
-  id         String            @id @default(uuid())
-  bookId     String            @map("book_id")
-  userId     String            @map("user_id")
-  issuedDate DateTime          @map("issued_date")
-  dueDate    DateTime          @map("due_date")
-  returnDate DateTime?         @map("return_date")
+  id         String             @id @default(uuid())
+  bookId     String             @map("book_id")
+  userId     String             @map("user_id")
+  issuedDate DateTime           @map("issued_date")
+  dueDate    DateTime           @map("due_date")
+  returnDate DateTime?          @map("return_date")
   status     LibraryIssueStatus
-  fineAmount Decimal?          @map("fine_amount") @db.Decimal(10, 2)
-  remarks    String?           @db.Text
-  schoolId   String            @map("school_id")
+  fineAmount Decimal?           @map("fine_amount") @db.Decimal(10, 2)
+  remarks    String?            @db.Text
+  schoolId   String             @map("school_id")
 
-  book   LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
-  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  book LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
@@ -2008,10 +2008,10 @@ model Note {
   version     Int     @default(1)
   isActive    Boolean @default(true) @map("is_active")
 
-  subject Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  class   Class?   @relation(fields: [classId], references: [id], onDelete: SetNull)
-  file    File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
-  school  School   @relation(fields: [schoolId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class   Class?  @relation(fields: [classId], references: [id], onDelete: SetNull)
+  file    File?   @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  school  School  @relation(fields: [schoolId], references: [id])
 
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
@@ -2026,22 +2026,22 @@ model Note {
 }
 
 model Syllabus {
-  id           String   @id @default(uuid())
+  id           String  @id @default(uuid())
   title        String
-  description  String?  @db.Text
-  subjectId    String   @map("subject_id")
-  classId      String   @map("class_id")
-  academicYear String   @map("academic_year")
-  chapters     Json?    // array or structured data
-  fileId       String?  @map("file_id")
-  schoolId     String   @map("school_id")
-  version      Int      @default(1)
-  isActive     Boolean  @default(true) @map("is_active")
+  description  String? @db.Text
+  subjectId    String  @map("subject_id")
+  classId      String  @map("class_id")
+  academicYear String  @map("academic_year")
+  chapters     Json? // array or structured data
+  fileId       String? @map("file_id")
+  schoolId     String  @map("school_id")
+  version      Int     @default(1)
+  isActive     Boolean @default(true) @map("is_active")
 
-  subject Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  class   Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  file    File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
-  school  School   @relation(fields: [schoolId], references: [id])
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  file    File?   @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  school  School  @relation(fields: [schoolId], references: [id])
 
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
@@ -2059,18 +2059,18 @@ model Syllabus {
 // ============================================
 
 model Gallery {
-  id          String        @id @default(uuid())
+  id          String         @id @default(uuid())
   title       String
-  description String?       @db.Text
-  eventId     String?       @map("event_id")
+  description String?        @db.Text
+  eventId     String?        @map("event_id")
   privacy     GalleryPrivacy @default(PUBLIC)
-  classId     String?       @map("class_id")
-  schoolId    String        @map("school_id")
-  isActive    Boolean       @default(true) @map("is_active")
+  classId     String?        @map("class_id")
+  schoolId    String         @map("school_id")
+  isActive    Boolean        @default(true) @map("is_active")
 
-  event  Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
-  class  Class?  @relation(fields: [classId], references: [id], onDelete: SetNull)
-  school School @relation(fields: [schoolId], references: [id])
+  event  Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  class  Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+  school School         @relation(fields: [schoolId], references: [id])
   images GalleryImage[]
 
   createdBy String    @map("created_by")
@@ -2112,17 +2112,17 @@ model GalleryImage {
 // ============================================
 
 model Circular {
-  id            String        @id @default(uuid())
+  id            String         @id @default(uuid())
   title         String
-  content       String        @db.Text
+  content       String         @db.Text
   status        CircularStatus @default(DRAFT)
-  targetRoles   Json          @map("target_roles") @default("[]") // String[]
-  targetUserIds Json          @map("target_user_ids") @default("[]") // String[]
-  classIds      Json          @map("class_ids") @default("[]") // String[]
-  attachments   Json          @default("[]") // String[] file IDs
-  expiresAt     DateTime?     @map("expires_at")
-  publishedAt   DateTime?     @map("published_at")
-  schoolId      String        @map("school_id")
+  targetRoles   Json           @default("[]") @map("target_roles") // String[]
+  targetUserIds Json           @default("[]") @map("target_user_ids") // String[]
+  classIds      Json           @default("[]") @map("class_ids") // String[]
+  attachments   Json           @default("[]") // String[] file IDs
+  expiresAt     DateTime?      @map("expires_at")
+  publishedAt   DateTime?      @map("published_at")
+  schoolId      String         @map("school_id")
 
   school School @relation(fields: [schoolId], references: [id])
 
@@ -2165,27 +2165,27 @@ model FAQ {
 }
 
 model ChatbotConversation {
-  id        String         @id @default(uuid())
-  userId    String         @map("user_id")
-  intent    ChatbotIntent?
-  context   Json?
-  schoolId  String?        @map("school_id")
+  id       String         @id @default(uuid())
+  userId   String         @map("user_id")
+  intent   ChatbotIntent?
+  context  Json?
+  schoolId String?        @map("school_id")
 
   user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages ChatbotMessage[]
 
-  createdAt DateTime  @default(now()) @map("created_at")
-  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@index([userId], name: "chatbot_conversations_user_id_idx")
   @@map("chatbot_conversations")
 }
 
 model ChatbotMessage {
-  id             String   @id @default(uuid())
-  conversationId String   @map("conversation_id")
-  role           String   // "user" | "assistant"
-  content        String   @db.Text
+  id             String @id @default(uuid())
+  conversationId String @map("conversation_id")
+  role           String // "user" | "assistant"
+  content        String @db.Text
   metadata       Json?
 
   conversation ChatbotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -2211,8 +2211,8 @@ model Route {
   schoolId      String   @map("school_id")
   isActive      Boolean  @default(true) @map("is_active")
 
-  transport Transport    @relation(fields: [transportId], references: [id], onDelete: Cascade)
-  school    School       @relation(fields: [schoolId], references: [id])
+  transport Transport   @relation(fields: [transportId], references: [id], onDelete: Cascade)
+  school    School      @relation(fields: [schoolId], references: [id])
   stops     RouteStop[]
 
   createdBy String    @map("created_by")
@@ -2252,16 +2252,16 @@ model RouteStop {
 }
 
 model VehicleMaintenance {
-  id                 String    @id @default(uuid())
-  transportId        String    @map("transport_id")
-  maintenanceType    String    @map("maintenance_type")
-  description        String?   @db.Text
-  cost               Decimal?  @db.Decimal(10, 2)
-  maintenanceDate    DateTime  @map("maintenance_date")
+  id                  String    @id @default(uuid())
+  transportId         String    @map("transport_id")
+  maintenanceType     String    @map("maintenance_type")
+  description         String?   @db.Text
+  cost                Decimal?  @db.Decimal(10, 2)
+  maintenanceDate     DateTime  @map("maintenance_date")
   nextMaintenanceDate DateTime? @map("next_maintenance_date")
-  serviceProvider    String?
-  odometerReading    Int?      @map("odometer_reading")
-  schoolId           String    @map("school_id")
+  serviceProvider     String?
+  odometerReading     Int?      @map("odometer_reading")
+  schoolId            String    @map("school_id")
 
   transport Transport @relation(fields: [transportId], references: [id], onDelete: Cascade)
 

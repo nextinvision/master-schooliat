@@ -92,6 +92,7 @@ const authorize = async (req, res, next) => {
         assignedRegionId: user.assignedRegionId,
         firstName: user.firstName,
         lastName: user.lastName,
+        contact: user.contact,
         role: user.role,
       },
       permissions: permissions,

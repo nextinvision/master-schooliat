@@ -12,6 +12,8 @@ import verifyOTPSchema from "../schemas/auth/verify-otp.schema.js";
 import forgotPasswordSchema from "../schemas/auth/forgot-password.schema.js";
 import resetPasswordSchema from "../schemas/auth/reset-password.schema.js";
 import changePasswordSchema from "../schemas/auth/change-password.schema.js";
+import getMeSchema from "../schemas/auth/get-me.schema.js";
+import updateMeSchema from "../schemas/auth/update-me.schema.js";
 import { RoleName } from "../prisma/generated/index.js";
 import { Platform } from "../enums/platform.js";
 import otpService from "../services/otp.service.js";
@@ -20,6 +22,24 @@ import passwordUtil from "../utils/password.util.js";
 import authorize from "../middlewares/authorize.middleware.js";
 
 const router = Router();
+
+function toSafeUser(user, role, school) {
+  const u = {
+    id: user.id,
+    email: user.email,
+    userType: user.userType,
+    firstName: user.firstName,
+    lastName: user.lastName ?? null,
+    contact: user.contact,
+    roleId: user.roleId,
+    schoolId: user.schoolId ?? null,
+    role: role ? { id: role.id, name: role.name, permissions: role.permissions ?? [] } : null,
+  };
+  if (school) {
+    u.school = { id: school.id, name: school.name, code: school.code };
+  }
+  return u;
+}
 
 const availablePlatformsForRoles = {
   [RoleName.SUPER_ADMIN]: [Platform.WEB],
@@ -67,8 +87,19 @@ router.post(
       throw ApiErrors.UNAUTHORIZED;
     }
 
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      userType: user.userType,
+      firstName: user.firstName,
+      lastName: user.lastName ?? null,
+      contact: user.contact,
+      roleId: user.roleId,
+      schoolId: user.schoolId ?? null,
+      role,
+    };
     const jwtToken = jwt.sign(
-      { data: { user: { ...user, role: role } } },
+      { data: { user: safeUser } },
       config.JWT_SECRET,
       { expiresIn: `${config.JWT_EXPIRATION_TIME}h`, issuer: "SchooliAT" },
     );
@@ -310,6 +341,55 @@ router.post(
     res.json({
       message: "Password changed successfully",
     });
+  },
+);
+
+// GET /auth/me – current user profile (authenticated)
+router.get(
+  "/me",
+  authorize,
+  validateRequest(getMeSchema),
+  async (req, res) => {
+    const userId = req.context.user.id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId, deletedAt: null },
+      include: {
+        role: { select: { id: true, name: true, permissions: true } },
+        school: { select: { id: true, name: true, code: true } },
+      },
+    });
+    if (!user) {
+      throw ApiErrors.USER_NOT_FOUND;
+    }
+    const safeUser = toSafeUser(user, user.role, user.school ?? null);
+    res.json({ message: "Profile fetched", data: safeUser });
+  },
+);
+
+// PATCH /auth/me – update current user profile (firstName, lastName, contact)
+router.patch(
+  "/me",
+  authorize,
+  validateRequest(updateMeSchema),
+  async (req, res) => {
+    const userId = req.context.user.id;
+    const body = req.body.request || {};
+    const updateData = {};
+    if (body.firstName !== undefined) updateData.firstName = body.firstName;
+    if (body.lastName !== undefined) updateData.lastName = body.lastName;
+    if (body.contact !== undefined) updateData.contact = body.contact;
+    updateData.updatedBy = userId;
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        role: { select: { id: true, name: true, permissions: true } },
+        school: { select: { id: true, name: true, code: true } },
+      },
+    });
+    const safeUser = toSafeUser(user, user.role, user.school ?? null);
+    res.json({ message: "Profile updated", data: safeUser });
   },
 );
 

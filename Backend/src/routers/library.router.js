@@ -10,6 +10,7 @@ import issueBookSchema from "../schemas/library/issue-book.schema.js";
 import returnBookSchema from "../schemas/library/return-book.schema.js";
 import reserveBookSchema from "../schemas/library/reserve-book.schema.js";
 import getBooksSchema from "../schemas/library/get-books.schema.js";
+import getBookByIdSchema from "../schemas/library/get-book-by-id.schema.js";
 import getHistorySchema from "../schemas/library/get-history.schema.js";
 
 const router = Router();
@@ -70,6 +71,35 @@ router.put(
   },
 );
 
+// Get single book
+router.get(
+  "/books/:id",
+  withPermission(Permission.GET_LIBRARY_BOOKS),
+  validateRequest(getBookByIdSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const book = await libraryService.getBookById(currentUser.schoolId, id);
+      if (!book) {
+        return res.status(404).json({
+          message: "Book not found",
+        });
+      }
+
+      return res.status(200).json({
+        message: "Book fetched successfully",
+        data: book,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch book",
+      });
+    }
+  },
+);
+
 // Get books (search)
 router.get(
   "/books",
@@ -102,6 +132,36 @@ router.get(
     } catch (error) {
       return res.status(400).json({
         message: error.message || "Failed to fetch books",
+      });
+    }
+  },
+);
+
+// Delete book (soft delete)
+router.delete(
+  "/books/:id",
+  withPermission(Permission.EDIT_LIBRARY_BOOK),
+  validateRequest(getBookByIdSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const book = await libraryService.getBookById(currentUser.schoolId, id);
+      if (!book) {
+        return res.status(404).json({
+          message: "Book not found",
+        });
+      }
+
+      await libraryService.deleteBook(id, currentUser.id);
+
+      return res.status(200).json({
+        message: "Book deleted successfully",
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to delete book",
       });
     }
   },
@@ -191,7 +251,7 @@ router.post(
   },
 );
 
-// Get library history
+// Get library history (school-wide when userId not provided and user has schoolId)
 router.get(
   "/history",
   withPermission(Permission.GET_LIBRARY_HISTORY),
@@ -201,13 +261,18 @@ router.get(
       const query = req.query;
       const currentUser = req.context.user;
 
-      const userId = query.userId || currentUser.id;
-
-      const result = await libraryService.getUserHistory(userId, {
+      const options = {
         page: query.page,
         limit: query.limit,
         status: query.status,
-      });
+      };
+
+      const result =
+        query.userId != null && query.userId !== ""
+          ? await libraryService.getUserHistory(query.userId, options)
+          : currentUser.schoolId
+            ? await libraryService.getSchoolHistory(currentUser.schoolId, options)
+            : await libraryService.getUserHistory(currentUser.id, options);
 
       return res.status(200).json({
         message: "Library history fetched successfully",
@@ -217,6 +282,35 @@ router.get(
     } catch (error) {
       return res.status(400).json({
         message: error.message || "Failed to fetch library history",
+      });
+    }
+  },
+);
+
+// Get pending returns (all ISSUED/OVERDUE for school)
+router.get(
+  "/pending-returns",
+  withPermission(Permission.GET_LIBRARY_HISTORY),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+
+      if (!currentUser.schoolId) {
+        return res.status(200).json({
+          message: "Pending returns fetched successfully",
+          data: [],
+        });
+      }
+
+      const issues = await libraryService.getPendingReturns(currentUser.schoolId);
+
+      return res.status(200).json({
+        message: "Pending returns fetched successfully",
+        data: issues,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch pending returns",
       });
     }
   },
