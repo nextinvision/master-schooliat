@@ -2,15 +2,16 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import { useState } from "react";
-import { 
-  Settings, 
-  Bell, 
-  Search, 
+import {
+  Settings,
+  Bell,
+  Search,
   Menu,
   X,
   User,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  CheckCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -26,7 +27,14 @@ import {
 import { clearToken } from "@/lib/auth/storage";
 import { useAuth } from "@/lib/hooks/use-auth";
 import { useSidebar } from "@/lib/context/sidebar-context";
-import { cn } from "@/lib/utils";
+import {
+  useNotifications,
+  useUnreadNotificationCount,
+  useMarkNotificationRead,
+  useMarkAllNotificationsRead,
+} from "@/lib/hooks/use-notifications";
+import { formatDistanceToNow } from "date-fns";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function EnhancedNavbar() {
   const router = useRouter();
@@ -34,6 +42,33 @@ export function EnhancedNavbar() {
   const { user } = useAuth();
   const { isOpen, toggle } = useSidebar();
   const [searchQuery, setSearchQuery] = useState("");
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+
+  const { data: notificationsRes, isLoading: notificationsLoading } = useNotifications({
+    page: 1,
+    limit: 10,
+    isRead: null,
+  });
+  const { data: unreadCount = 0 } = useUnreadNotificationCount();
+  const markRead = useMarkNotificationRead();
+  const markAllRead = useMarkAllNotificationsRead();
+
+  const notifications = notificationsRes?.data?.notifications ?? [];
+  const hasUnread = unreadCount > 0;
+
+  const handleNotificationClick = (item: { id: string; actionUrl?: string | null; isRead: boolean }) => {
+    if (!item.isRead) {
+      markRead.mutate(item.id);
+    }
+    if (item.actionUrl) {
+      setNotificationsOpen(false);
+      router.push(item.actionUrl);
+    }
+  };
+
+  const handleMarkAllRead = () => {
+    markAllRead.mutate();
+  };
 
   const isSuperAdminRoute = pathname.startsWith("/super-admin");
   const settingsRoute = isSuperAdminRoute ? "/super-admin/settings" : "/admin/settings";
@@ -105,14 +140,86 @@ export function EnhancedNavbar() {
       {/* Right Section */}
       <div className="flex items-center gap-1.5">
         {/* Notifications */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8"
-        >
-          <Bell className="h-3.5 w-3.5 text-gray-600" />
-          <span className="absolute top-0.5 right-0.5 h-1.5 w-1.5 bg-red-500 rounded-full"></span>
-        </Button>
+        <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8"
+              title="Notifications"
+            >
+              <Bell className="h-3.5 w-3.5 text-gray-600" />
+              {hasUnread && (
+                <span
+                  className="absolute top-0.5 right-0.5 min-w-[0.375rem] h-1.5 px-0.5 flex items-center justify-center bg-red-500 text-[10px] font-medium text-white rounded-full"
+                  aria-label={`${unreadCount} unread`}
+                >
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80 max-h-[min(24rem,70vh)] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-2 py-2 border-b">
+              <span className="text-sm font-semibold">Notifications</span>
+              {hasUnread && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={handleMarkAllRead}
+                  disabled={markAllRead.isPending}
+                >
+                  <CheckCheck className="h-3.5 w-3.5 mr-1" />
+                  Mark all read
+                </Button>
+              )}
+            </div>
+            <div className="overflow-y-auto flex-1 min-h-0">
+              {notificationsLoading ? (
+                <div className="p-3 space-y-2">
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                  <Skeleton className="h-14 w-full" />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  No notifications yet
+                </div>
+              ) : (
+                <div className="py-1">
+                  {notifications.map((item) => (
+                    <DropdownMenuItem
+                      key={item.id}
+                      className="flex flex-col items-stretch gap-0.5 p-3 cursor-pointer rounded-none border-b border-gray-100 last:border-0 focus:bg-gray-50"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        handleNotificationClick(item);
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <span
+                          className={item.isRead ? "text-sm font-normal text-gray-700" : "text-sm font-semibold text-gray-900"}
+                        >
+                          {item.title}
+                        </span>
+                        {!item.isRead && (
+                          <span className="shrink-0 h-2 w-2 rounded-full bg-primary mt-1.5" aria-hidden />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-2 text-left">
+                        {item.content}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground text-left">
+                        {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
+                      </span>
+                    </DropdownMenuItem>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Settings */}
         <Button
