@@ -1,5 +1,6 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
+import { parsePagination } from "../utils/pagination.util.js";
 import { TCStatus } from "../prisma/generated/index.js";
 
 /**
@@ -150,8 +151,7 @@ const getTCById = async (tcId, schoolId = null) => {
  * @returns {Promise<Object>} - TCs with pagination
  */
 const getTCs = async (filters = {}, options = {}) => {
-  const { page = 1, limit = 50 } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
 
   const where = {
     deletedAt: null,
@@ -176,42 +176,47 @@ const getTCs = async (filters = {}, options = {}) => {
     };
   }
 
-  const [tcs, total] = await Promise.all([
-    prisma.transferCertificate.findMany({
-      where,
-      include: {
-        student: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            studentProfile: {
-              include: {
-                class: true,
+  try {
+    const [tcs, total] = await Promise.all([
+      prisma.transferCertificate.findMany({
+        where,
+        include: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              studentProfile: {
+                include: {
+                  class: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.transferCertificate.count({ where }),
-  ]);
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.transferCertificate.count({ where }),
+    ]);
 
-  return {
-    tcs,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+    return {
+      tcs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId: filters.schoolId }, "getTCs failed");
+    throw err;
+  }
 };
 
 /**
