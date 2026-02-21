@@ -1,14 +1,23 @@
-# Production migration recovery (P3009)
+# Production migration recovery (P3009 / P3018)
 
 If deployment fails with:
 
 ```text
 Error: P3009
-migrate found failed migrations in the target database, new migrations will not be applied.
+migrate found failed migrations in the target database...
 The `20260221053404_add_missing_models` migration started at ... failed
 ```
 
-do one of the following.
+or:
+
+```text
+Error: P3018
+A migration failed to apply... Database error code: 42710 ... type "attendance_status" already exists
+```
+
+the migration `20260221053404_add_missing_models` has been updated to be **production-safe**: it only creates new enums (library_issue_status, gallery_privacy, circular_status, chatbot_intent), adds LIBRARY/CIRCULAR to notification_type, and creates only the new tables (library_books, notes, galleries, circulars, faqs, chatbot_*, routes, vehicle_maintenance). It does not recreate existing enums or tables.
+
+Do one of the following.
 
 ## Option 1: Let the workflow retry
 
