@@ -1,5 +1,6 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
+import { parsePagination } from "../utils/pagination.util.js";
 import pkg from "../prisma/generated/index.js";
 const { CircularStatus } = pkg || {};
 
@@ -143,8 +144,7 @@ const publishCircular = async (circularId, publishedBy) => {
  * @returns {Promise<Object>} - Circulars with pagination
  */
 const getCirculars = async (schoolId, userId = null, filters = {}, options = {}) => {
-  const { page = 1, limit = 20 } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
 
   const where = {
     schoolId,

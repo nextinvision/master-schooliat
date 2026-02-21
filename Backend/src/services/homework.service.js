@@ -499,46 +499,16 @@ const getStudentHomework = async (studentId, filters = {}) => {
     [homeworks, total] = await Promise.all([
       prisma.homework.findMany({
         where,
-      include: {
-        subject: {
-          select: {
-            id: true,
-            name: true,
+        include: {
+          subject: { select: { id: true, name: true } },
+          teacher: { select: { id: true, firstName: true, lastName: true } },
+          submissions: {
+            where: { studentId, deletedAt: null },
+            select: { id: true, status: true, submittedAt: true, marksObtained: true, totalMarks: true, grade: true },
           },
+          mcqQuestions: { select: { id: true, question: true, options: true, marks: true } },
         },
-        teacher: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        submissions: {
-          where: {
-            studentId,
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-            status: true,
-            submittedAt: true,
-            marksObtained: true,
-            totalMarks: true,
-            grade: true,
-          },
-        },
-        mcqQuestions: {
-          select: {
-            id: true,
-            question: true,
-            options: true,
-            marks: true,
-          },
-        },
-      },
-        orderBy: {
-          dueDate: "desc",
-        },
+        orderBy: { dueDate: "desc" },
         skip,
         take: limit,
       }),

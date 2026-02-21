@@ -103,7 +103,7 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
   const totalAmount = filteredInstallments.reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
   const paidAmount = filteredInstallments
     .filter((inst) => inst.paymentStatus === "PAID")
-    .reduce((sum, inst) => sum + Number(inst.paidAmount ?? inst.amount || 0), 0);
+    .reduce((sum, inst) => sum + Number(inst.paidAmount != null ? inst.paidAmount : (inst.amount || 0)), 0);
   const pendingAmount = filteredInstallments
     .filter((inst) => inst.paymentStatus === "PENDING")
     .reduce((sum, inst) => sum + Number(inst.amount || 0), 0);

@@ -3,7 +3,7 @@ import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
-import paginateUtil from "../utils/paginate.util.js";
+import { parsePagination } from "../utils/pagination.util.js";
 import createExamSchema from "../schemas/exam/create-exam.schema.js";
 import getExamsSchema from "../schemas/exam/get-exams.schema.js";
 import updateExamSchema from "../schemas/exam/update-exam.schema.js";
@@ -39,15 +39,27 @@ router.get(
   async (req, res) => {
     const currentUser = req.context.user;
     const schoolId = currentUser.schoolId;
-
-    const exams = await prisma.exam.findMany({
-      where: {
-        schoolId: schoolId || null,
-      },
-      ...paginateUtil.getPaginationParams(req),
+    const q = req.query;
+    const { page, limit, skip } = parsePagination({
+      page: q.page ?? q.pageNumber,
+      limit: q.limit ?? q.pageSize,
     });
 
-    return res.json({ message: "Exams fetched!", data: exams });
+    const [exams, total] = await Promise.all([
+      prisma.exam.findMany({
+        where: { schoolId: schoolId || null },
+        skip,
+        take: limit,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.exam.count({ where: { schoolId: schoolId || null } }),
+    ]);
+
+    return res.json({
+      message: "Exams fetched!",
+      data: exams,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    });
   },
 );
 

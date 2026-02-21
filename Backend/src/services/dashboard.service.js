@@ -254,16 +254,21 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
   );
   const lastDayOfMonth = dateUtil.getLastDayOfMonth(currentMonth, currentYear);
 
-  // Get school settings to fetch current installment number
-  const schoolSettings = await prisma.settings.findFirst({
-    where: {
-      schoolId,
-      deletedAt: null,
-    },
-  });
+  // Get school settings to fetch current installment number (resilient to missing columns e.g. platform_config)
+  let schoolSettings = null;
+  try {
+    schoolSettings = await prisma.settings.findFirst({
+      where: {
+        schoolId,
+        deletedAt: null,
+      },
+    });
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId }, "Dashboard: could not load settings, using defaults");
+  }
 
   const currentInstallmentNumber =
-    schoolSettings?.currentInstallmentNumber || 1;
+    schoolSettings?.currentInstallmentNumber ?? 1;
 
   // Get fee IDs for the current year
   const currentYearFees = await prisma.fee.findMany({
