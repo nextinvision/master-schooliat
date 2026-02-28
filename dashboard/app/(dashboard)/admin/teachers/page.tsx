@@ -3,7 +3,9 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { TeachersTable } from "@/components/teachers/teachers-table";
-import { useTeachersPage, useCreateTeacher, useDeleteTeacher } from "@/lib/hooks/use-teachers";
+import { useTeachersPage, useCreateTeacher, useDeleteTeacher, useBulkUploadTeachers } from "@/lib/hooks/use-teachers";
+import { BulkUploadDialog } from "@/components/common/bulk-upload-dialog";
+import { FileUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +36,7 @@ export default function TeachersPage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [isAddTeacherDialogOpen, setIsAddTeacherDialogOpen] = useState(false);
+  const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const limit = 15;
 
   // Teachers data
@@ -44,6 +47,7 @@ export default function TeachersPage() {
   // Mutations
   const createTeacher = useCreateTeacher();
   const deleteTeacher = useDeleteTeacher();
+  const bulkUploadTeachers = useBulkUploadTeachers();
 
   // Teacher form
   const teacherForm = useForm<AddTeacherFormData>({
@@ -122,13 +126,23 @@ export default function TeachersPage() {
           <h1 className="text-2xl font-semibold">Teachers</h1>
           <p className="text-gray-600 mt-1">Manage teachers and their information</p>
         </div>
-        <Button 
-          onClick={() => setIsAddTeacherDialogOpen(true)} 
-          className="gap-2"
-        >
-          <UserPlus className="h-4 w-4" />
-          Add Teacher
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setIsAddTeacherDialogOpen(true)}
+            className="gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add Teacher
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsBulkUploadDialogOpen(true)}
+            className="gap-2"
+          >
+            <FileUp className="h-4 w-4" />
+            Bulk Upload
+          </Button>
+        </div>
       </div>
 
       {/* Teachers Table */}
@@ -544,7 +558,22 @@ export default function TeachersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Bulk Upload Dialog */}
+      <BulkUploadDialog
+        open={isBulkUploadDialogOpen}
+        onOpenChange={setIsBulkUploadDialogOpen}
+        title="Bulk Upload Teachers"
+        description="Upload a CSV file with teacher details. Passwords will be generated automatically."
+        onUpload={(csv) => bulkUploadTeachers.mutateAsync(csv)}
+        templateFilename="teachers_template.csv"
+        templateHeaders={[
+          "FirstName", "LastName", "Email", "Contact", "Gender", "DateOfBirth",
+          "Designation", "HighestQualification", "University", "YearOfPassing",
+          "Grade", "AadhaarId", "PanCardNumber"
+        ]}
+      />
+    </div >
   );
 }
 

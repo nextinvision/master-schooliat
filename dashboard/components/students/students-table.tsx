@@ -25,6 +25,18 @@ import {
 } from "@/components/ui/select";
 import { StudentDetailModal } from "./student-detail-modal";
 import { PasswordResetModal } from "./password-reset-modal";
+import { useBulkAssignClass } from "@/lib/hooks/use-students";
+import { useClasses } from "@/lib/hooks/use-classes";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const STUDENT_COLUMNS = [
@@ -73,10 +85,14 @@ export function StudentsTable({
   const [selectedStudent, setSelectedStudent] = useState<any>(null);
   const [passwordResetVisible, setPasswordResetVisible] = useState(false);
   const [resetStudent, setResetStudent] = useState<any>(null);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const bulkAssign = useBulkAssignClass();
+  const { data: classesData } = useClasses({ page: 1, limit: 1000 });
+  const classesList = classesData?.data || [];
 
   // Filter and search
   let filteredStudents = students;
-  
+
   if (searchQuery.trim()) {
     filteredStudents = searchStudentsByName(filteredStudents, searchQuery);
   }
@@ -171,6 +187,15 @@ export function StudentsTable({
         {selectedRows.size > 0 && (
           <div className="flex items-center gap-2">
             <Badge variant="secondary">{selectedRows.size} selected</Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAssignDialogOpen(true)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Assign to Class
+            </Button>
             <Button
               variant="destructive"
               size="sm"
@@ -344,7 +369,95 @@ export function StudentsTable({
         userId={resetStudent?.id}
         userName={`${resetStudent?.firstName || ""} ${resetStudent?.lastName || ""}`}
       />
+
+      <AssignClassDialog
+        isOpen={isAssignDialogOpen}
+        onClose={() => setIsAssignDialogOpen(false)}
+        selectedIds={Array.from(selectedRows)}
+        classes={classesList}
+        onSuccess={() => {
+          setSelectedRows(new Set());
+          setIsAssignDialogOpen(false);
+        }}
+        bulkAssignMutation={bulkAssign}
+      />
     </div>
+  );
+}
+
+interface AssignClassDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  selectedIds: string[];
+  classes: any[];
+  onSuccess: () => void;
+  bulkAssignMutation: any;
+}
+
+function AssignClassDialog({
+  isOpen,
+  onClose,
+  selectedIds,
+  classes,
+  onSuccess,
+  bulkAssignMutation,
+}: AssignClassDialogProps) {
+  const [selectedClassId, setSelectedClassId] = useState("");
+
+  const handleAssign = async () => {
+    if (!selectedClassId) {
+      toast.error("Please select a class");
+      return;
+    }
+
+    try {
+      await bulkAssignMutation.mutateAsync({
+        studentIds: selectedIds,
+        classId: selectedClassId,
+      });
+      toast.success("Students assigned successfully");
+      onSuccess();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to assign students");
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Assign Students to Class</DialogTitle>
+          <DialogDescription>
+            Assign {selectedIds.length} selected students to a new class.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label>Select Target Class</Label>
+            <Select value={selectedClassId} onValueChange={setSelectedClassId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a class" />
+              </SelectTrigger>
+              <SelectContent>
+                {classes.map((cls) => (
+                  <SelectItem key={cls.id} value={cls.id}>
+                    {cls.grade}-{cls.division}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleAssign} disabled={bulkAssignMutation.isLoading}>
+            {bulkAssignMutation.isLoading ? "Assigning..." : "Assign to Class"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

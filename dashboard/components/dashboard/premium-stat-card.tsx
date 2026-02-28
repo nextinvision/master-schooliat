@@ -1,5 +1,5 @@
-"use client";
-
+import { Link } from "lucide-react"; // This was a mistake in my thought process, I should use next/link
+import NextLink from "next/link";
 import { useEffect, useState, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { LucideIcon } from "lucide-react";
@@ -14,6 +14,7 @@ interface PremiumStatCardProps {
   delay?: number;
   animateCount?: boolean;
   className?: string;
+  href?: string;
 }
 
 export function PremiumStatCard({
@@ -25,6 +26,7 @@ export function PremiumStatCard({
   delay = 0,
   animateCount = true,
   className,
+  href,
 }: PremiumStatCardProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [displayValue, setDisplayValue] = useState(0);
@@ -78,64 +80,78 @@ export function PremiumStatCard({
     return () => clearInterval(timer);
   }, [isVisible, value, animateCount]);
 
-  const formattedValue = typeof value === "number" 
-    ? displayValue.toLocaleString() 
+  const formattedValue = typeof value === "number"
+    ? displayValue.toLocaleString()
     : value;
 
+  const CardWrapper = ({ children }: { children: React.ReactNode }) => {
+    if (href) {
+      return (
+        <NextLink href={href} className="block no-underline">
+          {children}
+        </NextLink>
+      );
+    }
+    return <>{children}</>;
+  };
+
   return (
-    <Card
-      ref={cardRef}
-      className={cn(
-        "cursor-pointer border-0 overflow-hidden transition-all duration-300",
-        "hover:shadow-xl hover:-translate-y-1",
-        "relative isolate",
-        className
-      )}
-      style={{
-        opacity: isVisible ? 1 : 0,
-        transform: isVisible ? "translateY(0)" : "translateY(20px)",
-        transition: `all 0.5s ease-out ${delay}s`,
-      }}
-    >
-      <CardContent
+    <CardWrapper>
+      <Card
+        ref={cardRef}
         className={cn(
-          "p-4 bg-gradient-to-br",
-          gradient,
-          textColor
+          href ? "cursor-pointer" : "",
+          "border-0 overflow-hidden transition-all duration-300",
+          "hover:shadow-xl hover:-translate-y-1",
+          "relative isolate",
+          className
         )}
+        style={{
+          opacity: isVisible ? 1 : 0,
+          transform: isVisible ? "translateY(0)" : "translateY(20px)",
+          transition: `all 0.5s ease-out ${delay}s`,
+        }}
       >
-        <div className="flex items-start justify-between mb-3">
-          <div
-            className={cn(
-              "w-10 h-10 rounded-full flex items-center justify-center",
-              "bg-white/25 backdrop-blur-sm transition-transform duration-300",
-              "hover:scale-110 hover:bg-white/35"
-            )}
-            style={{
-              animation: isVisible ? "pulse-glow 2s infinite" : "none",
-            }}
-          >
-            <Icon className="w-5 h-5" />
+        <CardContent
+          className={cn(
+            "p-4 bg-gradient-to-br",
+            gradient,
+            textColor
+          )}
+        >
+          <div className="flex items-start justify-between mb-3">
+            <div
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center",
+                "bg-white/25 backdrop-blur-sm transition-transform duration-300",
+                "hover:scale-110 hover:bg-white/35"
+              )}
+              style={{
+                animation: isVisible ? "pulse-glow 2s infinite" : "none",
+              }}
+            >
+              <Icon className="w-5 h-5" />
+            </div>
           </div>
-        </div>
-        <div className="ml-2.5">
-          <p
-            className={cn(
-              "text-2xl font-extrabold mb-0.5 transition-all duration-300",
-              "animate-count-up"
-            )}
-            style={{
-              animation: isVisible ? "countUp 0.6s ease-out" : "none",
-            }}
-          >
-            {formattedValue}
-          </p>
-          <p className={cn("text-xs font-semibold opacity-90")}>
-            {title}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+          <div className="ml-2.5">
+            <p
+              className={cn(
+                "text-2xl font-extrabold mb-0.5 transition-all duration-300",
+                "animate-count-up"
+              )}
+              style={{
+                animation: isVisible ? "countUp 0.6s ease-out" : "none",
+              }}
+            >
+              {formattedValue}
+            </p>
+            <p className={cn("text-xs font-semibold opacity-90")}>
+              {title}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </CardWrapper>
   );
 }
 

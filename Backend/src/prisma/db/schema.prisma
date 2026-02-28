@@ -30,6 +30,10 @@ enum Permission {
   GET_TEACHERS
   EDIT_TEACHER
   DELETE_TEACHER
+  CREATE_STAFF
+  GET_STAFF
+  EDIT_STAFF
+  DELETE_STAFF
   CREATE_CLASSES
   GET_CLASSES
   EDIT_CLASSES
@@ -776,7 +780,7 @@ model StudentProfile {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   rollNumber  Int     @map("roll_number")
-  apaarId     String  @unique @map("apaar_id")
+  apaarId     String? @unique @map("apaar_id")
   classId     String  @map("class_id")
   transportId String? @map("transport_id")
 

@@ -218,34 +218,47 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isToday = isSameDay(day, new Date());
               const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-              const hasEvents = currentData.some((item: any) => {
-                const fromDate = item.from ? new Date(item.from) : null;
-                const tillDate = item.till ? new Date(item.till) : null;
-                if (!fromDate || !tillDate) return false;
+              const hasEvents = events.some((item: any) => {
+                if (!item.from || !item.till) return false;
+                const fromDate = new Date(item.from);
+                fromDate.setHours(0, 0, 0, 0);
+                const tillDate = new Date(item.till);
+                tillDate.setHours(23, 59, 59, 999);
                 return day >= fromDate && day <= tillDate;
               });
               const isHoliday = holidays.some((holiday: any) => {
-                const fromDate = holiday.from ? new Date(holiday.from) : null;
-                const tillDate = holiday.till ? new Date(holiday.till) : null;
-                if (!fromDate || !tillDate) return false;
+                if (!holiday.from || !holiday.till) return false;
+                const fromDate = new Date(holiday.from);
+                fromDate.setHours(0, 0, 0, 0);
+                const tillDate = new Date(holiday.till);
+                tillDate.setHours(23, 59, 59, 999);
                 return day >= fromDate && day <= tillDate;
               });
 
               return (
                 <button
                   key={day.toISOString()}
+                  id={`calendar-day-${format(day, "yyyy-MM-dd")}`}
                   onClick={() => handleDayClick(day)}
                   className={`
-                    aspect-square p-2 text-sm rounded relative
-                    ${isSelected ? "bg-primary text-white" : "hover:bg-gray-100"}
-                    ${isToday && !isSelected ? "ring-2 ring-blue-400" : ""}
-                    ${hasEvents ? "font-semibold" : ""}
-                    ${isWeekend && !isSelected ? "text-red-500" : ""}
-                    ${isHoliday && !isSelected ? "bg-red-50 text-red-600 font-medium" : ""}
+                    aspect-square p-2 text-sm rounded-md relative transition-all duration-200
+                    flex flex-col items-center justify-center
+                    ${isSelected ? "bg-primary text-white scale-105 z-10 shadow-md" : "hover:bg-gray-100"}
+                    ${isToday && !isSelected ? "ring-2 ring-primary bg-schooliat-tint/30" : ""}
+                    ${isWeekend && !isSelected ? "text-red-500 bg-red-50/30" : ""}
+                    ${isHoliday && !isSelected ? "bg-red-50 text-red-600 font-bold" : ""}
+                    ${hasEvents && !isHoliday && !isSelected ? "font-semibold text-primary bg-primary/5" : ""}
                   `}
                 >
-                  {format(day, "d")}
-                  {isHoliday && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-500 rounded-full" />}
+                  <span className="relative z-10">{format(day, "d")}</span>
+                  <div className="flex gap-0.5 mt-1">
+                    {hasEvents && (
+                      <div className={`w-1 h-1 rounded-full ${isSelected ? "bg-white" : "bg-primary"}`} />
+                    )}
+                    {isHoliday && (
+                      <div className={`w-1 h-1 rounded-full ${isSelected ? "bg-white" : "bg-red-500 animate-pulse"}`} />
+                    )}
+                  </div>
                 </button>
               );
             })}

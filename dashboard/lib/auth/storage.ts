@@ -34,7 +34,7 @@ export async function saveToken(token: string): Promise<void> {
   }
 }
 
-export async function getToken(): Promise<string | null> {
+export async function getAuthToken(): Promise<string | null> {
   if (typeof window !== "undefined") {
     return window.sessionStorage.getItem(TOKEN_KEY);
   }
@@ -48,7 +48,7 @@ export async function clearToken(): Promise<void> {
 }
 
 export async function getUserRoles(): Promise<string | null> {
-  const token = await getToken();
+  const token = await getAuthToken();
   if (!token) {
     return null;
   }
@@ -62,7 +62,7 @@ export async function getUserRoles(): Promise<string | null> {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  const token = await getToken();
+  const token = await getAuthToken();
   if (!token) {
     return null;
   }

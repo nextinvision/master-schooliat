@@ -122,7 +122,7 @@ export function useUpdateTeacher() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...form }: { id: string; [key: string]: any }) =>
+    mutationFn: ({ id, ...form }: { id: string;[key: string]: any }) =>
       updateTeacherApi(id, form),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["teachers"] });
@@ -136,6 +136,17 @@ export function useDeleteTeacher() {
 
   return useMutation({
     mutationFn: (teacherId: string) => deleteTeacherApi(teacherId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+    },
+  });
+}
+
+export function useBulkUploadTeachers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (csvData: string) => post("/users/teachers/bulk", { csvData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teachers"] });
     },

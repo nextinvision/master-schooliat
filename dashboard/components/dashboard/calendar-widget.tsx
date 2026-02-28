@@ -50,18 +50,28 @@ export function CalendarWidget({ events = [], holidays = [], currentMonth, curre
 
   // Get events for a specific date
   const getEventsForDate = (date: Date) => {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
     return events.filter((event) => {
       const eventFrom = new Date(event.from);
       const eventTill = new Date(event.till);
-      return date >= eventFrom && date <= eventTill;
+      return endOfDay >= eventFrom && startOfDay <= eventTill;
     });
   };
 
   const getHolidaysForDate = (date: Date) => {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+
     return holidays.filter((holiday) => {
       const holidayFrom = new Date(holiday.from);
       const holidayTill = new Date(holiday.till);
-      return date >= holidayFrom && date <= holidayTill;
+      return endOfDay >= holidayFrom && startOfDay <= holidayTill;
     });
   };
 
@@ -138,31 +148,33 @@ export function CalendarWidget({ events = [], holidays = [], currentMonth, curre
             return (
               <button
                 key={date.toISOString()}
+                id={`calendar-widget-day-${format(date, "yyyy-MM-dd")}`}
                 onClick={() => handleDateClick(date)}
                 className={cn(
-                  "aspect-square rounded-md text-sm transition-all duration-200 relative flex items-center justify-center",
-                  "hover:bg-gray-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500",
-                  isToday && "bg-schooliat-tint font-semibold ring-2 ring-primary",
-                  isSelected && !isToday && "bg-green-200 scale-105",
-                  isHoliday && !isToday && !isSelected && "bg-red-50 font-medium",
-                  !isToday && !isSelected && !isHoliday && "hover:bg-gray-50"
+                  "aspect-square rounded-md text-sm transition-all duration-200 relative flex flex-col items-center justify-center",
+                  "hover:bg-gray-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary",
+                  isToday && "bg-schooliat-tint/30 font-semibold ring-2 ring-primary",
+                  isSelected && !isToday && "bg-primary text-white scale-105 z-10 shadow-sm",
+                  isHoliday && !isToday && !isSelected && "bg-red-50 font-bold",
+                  isWeekend && !isToday && !isSelected && !isHoliday && "bg-red-50/30",
+                  !isToday && !isSelected && !isHoliday && !isWeekend && "hover:bg-gray-50"
                 )}
               >
                 <span className={cn(
-                  isToday && "text-green-700",
-                  isSelected && !isToday && "text-primary",
-                  isWeekend && !isToday && !isSelected && !isHoliday && "text-red-500",
+                  isToday && "text-primary",
+                  isSelected && !isToday && "text-white",
                   isHoliday && !isToday && !isSelected && "text-red-600",
+                  isWeekend && !isToday && !isSelected && !isHoliday && "text-red-500",
                   !isToday && !isSelected && !isWeekend && !isHoliday && "text-gray-700"
                 )}>
                   {format(date, "d")}
                 </span>
-                <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
+                <div className="flex gap-0.5 mt-1">
                   {dateEvents.length > 0 && (
-                    <div className="w-1 h-1 rounded-full bg-green-600" />
+                    <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-white" : "bg-primary")} />
                   )}
                   {isHoliday && (
-                    <div className="w-1 h-1 rounded-full bg-red-500" />
+                    <div className={cn("w-1 h-1 rounded-full", isSelected ? "bg-white" : "bg-red-500")} />
                   )}
                 </div>
               </button>

@@ -4,7 +4,8 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StudentsTable } from "@/components/students/students-table";
-import { useStudentsPage, useCreateStudent, useDeleteStudent } from "@/lib/hooks/use-students";
+import { useStudentsPage, useCreateStudent, useDeleteStudent, useBulkUploadStudents } from "@/lib/hooks/use-students";
+import { BulkUploadDialog } from "@/components/common/bulk-upload-dialog";
 import { useTCs, useCreateTC, useUpdateTCStatus } from "@/lib/hooks/use-tc";
 import { useStudents } from "@/lib/hooks/use-students";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { toast } from "sonner";
 import {
   Plus,
   FileText,
+  FileUp,
   Eye,
   CheckCircle,
   XCircle,
@@ -93,6 +95,7 @@ export default function StudentsPage() {
   const [statusFilter, setStatusFilter] = useState<"ISSUED" | "COLLECTED" | "CANCELLED" | "all">("all");
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState(false);
+  const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const limit = 15;
 
   // Students data
@@ -119,6 +122,7 @@ export default function StudentsPage() {
   const deleteStudent = useDeleteStudent();
   const createTC = useCreateTC();
   const updateTCStatus = useUpdateTCStatus();
+  const bulkUploadStudents = useBulkUploadStudents();
 
   // Student form
   const studentForm = useForm<StudentFormData>({
@@ -189,7 +193,7 @@ export default function StudentsPage() {
   }, [deleteStudent, refetchStudents]);
 
   const handleBulkDelete = useCallback(async (ids: string[]) => {
-    if (!confirm(`Are you sure you want to delete ${ids.length} student(s)?"`)) return;
+    if (!confirm(`Are you sure you want to delete ${ids.length} student(s)?`)) return;
     try {
       await Promise.all(ids.map(id => deleteStudent.mutateAsync(id)));
       toast.success(`${ids.length} student(s) deleted successfully!`);
@@ -269,18 +273,28 @@ export default function StudentsPage() {
           <h1 className="text-2xl font-semibold">Students</h1>
           <p className="text-gray-600 mt-1">Manage students and transfer certificates</p>
         </div>
-        <Button 
-          onClick={() => setIsAddStudentDialogOpen(true)} 
-          className="gap-2"
-        >
-          <UserPlus className="h-4 w-4" />
-          Add Student
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setIsAddStudentDialogOpen(true)}
+            className="gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Add Student
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsBulkUploadDialogOpen(true)}
+            className="gap-2"
+          >
+            <FileUp className="h-4 w-4" />
+            Bulk Upload
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
-      <Tabs 
-        value={activeTab} 
+      <Tabs
+        value={activeTab}
         onValueChange={(value) => {
           setActiveTab(value);
           // Update URL with tab parameter
@@ -293,7 +307,7 @@ export default function StudentsPage() {
             }
             window.history.replaceState({}, "", url.toString());
           }
-        }} 
+        }}
         className="w-full"
       >
         <TabsList className="grid w-full grid-cols-2">
@@ -357,8 +371,8 @@ export default function StudentsPage() {
                     </div>
                   </div>
                   <div className="w-48">
-                    <Select 
-                      value={statusFilter} 
+                    <Select
+                      value={statusFilter}
                       onValueChange={(v) => {
                         setStatusFilter(v as any);
                         setTcPage(1); // Reset to first page on filter change
@@ -1000,6 +1014,21 @@ export default function StudentsPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+
+      {/* Bulk Upload Dialog */}
+      <BulkUploadDialog
+        open={isBulkUploadDialogOpen}
+        onOpenChange={setIsBulkUploadDialogOpen}
+        title="Bulk Upload Students"
+        description="Upload a CSV file with student details. Ensure the class names match existing classes."
+        onUpload={(csv) => bulkUploadStudents.mutateAsync(csv)}
+        templateFilename="students_template.csv"
+        templateHeaders={[
+          "FirstName", "LastName", "Email", "Contact", "Gender", "DateOfBirth",
+          "FatherName", "MotherName", "FatherContact", "MotherContact",
+          "ClassName", "ApaarId", "RollNumber"
+        ]}
+      />
+    </div >
   );
 }

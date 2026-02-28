@@ -69,6 +69,11 @@ export const MENU_ITEMS: MenuItem[] = [
     route: "/admin/students",
   },
   {
+    name: "Staff",
+    icon: "SquareUser",
+    route: "/admin/staff",
+  },
+  {
     name: "Attendance",
     icon: "UserCheck",
     route: "/admin/attendance",

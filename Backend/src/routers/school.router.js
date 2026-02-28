@@ -625,4 +625,72 @@ router.delete(
   },
 );
 
+// Export students of a class
+router.get(
+  "/classes/:id/students/export",
+  withPermission(Permission.GET_CLASSES),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const classEntity = await prisma.class.findUnique({
+        where: { id, schoolId: currentUser.schoolId, deletedAt: null },
+      });
+
+      if (!classEntity) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+
+      const students = await prisma.user.findMany({
+        where: {
+          schoolId: currentUser.schoolId,
+          studentProfile: { classId: id },
+          deletedAt: null,
+        },
+        select: {
+          publicUserId: true,
+          firstName: true,
+          lastName: true,
+          contact: true,
+          email: true,
+          studentProfile: {
+            select: {
+              rollNumber: true,
+            },
+          },
+        },
+        orderBy: { studentProfile: { rollNumber: "asc" } },
+      });
+
+      // Simple CSV generation
+      const headers = ["Roll No", "ID", "First Name", "Last Name", "Contact", "Email"];
+      const rows = students.map((s) => [
+        s.studentProfile?.rollNumber || "",
+        s.publicUserId || "",
+        s.firstName,
+        s.lastName || "",
+        s.contact || "",
+        s.email,
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=class_${classEntity.grade}${classEntity.division ? "_" + classEntity.division : ""}_students.csv`
+      );
+      return res.send(csvContent);
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to export class data",
+      });
+    }
+  }
+);
+
 export default router;

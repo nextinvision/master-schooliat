@@ -94,6 +94,7 @@ const getUserSelect = (
 // Convenience exports for different user types
 const getStudentSelect = () => getUserSelect(true, false);
 const getTeacherSelect = () => getUserSelect(false, true);
+const getStaffSelect = () => getUserSelect(false, false);
 const getEmployeeSelect = () => ({
   ...getUserSelect(false, false),
   assignedRegion: {
@@ -219,6 +220,7 @@ const userService = {
   getUserSelect,
   getStudentSelect,
   getTeacherSelect,
+  getStaffSelect,
   getEmployeeSelect,
   getEmployeeById,
   attachFileURLs,

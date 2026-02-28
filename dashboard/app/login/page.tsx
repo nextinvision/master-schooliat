@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { loginAndSaveToken } from "@/lib/api/auth";
-import { getUserRoles, getToken } from "@/lib/auth/storage";
+import { getUserRoles, getAuthToken } from "@/lib/auth/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +44,7 @@ export default function LoginPage() {
     // Check if user is already logged in
     const checkAuth = async () => {
       try {
-        const token = await getToken();
+        const token = await getAuthToken();
         if (token) {
           await postLoginRedirect();
         }

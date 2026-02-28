@@ -9,6 +9,7 @@ import bcryptjs from "bcryptjs";
 import stringUtil from "../utils/string.util.js";
 import fileService from "../services/file.service.js";
 import roleService from "../services/role.service.js";
+import csvUtil from "../utils/csv.util.js";
 
 const router = Router();
 
@@ -36,13 +37,22 @@ router.post(
       // Generate password
       const generatedPassword = stringUtil.generateRandomString(15);
 
+      // Generate public user ID (format: SCHOOLCODE + T + 4 digits)
+      const existingTeachers = await prisma.user.count({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: teacherRole.id,
+        },
+      });
+      const publicUserId = `${school.code}T${String(existingTeachers + 1).padStart(4, "0")}`;
+
       // Create user
       const user = await prisma.user.create({
         data: {
           email: request.email.trim(),
           password: await bcryptjs.hash(generatedPassword, 10),
           firstName: request.firstName.trim(),
-          lastName: request.lastName.trim(),
+          lastName: request.lastName?.trim() || "",
           contact: request.contact.trim(),
           gender: request.gender,
           dateOfBirth: new Date(request.dateOfBirth),
@@ -51,6 +61,7 @@ router.post(
           userType: UserType.SCHOOL,
           roleId: teacherRole.id,
           schoolId: currentUser.schoolId,
+          publicUserId,
           registrationPhotoId: request.registrationPhotoId || null,
           idPhotoId: request.idPhotoId || null,
           createdBy: currentUser.id,
@@ -63,13 +74,14 @@ router.post(
         data: {
           userId: user.id,
           designation: request.designation?.trim() || null,
-          highestQualification: request.highestQualification?.trim() || null,
-          university: request.university?.trim() || null,
-          yearOfPassing: request.yearOfPassing || null,
-          grade: request.grade?.trim() || null,
+          highestQualification: request.highestQualification?.trim() || "",
+          university: request.university?.trim() || "",
+          yearOfPassing: request.yearOfPassing ? parseInt(request.yearOfPassing) : 0,
+          grade: request.grade?.trim() || "",
           transportId: request.transportId || null,
           panCardNumber: request.panCardNumber?.trim() || null,
           bloodGroup: request.bloodGroup || null,
+          createdBy: currentUser.id,
         },
       });
 
@@ -330,6 +342,296 @@ router.delete(
 );
 
 // ============================================
+// STAFF ENDPOINTS
+// ============================================
+
+// Create staff
+router.post(
+  "/staff",
+  withPermission(Permission.CREATE_STAFF),
+  async (req, res) => {
+    try {
+      const request = req.body.request;
+      const currentUser = req.context.user;
+
+      // Validate school exists
+      const school = await prisma.school.findUnique({
+        where: { id: currentUser.schoolId },
+      });
+
+      if (!school) {
+        return res.status(404).json({ message: "School not found!" });
+      }
+
+      // Get staff role
+      const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+
+      // Generate password
+      const generatedPassword = stringUtil.generateRandomString(15);
+
+      // Generate public user ID (format: SCHOOLCODE + AT + 4 digits)
+      // AT for Admin/Staff Type
+      const existingStaff = await prisma.user.count({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: staffRole.id,
+        },
+      });
+      const publicUserId = `${school.code}AT${String(existingStaff + 1).padStart(4, "0")}`;
+
+      // Create user
+      const user = await prisma.user.create({
+        data: {
+          email: request.email.trim(),
+          password: await bcryptjs.hash(generatedPassword, 10),
+          firstName: request.firstName.trim(),
+          lastName: request.lastName?.trim() || "",
+          contact: request.contact.trim(),
+          gender: request.gender,
+          dateOfBirth: new Date(request.dateOfBirth),
+          address: request.address || [],
+          aadhaarId: request.aadhaarId?.trim() || null,
+          userType: UserType.SCHOOL,
+          roleId: staffRole.id,
+          schoolId: currentUser.schoolId,
+          publicUserId,
+          registrationPhotoId: request.registrationPhotoId || null,
+          idPhotoId: request.idPhotoId || null,
+          createdBy: currentUser.id,
+        },
+        select: userService.getStaffSelect(),
+      });
+
+      // Attach file URLs
+      const usersWithUrls = await userService.attachFileURLs([user]);
+
+      return res.status(201).json({
+        message: "Staff member created!",
+        data: { ...usersWithUrls[0], password: generatedPassword },
+      });
+    } catch (error) {
+      if (error.code === "P2002") {
+        return res.status(400).json({
+          message: "Email already exists!",
+        });
+      }
+      return res.status(400).json({
+        message: error.message || "Failed to create staff member",
+      });
+    }
+  },
+);
+
+// Get all staff
+router.get(
+  "/staff",
+  withPermission(Permission.GET_STAFF),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const pageNumber = parseInt(req.query.pageNumber) || 1;
+      const pageSize = parseInt(req.query.pageSize) || 15;
+
+      const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+
+      const where = {
+        schoolId: currentUser.schoolId,
+        roleId: staffRole.id,
+        deletedAt: null,
+        deletedBy: null,
+      };
+
+      const staff = await prisma.user.findMany({
+        where,
+        select: userService.getStaffSelect(),
+        ...paginateUtil.getPaginationParams(req),
+        orderBy: { createdAt: "desc" },
+      });
+
+      const totalCount = await prisma.user.count({ where });
+
+      // Attach file URLs
+      const staffWithUrls = await userService.attachFileURLs(staff);
+
+      const totalPages = Math.ceil(totalCount / pageSize);
+      const hasNext = pageNumber < totalPages;
+
+      return res.json({
+        message: "Staff members fetched!",
+        data: staffWithUrls,
+        totalPages,
+        hasNext,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch staff members",
+      });
+    }
+  },
+);
+
+// Get staff by ID
+router.get(
+  "/staff/:id",
+  withPermission(Permission.GET_STAFF),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+
+      const staffMember = await prisma.user.findFirst({
+        where: {
+          id,
+          schoolId: currentUser.schoolId,
+          roleId: staffRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+        select: userService.getStaffSelect(),
+      });
+
+      if (!staffMember) {
+        return res.status(404).json({ message: "Staff member not found!" });
+      }
+
+      // Attach file URLs
+      const usersWithUrls = await userService.attachFileURLs([staffMember]);
+
+      return res.json({
+        message: "Staff member fetched!",
+        data: usersWithUrls[0],
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch staff member",
+      });
+    }
+  },
+);
+
+// Update staff
+router.patch(
+  "/staff/:id",
+  withPermission(Permission.EDIT_STAFF),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const request = req.body.request || {};
+      const currentUser = req.context.user;
+
+      const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+
+      // Check if staff member exists
+      const existingStaff = await prisma.user.findFirst({
+        where: {
+          id,
+          schoolId: currentUser.schoolId,
+          roleId: staffRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+      });
+
+      if (!existingStaff) {
+        return res.status(404).json({ message: "Staff member not found!" });
+      }
+
+      // Build update data
+      const userUpdateData = {
+        updatedBy: currentUser.id,
+      };
+
+      if (request.firstName !== undefined)
+        userUpdateData.firstName = request.firstName.trim();
+      if (request.lastName !== undefined)
+        userUpdateData.lastName = request.lastName.trim();
+      if (request.email !== undefined)
+        userUpdateData.email = request.email.trim();
+      if (request.contact !== undefined)
+        userUpdateData.contact = request.contact.trim();
+      if (request.gender !== undefined) userUpdateData.gender = request.gender;
+      if (request.dateOfBirth !== undefined)
+        userUpdateData.dateOfBirth = new Date(request.dateOfBirth);
+      if (request.address !== undefined) userUpdateData.address = request.address;
+      if (request.aadhaarId !== undefined)
+        userUpdateData.aadhaarId = request.aadhaarId?.trim() || null;
+      if (request.registrationPhotoId !== undefined)
+        userUpdateData.registrationPhotoId = request.registrationPhotoId || null;
+      if (request.idPhotoId !== undefined)
+        userUpdateData.idPhotoId = request.idPhotoId || null;
+
+      // Update user
+      const updatedUser = await prisma.user.update({
+        where: { id },
+        data: userUpdateData,
+        select: userService.getStaffSelect(),
+      });
+
+      // Attach file URLs
+      const usersWithUrls = await userService.attachFileURLs([updatedUser]);
+
+      return res.json({
+        message: "Staff member updated!",
+        data: usersWithUrls[0],
+      });
+    } catch (error) {
+      if (error.code === "P2002") {
+        return res.status(400).json({
+          message: "Email already exists!",
+        });
+      }
+      return res.status(400).json({
+        message: error.message || "Failed to update staff member",
+      });
+    }
+  },
+);
+
+// Delete staff
+router.delete(
+  "/staff/:id",
+  withPermission(Permission.DELETE_STAFF),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+
+      const existingStaff = await prisma.user.findFirst({
+        where: {
+          id,
+          schoolId: currentUser.schoolId,
+          roleId: staffRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+      });
+
+      if (!existingStaff) {
+        return res.status(404).json({ message: "Staff member not found!" });
+      }
+
+      await prisma.user.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.json({ message: "Staff member deleted!" });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to delete staff member",
+      });
+    }
+  },
+);
+
+// ============================================
 // STUDENT ENDPOINTS
 // ============================================
 
@@ -404,7 +706,7 @@ router.post(
           email: request.email.trim(),
           password: await bcryptjs.hash(generatedPassword, 10),
           firstName: request.firstName.trim(),
-          lastName: request.lastName?.trim() || null,
+          lastName: request.lastName?.trim() || "",
           contact: request.contact.trim(),
           gender: request.gender,
           dateOfBirth: new Date(request.dateOfBirth),
@@ -425,7 +727,7 @@ router.post(
       await prisma.studentProfile.create({
         data: {
           userId: user.id,
-          rollNumber: request.rollNumber || 0,
+          rollNumber: request.rollNumber ? parseInt(request.rollNumber) : 0,
           apaarId: request.apaarId?.trim() || null,
           classId: request.classId,
           transportId: request.transportId || null,
@@ -437,6 +739,7 @@ router.post(
           annualIncome: request.annualIncome ? parseFloat(request.annualIncome) : null,
           accommodationType: request.accommodationType || "DAY_SCHOLAR",
           bloodGroup: request.bloodGroup || null,
+          createdBy: currentUser.id,
         },
       });
 
@@ -737,6 +1040,266 @@ router.delete(
       });
     }
   },
+);
+
+// Bulk assign students to class
+router.patch(
+  "/students/bulk-assign-class",
+  withPermission(Permission.EDIT_STUDENT),
+  async (req, res) => {
+    try {
+      const { studentIds, classId } = req.body;
+      const currentUser = req.context.user;
+
+      if (!Array.isArray(studentIds) || !studentIds.length) {
+        return res.status(400).json({ message: "Student IDs are required" });
+      }
+
+      if (!classId) {
+        return res.status(400).json({ message: "Class ID is required" });
+      }
+
+      // Validate class exists
+      const classEntity = await prisma.class.findFirst({
+        where: {
+          id: classId,
+          schoolId: currentUser.schoolId,
+          deletedAt: null,
+        },
+      });
+
+      if (!classEntity) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+
+      // Update all students in a transaction
+      await prisma.$transaction(
+        studentIds.map((id) =>
+          prisma.studentProfile.update({
+            where: { userId: id },
+            data: { classId },
+          })
+        )
+      );
+
+      return res.json({ message: "Students assigned to class successfully" });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk assign students",
+      });
+    }
+  }
+);
+
+// Bulk create teachers
+router.post(
+  "/teachers/bulk",
+  withPermission(Permission.CREATE_TEACHER),
+  async (req, res) => {
+    try {
+      const { csvData } = req.body;
+      const currentUser = req.context.user;
+
+      if (!csvData) {
+        return res.status(400).json({ message: "CSV data is required" });
+      }
+
+      const school = await prisma.school.findUnique({
+        where: { id: currentUser.schoolId },
+      });
+
+      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const rows = csvUtil.parseCSV(csvData);
+
+      if (rows.length === 0) {
+        return res.status(400).json({ message: "No valid data found in CSV" });
+      }
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [],
+      };
+
+      let currentTeacherCount = await prisma.user.count({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: teacherRole.id,
+        },
+      });
+
+      for (const row of rows) {
+        try {
+          const publicUserId = `${school.code}T${String(++currentTeacherCount).padStart(4, "0")}`;
+          const generatedPassword = stringUtil.generateRandomString(15);
+
+          await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+              data: {
+                email: row.email.toLowerCase(),
+                password: await bcryptjs.hash(generatedPassword, 10),
+                firstName: row.firstname,
+                lastName: row.lastname || "",
+                contact: row.contact,
+                gender: row.gender?.toUpperCase() === "FEMALE" ? "FEMALE" : "MALE",
+                dateOfBirth: new Date(row.dateofbirth),
+                userType: UserType.SCHOOL,
+                roleId: teacherRole.id,
+                schoolId: currentUser.schoolId,
+                publicUserId,
+                createdBy: currentUser.id,
+                aadhaarId: row.aadhaarid || null,
+              },
+            });
+
+            await tx.teacherProfile.create({
+              data: {
+                userId: user.id,
+                designation: row.designation || null,
+                highestQualification: row.highestqualification || "",
+                university: row.university || "",
+                yearOfPassing: row.yearofpassing ? parseInt(row.yearofpassing) : 0,
+                grade: row.grade || "",
+                panCardNumber: row.pancardnumber || null,
+                createdBy: currentUser.id,
+              },
+            });
+          });
+
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push({
+            row: row.email || row.firstname,
+            error: error.message,
+          });
+          currentTeacherCount--; // Reset if failed
+        }
+      }
+
+      return res.json({
+        message: `Bulk upload completed: ${results.success} succeeded, ${results.failed} failed.`,
+        data: results,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk upload teachers",
+      });
+    }
+  }
+);
+
+// Bulk create students
+router.post(
+  "/students/bulk",
+  withPermission(Permission.CREATE_STUDENT),
+  async (req, res) => {
+    try {
+      const { csvData } = req.body;
+      const currentUser = req.context.user;
+
+      if (!csvData) {
+        return res.status(400).json({ message: "CSV data is required" });
+      }
+
+      const school = await prisma.school.findUnique({
+        where: { id: currentUser.schoolId },
+      });
+
+      const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
+      const rows = csvUtil.parseCSV(csvData);
+
+      if (rows.length === 0) {
+        return res.status(400).json({ message: "No valid data found in CSV" });
+      }
+
+      // Pre-fetch classes for this school
+      const classes = await prisma.class.findMany({
+        where: { schoolId: currentUser.schoolId, deletedAt: null },
+      });
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [],
+      };
+
+      let currentStudentCount = await prisma.user.count({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: studentRole.id,
+        },
+      });
+
+      for (const row of rows) {
+        try {
+          // Resolve class (Format: "10 A" or "10-A")
+          const classEntity = classes.find(c => {
+            const className = `${c.grade} ${c.division}`.toLowerCase();
+            const altName = `${c.grade}-${c.division}`.toLowerCase();
+            const inputName = row.classname?.toLowerCase();
+            return className === inputName || altName === inputName;
+          });
+
+          if (!classEntity) throw new Error(`Class ${row.classname} not found`);
+
+          const publicUserId = `${school.code}S${String(++currentStudentCount).padStart(4, "0")}`;
+          const generatedPassword = stringUtil.generateRandomString(15);
+
+          await prisma.$transaction(async (tx) => {
+            const user = await tx.user.create({
+              data: {
+                email: row.email.toLowerCase(),
+                password: await bcryptjs.hash(generatedPassword, 10),
+                firstName: row.firstname,
+                lastName: row.lastname || "",
+                contact: row.contact,
+                gender: row.gender?.toUpperCase() === "FEMALE" ? "FEMALE" : "MALE",
+                dateOfBirth: new Date(row.dateofbirth),
+                userType: UserType.SCHOOL,
+                roleId: studentRole.id,
+                schoolId: currentUser.schoolId,
+                publicUserId,
+                createdBy: currentUser.id,
+              },
+            });
+
+            await tx.studentProfile.create({
+              data: {
+                userId: user.id,
+                rollNumber: row.rollnumber ? parseInt(row.rollnumber) : 0,
+                apaarId: row.apaarid || null,
+                classId: classEntity.id,
+                fatherName: row.fathername || "",
+                motherName: row.mothername || "",
+                fatherContact: row.fathercontact || "",
+                motherContact: row.mothercontact || "",
+                createdBy: currentUser.id,
+              },
+            });
+          });
+
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push({
+            row: row.email || row.firstname,
+            error: error.message,
+          });
+          currentStudentCount--;
+        }
+      }
+
+      return res.json({
+        message: `Bulk upload completed: ${results.success} succeeded, ${results.failed} failed.`,
+        data: results,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk upload students",
+      });
+    }
+  }
 );
 
 export default router;

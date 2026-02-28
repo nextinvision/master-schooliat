@@ -126,6 +126,7 @@ export default function AdminDashboardPage() {
           value={totalStudents}
           icon={UserCheck}
           gradient="from-schooliat-primary-dark to-primary"
+          href="/admin/students"
           delay={0.1}
           animateCount={true}
         />
@@ -135,6 +136,7 @@ export default function AdminDashboardPage() {
           icon={GraduationCap}
           gradient="from-[#B7F08A] to-[#9ae06a]"
           textColor="text-gray-900"
+          href="/admin/teachers"
           delay={0.2}
           animateCount={true}
         />
@@ -143,6 +145,7 @@ export default function AdminDashboardPage() {
           value={totalStaff}
           icon={Briefcase}
           gradient="from-schooliat-primary-dark to-primary"
+          href="/admin/staff"
           delay={0.3}
           animateCount={true}
         />
@@ -152,6 +155,7 @@ export default function AdminDashboardPage() {
           icon={Bell}
           gradient="from-gray-50 to-gray-100"
           textColor="text-gray-900"
+          href="/admin/circulars"
           delay={0.4}
           animateCount={true}
         />

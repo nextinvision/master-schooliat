@@ -64,17 +64,27 @@ const createTC = async (data) => {
     throw new Error("Transfer Certificate already exists for this student");
   }
 
-  // Generate TC number (format: TC-YYYY-XXXXX)
+  // Get school code for TC number
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { code: true }
+  });
+
+  if (!school) {
+    throw new Error("School not found");
+  }
+
+  // Generate TC number (format: SCHOOLCODE/TC/YYYY/XXXXX)
   const year = new Date().getFullYear();
   const tcCount = await prisma.transferCertificate.count({
     where: {
       schoolId,
       tcNumber: {
-        startsWith: `TC-${year}-`,
+        contains: `/TC/${year}/`,
       },
     },
   });
-  const tcNumber = `TC-${year}-${String(tcCount + 1).padStart(5, "0")}`;
+  const tcNumber = `${school.code}/TC/${year}/${String(tcCount + 1).padStart(5, "0")}`;
 
   // Create TC
   const tc = await prisma.transferCertificate.create({

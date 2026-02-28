@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, post, put } from "@/lib/api/client";
+import { get, post, put, patch } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
 // Create TC
@@ -33,7 +33,7 @@ function fetchTCById(tcId: string) {
 
 // Update TC status
 function updateTCStatus(tcId: string, data: { status: "ISSUED" | "COLLECTED" | "CANCELLED" }) {
-  return put(`/transfer-certificates/${tcId}/status`, { request: data });
+  return patch(`/transfer-certificates/${tcId}/status`, { request: data });
 }
 
 // Hooks

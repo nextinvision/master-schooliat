@@ -129,7 +129,7 @@ export function useUpdateStudent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...form }: { id: string; [key: string]: any }) =>
+    mutationFn: ({ id, ...form }: { id: string;[key: string]: any }) =>
       updateStudentApi(id, form),
     onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
@@ -158,3 +158,25 @@ export function useStudents(params?: { page?: number; limit?: number }) {
   });
 }
 
+export function useBulkAssignClass() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ studentIds, classId }: { studentIds: string[]; classId: string }) =>
+      patch("/users/students/bulk-assign-class", { studentIds, classId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+}
+
+export function useBulkUploadStudents() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (csvData: string) => post("/users/students/bulk", { csvData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+}
