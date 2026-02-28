@@ -206,8 +206,8 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
           </div>
 
           <div className="grid grid-cols-7 gap-1 mb-2">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <div key={day} className="text-center text-sm font-medium text-gray-600 p-2">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
+              <div key={day} className={`text-center text-sm font-medium p-2 ${i === 0 || i === 6 ? "text-red-500" : "text-gray-600"}`}>
                 {day}
               </div>
             ))}
@@ -217,9 +217,16 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
             {daysInMonth.map((day) => {
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isToday = isSameDay(day, new Date());
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
               const hasEvents = currentData.some((item: any) => {
                 const fromDate = item.from ? new Date(item.from) : null;
                 const tillDate = item.till ? new Date(item.till) : null;
+                if (!fromDate || !tillDate) return false;
+                return day >= fromDate && day <= tillDate;
+              });
+              const isHoliday = holidays.some((holiday: any) => {
+                const fromDate = holiday.from ? new Date(holiday.from) : null;
+                const tillDate = holiday.till ? new Date(holiday.till) : null;
                 if (!fromDate || !tillDate) return false;
                 return day >= fromDate && day <= tillDate;
               });
@@ -229,13 +236,16 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
                   key={day.toISOString()}
                   onClick={() => handleDayClick(day)}
                   className={`
-                    aspect-square p-2 text-sm rounded
+                    aspect-square p-2 text-sm rounded relative
                     ${isSelected ? "bg-primary text-white" : "hover:bg-gray-100"}
-                    ${isToday ? "ring-2 ring-blue-400" : ""}
+                    ${isToday && !isSelected ? "ring-2 ring-blue-400" : ""}
                     ${hasEvents ? "font-semibold" : ""}
+                    ${isWeekend && !isSelected ? "text-red-500" : ""}
+                    ${isHoliday && !isSelected ? "bg-red-50 text-red-600 font-medium" : ""}
                   `}
                 >
                   {format(day, "d")}
+                  {isHoliday && <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-red-500 rounded-full" />}
                 </button>
               );
             })}

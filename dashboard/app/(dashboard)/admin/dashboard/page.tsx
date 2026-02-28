@@ -1,6 +1,8 @@
 "use client";
 
 import { useDashboard } from "@/lib/hooks/use-dashboard";
+import { useHolidays } from "@/lib/hooks/use-calendar";
+import { format } from "date-fns";
 import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
 import { PremiumStatCard } from "@/components/dashboard/premium-stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +39,13 @@ export default function AdminDashboardPage() {
     { name: "Boys", value: boysCount, color: "#4b830d" },
     { name: "Girls", value: girlsCount, color: "#f59e0b" },
   ];
+
+  const displayMonthDate = (calendar.currentYear && calendar.currentMonth)
+    ? new Date(calendar.currentYear, calendar.currentMonth - 1, 1)
+    : new Date();
+
+  const { data: holidaysData } = useHolidays(format(displayMonthDate, "yyyy-MM"));
+  const holidays = holidaysData?.data || [];
 
   // Use real earnings data from API
   const earningsData = financial.monthlyEarnings || [
@@ -78,7 +87,7 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Welcome Card with Premium Styling */}
-      <Card 
+      <Card
         className={cn(
           "bg-gradient-to-r from-primary via-chart-2 to-chart-4 text-white",
           "relative overflow-hidden shadow-lg",
@@ -88,7 +97,7 @@ export default function AdminDashboardPage() {
         {/* Animated Background Elements */}
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 animate-pulse" />
         <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDelay: "1s" }} />
-        
+
         <CardContent className="p-4 relative z-10">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
             <div className="flex-1 animate-slide-in-left">
@@ -150,17 +159,18 @@ export default function AdminDashboardPage() {
 
       {/* Second Row: Calendar and Notice Board with Animations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div 
+        <div
           className="animate-slide-up"
           style={{ animationDelay: "0.5s", opacity: 0, animationFillMode: "forwards" }}
         >
           <CalendarWidget
             events={calendar.events || []}
+            holidays={holidays}
             currentMonth={calendar.currentMonth}
             currentYear={calendar.currentYear}
           />
         </div>
-        <div 
+        <div
           className="animate-slide-up"
           style={{ animationDelay: "0.6s", opacity: 0, animationFillMode: "forwards" }}
         >
@@ -170,7 +180,7 @@ export default function AdminDashboardPage() {
 
       {/* Third Row: Financial Overview and Fee Status with Animations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div 
+        <div
           className="animate-slide-up"
           style={{ animationDelay: "0.7s", opacity: 0, animationFillMode: "forwards" }}
         >
@@ -182,7 +192,7 @@ export default function AdminDashboardPage() {
             currentYear={installments.currentYear}
           />
         </div>
-        <div 
+        <div
           className="animate-slide-up"
           style={{ animationDelay: "0.8s", opacity: 0, animationFillMode: "forwards" }}
         >
@@ -199,7 +209,7 @@ export default function AdminDashboardPage() {
       {/* Charts Row with Premium Animations */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Earnings Chart */}
-        <Card 
+        <Card
           className={cn(
             "animate-scale-in relative isolate",
             "transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
@@ -216,56 +226,56 @@ export default function AdminDashboardPage() {
             <div style={{ width: "100%", height: CHART_HEIGHT }} role="img" aria-label="Earnings chart">
               <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
                 <LineChart
-                data={earningsData}
-                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
-                <XAxis 
-                  dataKey="month" 
-                  stroke="#6b7280"
-                  style={{ fontSize: "12px" }}
-                />
-                <YAxis 
-                  stroke="#6b7280"
-                  style={{ fontSize: "12px" }}
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: "white",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                    boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                  }}
-                />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="income"
-                  stroke="#84cc16"
-                  strokeWidth={3}
-                  name="Income"
-                  dot={{ fill: "#84cc16", r: 5, strokeWidth: 2, stroke: "#fff" }}
-                  activeDot={{ r: 7 }}
-                  animationDuration={1000}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="expense"
-                  stroke="#bbf7d0"
-                  strokeWidth={3}
-                  name="Expense"
-                  dot={{ fill: "#bbf7d0", r: 5, strokeWidth: 2, stroke: "#fff" }}
-                  activeDot={{ r: 7 }}
-                  animationDuration={1000}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+                  data={earningsData}
+                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
+                  <XAxis
+                    dataKey="month"
+                    stroke="#6b7280"
+                    style={{ fontSize: "12px" }}
+                  />
+                  <YAxis
+                    stroke="#6b7280"
+                    style={{ fontSize: "12px" }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "white",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "8px",
+                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="income"
+                    stroke="#84cc16"
+                    strokeWidth={3}
+                    name="Income"
+                    dot={{ fill: "#84cc16", r: 5, strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 7 }}
+                    animationDuration={1000}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="expense"
+                    stroke="#bbf7d0"
+                    strokeWidth={3}
+                    name="Expense"
+                    dot={{ fill: "#bbf7d0", r: 5, strokeWidth: 2, stroke: "#fff" }}
+                    activeDot={{ r: 7 }}
+                    animationDuration={1000}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
         {/* Students Distribution */}
-        <Card 
+        <Card
           className={cn(
             "card-hover-lift animate-scale-in",
             "transition-all duration-300 hover:shadow-xl"
@@ -297,8 +307,8 @@ export default function AdminDashboardPage() {
                     animationBegin={0}
                   >
                     {pieData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
+                      <Cell
+                        key={`cell-${index}`}
                         fill={entry.color}
                         style={{
                           filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
@@ -307,7 +317,7 @@ export default function AdminDashboardPage() {
                       />
                     ))}
                   </Pie>
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{
                       backgroundColor: "white",
                       border: "1px solid #e5e7eb",

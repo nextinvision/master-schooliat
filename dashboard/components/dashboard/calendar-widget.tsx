@@ -16,13 +16,21 @@ interface CalendarEvent {
   dateType: string;
 }
 
+interface CalendarHoliday {
+  id: string;
+  title: string;
+  from: string;
+  till: string;
+}
+
 interface CalendarWidgetProps {
   events?: CalendarEvent[];
+  holidays?: CalendarHoliday[];
   currentMonth?: number;
   currentYear?: number;
 }
 
-export function CalendarWidget({ events = [], currentMonth, currentYear }: CalendarWidgetProps) {
+export function CalendarWidget({ events = [], holidays = [], currentMonth, currentYear }: CalendarWidgetProps) {
   const router = useRouter();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [displayMonth, setDisplayMonth] = useState(() => {
@@ -46,6 +54,14 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
       const eventFrom = new Date(event.from);
       const eventTill = new Date(event.till);
       return date >= eventFrom && date <= eventTill;
+    });
+  };
+
+  const getHolidaysForDate = (date: Date) => {
+    return holidays.filter((holiday) => {
+      const holidayFrom = new Date(holiday.from);
+      const holidayTill = new Date(holiday.till);
+      return date >= holidayFrom && date <= holidayTill;
     });
   };
 
@@ -96,8 +112,8 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
       <CardContent>
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-            <div key={day} className="text-center text-xs font-medium text-gray-500 py-1">
+          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
+            <div key={day} className={cn("text-center text-xs font-medium py-1", i === 0 || i === 6 ? "text-red-500" : "text-gray-500")}>
               {day}
             </div>
           ))}
@@ -113,33 +129,42 @@ export function CalendarWidget({ events = [], currentMonth, currentYear }: Calen
           {/* Days of the month */}
           {daysInMonth.map((date) => {
             const dateEvents = getEventsForDate(date);
+            const dateHolidays = getHolidaysForDate(date);
             const isSelected = isSameDay(date, selectedDate);
             const isToday = isSameDay(date, new Date());
+            const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+            const isHoliday = dateHolidays.length > 0;
 
             return (
               <button
                 key={date.toISOString()}
                 onClick={() => handleDateClick(date)}
                 className={cn(
-                  "aspect-square rounded-md text-sm transition-all duration-200 relative",
+                  "aspect-square rounded-md text-sm transition-all duration-200 relative flex items-center justify-center",
                   "hover:bg-gray-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-green-500",
                   isToday && "bg-schooliat-tint font-semibold ring-2 ring-primary",
                   isSelected && !isToday && "bg-green-200 scale-105",
-                  !isToday && !isSelected && "hover:bg-gray-50"
+                  isHoliday && !isToday && !isSelected && "bg-red-50 font-medium",
+                  !isToday && !isSelected && !isHoliday && "hover:bg-gray-50"
                 )}
               >
                 <span className={cn(
                   isToday && "text-green-700",
                   isSelected && !isToday && "text-primary",
-                  !isToday && !isSelected && "text-gray-700"
+                  isWeekend && !isToday && !isSelected && !isHoliday && "text-red-500",
+                  isHoliday && !isToday && !isSelected && "text-red-600",
+                  !isToday && !isSelected && !isWeekend && !isHoliday && "text-gray-700"
                 )}>
                   {format(date, "d")}
                 </span>
-                {dateEvents.length > 0 && (
-                  <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2">
+                <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 flex gap-0.5">
+                  {dateEvents.length > 0 && (
                     <div className="w-1 h-1 rounded-full bg-green-600" />
-                  </div>
-                )}
+                  )}
+                  {isHoliday && (
+                    <div className="w-1 h-1 rounded-full bg-red-500" />
+                  )}
+                </div>
               </button>
             );
           })}
