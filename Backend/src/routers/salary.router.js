@@ -8,9 +8,215 @@ import {
   SalaryComponentFrequency,
   SalaryComponentValueType,
   SalaryComponentType,
+  NotificationType,
 } from "../prisma/generated/index.js";
 import roleService from "../services/role.service.js";
 import paginateUtil from "../utils/paginate.util.js";
+import { readFileSync } from "fs";
+import { join, dirname } from "path";
+import { fileURLToPath } from "url";
+import crypto from "crypto";
+import fileService from "../services/file.service.js";
+import { uploadFile } from "../config/storage/index.js";
+import logger from "../config/logger.js";
+
+// Get current directory for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Convert number to words (Indian format)
+const numberToWords = (num) => {
+  const ones = [
+    "",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine",
+    "Ten",
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen",
+  ];
+  const tens = [
+    "",
+    "",
+    "Twenty",
+    "Thirty",
+    "Forty",
+    "Fifty",
+    "Sixty",
+    "Seventy",
+    "Eighty",
+    "Ninety",
+  ];
+
+  if (num === 0) return "Zero Rupees Only";
+
+  const convertLessThanThousand = (n) => {
+    if (n === 0) return "";
+    if (n < 20) return ones[n];
+    if (n < 100)
+      return (
+        tens[Math.floor(n / 10)] + (n % 10 !== 0 ? " " + ones[n % 10] : "")
+      );
+    return (
+      ones[Math.floor(n / 100)] +
+      " Hundred" +
+      (n % 100 !== 0 ? " " + convertLessThanThousand(n % 100) : "")
+    );
+  };
+
+  const intPart = Math.floor(num);
+  let words = "";
+  let remaining = intPart;
+
+  if (remaining >= 10000000) {
+    words +=
+      convertLessThanThousand(Math.floor(remaining / 10000000)) + " Crore ";
+    remaining = remaining % 10000000;
+  }
+
+  if (remaining >= 100000) {
+    words += convertLessThanThousand(Math.floor(remaining / 100000)) + " Lakh ";
+    remaining = remaining % 100000;
+  }
+
+  if (remaining >= 1000) {
+    words +=
+      convertLessThanThousand(Math.floor(remaining / 1000)) + " Thousand ";
+    remaining = remaining % 1000;
+  }
+
+  if (remaining > 0) {
+    words += convertLessThanThousand(remaining);
+  }
+
+  return words.trim() + " Rupees Only";
+};
+
+// Generate receipt number
+const generateReceiptNumber = () => {
+  const timestamp = Date.now().toString(36).toUpperCase();
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  return `SAL-${timestamp}-${random}`;
+};
+
+// Load salary slip template
+const getSalarySlipTemplate = () => {
+  const templatePath = join(
+    __dirname,
+    "../templates/receipts/salary/1/template.html",
+  );
+  const stylePath = join(__dirname, "../templates/receipts/salary/1/styles.css");
+
+  const template = readFileSync(templatePath, "utf-8");
+  const styles = readFileSync(stylePath, "utf-8");
+
+  // Inject styles inline
+  return template.replace(
+    '<link rel="stylesheet" href="styles.css">',
+    `<style>${styles}</style>`,
+  );
+};
+
+// Upload file and create DB entry
+const uploadAndCreateFileEntry = async (
+  buffer,
+  name,
+  extension,
+  contentType,
+  createdBy,
+) => {
+  const fileId = crypto.randomUUID();
+  const key = `${fileId}.${extension}`;
+
+  await uploadFile({ buffer, key, contentType });
+
+  const file = await prisma.file.create({
+    data: {
+      id: fileId,
+      name,
+      extension,
+      contentType,
+      size: buffer.length,
+      createdBy,
+    },
+  });
+
+  return file.id;
+};
+
+// Generate salary slip HTML
+const generateSalarySlipHTML = async (
+  salaryPayment,
+  employee,
+  school,
+  grossAmount,
+  amountPaid,
+) => {
+  const template = getSalarySlipTemplate();
+
+  const receiptDate = new Date().toLocaleDateString("en-IN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+
+  const schoolAddress = school.address ? school.address.join(", ") : "N/A";
+  const logoId = school.logoId || null;
+  const logoSrc = logoId
+    ? fileService.attachFileURL({ id: logoId, extension: "jpg" }).url
+    : "";
+
+  const employeeName = `${employee.firstName} ${employee.lastName || ""}`.trim();
+
+  // Replace all placeholders
+  let html = template;
+
+  // School placeholders
+  html = html.replace(/\{\{school\.logoSrc\}\}/g, logoSrc);
+  html = html.replace(/\{\{school\.name\}\}/g, school.name || "School");
+  html = html.replace(/\{\{school\.address\}\}/g, schoolAddress);
+
+  // Receipt placeholders
+  html = html.replace(/\{\{receipt\.date\}\}/g, receiptDate);
+
+  // Salary placeholders
+  const [year, month] = salaryPayment.month.split("-");
+  const monthName = new Date(year, month - 1, 1).toLocaleDateString("en-US", { month: "long" });
+  html = html.replace(/\{\{salary\.month\}\}/g, `${monthName} ${year}`);
+  html = html.replace(/\{\{salary\.grossAmount\}\}/g, grossAmount.toLocaleString("en-IN"));
+  html = html.replace(/\{\{salary\.amountPaid\}\}/g, amountPaid.toLocaleString("en-IN"));
+
+  html = html.replace(/\{\{salary\.status\}\}/g, "PAID");
+  html = html.replace(/\{\{salary\.statusClass\}\}/g, "paid");
+
+  // Employee placeholders
+  html = html.replace(
+    /\{\{employee\.publicId\}\}/g,
+    employee.publicUserId || "N/A",
+  );
+  html = html.replace(/\{\{employee\.name\}\}/g, employeeName);
+  html = html.replace(/\{\{employee\.role\}\}/g, employee.role?.name || "Employee");
+
+  html = html.replace(
+    /\{\{salary\.amountInWords\}\}/g,
+    numberToWords(amountPaid),
+  );
+
+  return html;
+};
 
 const router = Router();
 
@@ -433,32 +639,53 @@ paymentRouter.get("/", async (req, res) => {
     orderBy: {
       createdAt: "desc",
     },
-    ...paginateUtil.getPaginationParams(req),
-  });
-
-  // Fetch user details for each payment
-  const paymentsWithUsers = await Promise.all(
-    salaryPayments.map(async (payment) => {
-      const user = await prisma.user.findUnique({
-        where: { id: payment.userId },
+    include: {
+      user: {
         select: {
           id: true,
           firstName: true,
           lastName: true,
-          email: true,
           publicUserId: true,
+          photoLink: true,
+          role: {
+            select: {
+              name: true,
+            },
+          },
+          teacherProfile: {
+            select: {
+              employeeId: true,
+            },
+          },
+          staffProfile: {
+            select: {
+              employeeId: true,
+            },
+          },
         },
-      });
-      return {
-        ...payment,
-        user,
-      };
-    }),
-  );
+      },
+    },
+    ...paginateUtil.getPaginationParams(req),
+  });
+
+  const transformedData = salaryPayments.map((payment) => {
+    let slipUrl = null;
+    if (payment.slipId) {
+      slipUrl = fileService.attachFileURL({
+        id: payment.slipId,
+        extension: "html",
+      }).url;
+    }
+
+    return {
+      ...payment,
+      slipUrl,
+    };
+  });
 
   return res.json({
     message: "Salary payments fetched!",
-    data: paymentsWithUsers,
+    data: transformedData,
   });
 });
 
@@ -494,6 +721,12 @@ paymentRouter.post("/generate", async (req, res) => {
       },
       deletedAt: null,
     },
+    include: {
+      role: true,
+      school: true,
+      teacherProfile: true,
+      staffProfile: true,
+    }
   });
 
   const createdPayments = [];
@@ -501,56 +734,6 @@ paymentRouter.post("/generate", async (req, res) => {
   // Use transaction for atomicity
   await prisma.$transaction(async (tx) => {
     for (const user of users) {
-      // Find effective salary structure for this user in the given month
-      const salaryAssignment = await tx.salary.findFirst({
-        where: {
-          userId: user.id,
-          schoolId: request.schoolId,
-          from: {
-            lte: monthStart,
-          },
-          till: {
-            gte: monthEnd,
-          },
-          deletedAt: null,
-        },
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
-
-      if (!salaryAssignment) {
-        // Skip users without active salary assignment
-        continue;
-      }
-
-      // Get salary structure components with MONTHLY frequency
-      const components = await tx.salaryStructureComponent.findMany({
-        where: {
-          salaryStructureId: salaryAssignment.salaryStructureId,
-          frequency: SalaryComponentFrequency.MONTHLY,
-          deletedAt: null,
-        },
-      });
-
-      // Find base pay component
-      const basePayComponent = components.find((c) => c.isBasePayComponent);
-      if (!basePayComponent) {
-        continue;
-      }
-
-      const basePay = basePayComponent.value;
-
-      // Calculate component amounts
-      const componentAmounts = {};
-      let totalAmount = 0;
-
-      for (const component of components) {
-        const amount = calculateComponentAmount(component, basePay);
-        componentAmounts[component.id] = amount;
-        totalAmount += amount;
-      }
-
       // Check if payment already exists for this month and user
       const existingPayment = await tx.salaryPayments.findFirst({
         where: {
@@ -562,8 +745,105 @@ paymentRouter.post("/generate", async (req, res) => {
       });
 
       if (existingPayment) {
-        // Skip if payment already exists
         continue;
+      }
+
+      const profileBasicSalary = user.teacherProfile?.basicSalary || user.staffProfile?.basicSalary;
+      let totalAmount = 0;
+      let grossMonthlyAmount = 0;
+      let netMonthlyAmount = 0;
+      let componentAmounts = {};
+
+      if (profileBasicSalary) {
+        // Calculate based on Basic Salary & Leaves
+        const basePay = profileBasicSalary;
+        const totalDaysInMonth = new Date(year, month, 0).getDate();
+
+        const approvedLeaves = await tx.leaveRequest.findMany({
+          where: {
+            userId: user.id,
+            schoolId: request.schoolId,
+            status: "APPROVED",
+            startDate: { lte: monthEnd },
+            endDate: { gte: monthStart },
+            deletedAt: null
+          }
+        });
+
+        let leaveDays = 0;
+        for (const leave of approvedLeaves) {
+          const start = new Date(Math.max(leave.startDate.getTime(), monthStart.getTime()));
+          const end = new Date(Math.min(leave.endDate.getTime(), monthEnd.getTime()));
+          const days = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+          leaveDays += days;
+        }
+
+        const workingDays = Math.max(0, totalDaysInMonth - leaveDays);
+        totalAmount = Math.round((basePay / totalDaysInMonth) * workingDays);
+        grossMonthlyAmount = basePay;
+        netMonthlyAmount = totalAmount;
+        componentAmounts = { "BASIC_SALARY": totalAmount };
+
+      } else {
+        // Find effective salary structure for this user in the given month
+        const salaryAssignment = await tx.salary.findFirst({
+          where: {
+            userId: user.id,
+            schoolId: request.schoolId,
+            from: { lte: monthStart },
+            till: { gte: monthEnd },
+            deletedAt: null,
+          },
+          orderBy: { createdAt: "desc" },
+        });
+
+        if (!salaryAssignment) {
+          continue;
+        }
+
+        const components = await tx.salaryStructureComponent.findMany({
+          where: {
+            salaryStructureId: salaryAssignment.salaryStructureId,
+            frequency: "MONTHLY",
+            deletedAt: null,
+          },
+        });
+
+        const basePayComponent = components.find((c) => c.isBasePayComponent);
+        if (!basePayComponent) continue;
+
+        const basePay = basePayComponent.value;
+        for (const component of components) {
+          const amount = calculateComponentAmount(component, basePay);
+          componentAmounts[component.id] = amount;
+          totalAmount += amount;
+        }
+
+        const calculated = calculateMonthlyAmounts(components, basePay);
+        grossMonthlyAmount = calculated.grossMonthlyAmount;
+        netMonthlyAmount = calculated.netMonthlyAmount;
+      }
+
+      // Generate html for receipt
+      let slipId = null;
+      try {
+        const receiptHTML = await generateSalarySlipHTML(
+          { month: request.month },
+          user,
+          user.school,
+          grossMonthlyAmount,
+          totalAmount,
+        );
+
+        slipId = await uploadAndCreateFileEntry(
+          Buffer.from(receiptHTML, "utf-8"),
+          `salary-slip-${user.id}-${Date.now()}`,
+          "html",
+          "text/html",
+          currentUser.id,
+        );
+      } catch (error) {
+        logger.error(`Failed to generate salary slip: ${error.message}`, error);
       }
 
       // Create salary payment record
@@ -574,8 +854,21 @@ paymentRouter.post("/generate", async (req, res) => {
           month: request.month,
           totalAmount,
           componentAmounts,
+          slipId: slipId,
           createdBy: currentUser.id,
         },
+      });
+
+      // Dispatch notification
+      await tx.notification.create({
+        data: {
+          userId: user.id,
+          schoolId: request.schoolId,
+          title: "Salary Slip Generated",
+          content: `Your salary slip for ${request.month} has been generated and is ready to view.`,
+          type: NotificationType.GENERAL,
+          createdBy: currentUser.id,
+        }
       });
 
       createdPayments.push(salaryPayment);

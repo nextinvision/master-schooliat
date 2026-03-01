@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { TeachersTable } from "@/components/teachers/teachers-table";
 import { useTeachersPage, useCreateTeacher, useDeleteTeacher, useBulkUploadTeachers } from "@/lib/hooks/use-teachers";
 import { BulkUploadDialog } from "@/components/common/bulk-upload-dialog";
-import { FileUp } from "lucide-react";
+import { FileUp, FileDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -37,6 +37,7 @@ export default function TeachersPage() {
   const [page, setPage] = useState(1);
   const [isAddTeacherDialogOpen, setIsAddTeacherDialogOpen] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const limit = 15;
 
   // Teachers data
@@ -141,6 +142,40 @@ export default function TeachersPage() {
           >
             <FileUp className="h-4 w-4" />
             Bulk Upload
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setIsExporting(true);
+              try {
+                const token = window.sessionStorage.getItem("accessToken");
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+                const resp = await fetch(`${baseUrl}/users/teachers/export`, {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "x-platform": "web",
+                  },
+                });
+                if (!resp.ok) throw new Error("Export failed");
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "all_teachers.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("Teachers exported successfully!");
+              } catch (e: any) {
+                toast.error(e?.message || "Failed to export teachers");
+              } finally {
+                setIsExporting(false);
+              }
+            }}
+            className="gap-2"
+            disabled={isExporting}
+          >
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Download All
           </Button>
         </div>
       </div>
@@ -482,6 +517,17 @@ export default function TeachersPage() {
                   {/* Additional Information */}
                   <FormCard title="Additional Information">
                     <div className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="basicSalary">Monthly Base Salary</Label>
+                        <Input
+                          id="basicSalary"
+                          type="number"
+                          {...teacherForm.register("basicSalary", { valueAsNumber: true })}
+                          placeholder="E.g. 60000"
+                          className={teacherForm.formState.errors.basicSalary ? "border-red-500" : ""}
+                        />
+                      </div>
+
                       <div className="space-y-2">
                         <Label>Transport Mode *</Label>
                         <Controller

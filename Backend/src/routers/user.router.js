@@ -81,6 +81,7 @@ router.post(
           transportId: request.transportId || null,
           panCardNumber: request.panCardNumber?.trim() || null,
           bloodGroup: request.bloodGroup || null,
+          basicSalary: request.basicSalary !== undefined && request.basicSalary !== "" ? Number(request.basicSalary) : null,
           createdBy: currentUser.id,
         },
       });
@@ -271,6 +272,8 @@ router.patch(
         profileUpdateData.panCardNumber = request.panCardNumber?.trim() || null;
       if (request.bloodGroup !== undefined)
         profileUpdateData.bloodGroup = request.bloodGroup || null;
+      if (request.basicSalary !== undefined)
+        profileUpdateData.basicSalary = request.basicSalary !== "" && request.basicSalary !== null ? Number(request.basicSalary) : null;
 
       if (Object.keys(profileUpdateData).length > 0) {
         await prisma.teacherProfile.update({
@@ -400,6 +403,16 @@ router.post(
           createdBy: currentUser.id,
         },
         select: userService.getStaffSelect(),
+      });
+
+      // Create staff profile
+      await prisma.staffProfile.create({
+        data: {
+          userId: user.id,
+          designation: request.designation?.trim() || null,
+          basicSalary: request.basicSalary !== undefined && request.basicSalary !== "" ? Number(request.basicSalary) : null,
+          createdBy: currentUser.id,
+        },
       });
 
       // Attach file URLs
@@ -568,6 +581,25 @@ router.patch(
         data: userUpdateData,
         select: userService.getStaffSelect(),
       });
+
+      // Update staff profile
+      const profileUpdateData = {};
+      if (request.designation !== undefined)
+        profileUpdateData.designation = request.designation?.trim() || null;
+      if (request.basicSalary !== undefined)
+        profileUpdateData.basicSalary = request.basicSalary !== "" && request.basicSalary !== null ? Number(request.basicSalary) : null;
+
+      if (Object.keys(profileUpdateData).length > 0) {
+        await prisma.staffProfile.upsert({
+          where: { userId: id },
+          update: profileUpdateData,
+          create: {
+            userId: id,
+            ...profileUpdateData,
+            createdBy: currentUser.id
+          }
+        });
+      }
 
       // Attach file URLs
       const usersWithUrls = await userService.attachFileURLs([updatedUser]);
@@ -787,7 +819,12 @@ router.get(
         select: userService.getStudentSelect(),
         skip: (page - 1) * limit,
         take: limit,
-        orderBy: { createdAt: "desc" },
+        orderBy: [
+          { studentProfile: { class: { grade: "asc" } } },
+          { studentProfile: { class: { division: "asc" } } },
+          { studentProfile: { rollNumber: "asc" } },
+          { firstName: "asc" },
+        ],
       });
 
       const totalCount = await prisma.user.count({ where });
@@ -1297,6 +1334,173 @@ router.post(
     } catch (error) {
       return res.status(400).json({
         message: error.message || "Failed to bulk upload students",
+      });
+    }
+  }
+);
+
+// Export all students as CSV
+router.get(
+  "/students/export",
+  withPermission(Permission.GET_STUDENTS),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
+
+      const students = await prisma.user.findMany({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: studentRole.id,
+          deletedAt: null,
+        },
+        select: {
+          publicUserId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          contact: true,
+          gender: true,
+          dateOfBirth: true,
+          aadhaarId: true,
+          studentProfile: {
+            select: {
+              rollNumber: true,
+              apaarId: true,
+              fatherName: true,
+              motherName: true,
+              fatherContact: true,
+              motherContact: true,
+              bloodGroup: true,
+              accommodationType: true,
+              class: {
+                select: { grade: true, division: true },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { studentProfile: { class: { grade: "asc" } } },
+          { studentProfile: { rollNumber: "asc" } },
+        ],
+      });
+
+      const headers = [
+        "Student ID", "Roll No", "First Name", "Last Name", "Email", "Contact",
+        "Gender", "Date of Birth", "Class", "Division",
+        "Father Name", "Father Contact", "Mother Name", "Mother Contact",
+        "Aadhaar", "Apaar ID", "Blood Group", "Accommodation"
+      ];
+
+      const rows = students.map((s) => [
+        s.publicUserId || "",
+        s.studentProfile?.rollNumber || "",
+        s.firstName,
+        s.lastName || "",
+        s.email,
+        s.contact || "",
+        s.gender || "",
+        s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString("en-IN") : "",
+        s.studentProfile?.class?.grade || "",
+        s.studentProfile?.class?.division || "",
+        s.studentProfile?.fatherName || "",
+        s.studentProfile?.fatherContact || "",
+        s.studentProfile?.motherName || "",
+        s.studentProfile?.motherContact || "",
+        s.aadhaarId || "",
+        s.studentProfile?.apaarId || "",
+        s.studentProfile?.bloodGroup || "",
+        s.studentProfile?.accommodationType || "",
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=all_students.csv");
+      return res.send(csvContent);
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to export students",
+      });
+    }
+  }
+);
+
+// Export all teachers as CSV
+router.get(
+  "/teachers/export",
+  withPermission(Permission.GET_TEACHERS),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+
+      const teachers = await prisma.user.findMany({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: teacherRole.id,
+          deletedAt: null,
+        },
+        select: {
+          publicUserId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          contact: true,
+          gender: true,
+          dateOfBirth: true,
+          aadhaarId: true,
+          teacherProfile: {
+            select: {
+              designation: true,
+              highestQualification: true,
+              university: true,
+              panCardNumber: true,
+              bloodGroup: true,
+              basicSalary: true,
+            },
+          },
+        },
+        orderBy: { firstName: "asc" },
+      });
+
+      const headers = [
+        "Teacher ID", "First Name", "Last Name", "Email", "Contact",
+        "Gender", "Date of Birth", "Designation", "Qualification",
+        "University", "Aadhaar", "PAN", "Blood Group", "Basic Salary"
+      ];
+
+      const rows = teachers.map((t) => [
+        t.publicUserId || "",
+        t.firstName,
+        t.lastName || "",
+        t.email,
+        t.contact || "",
+        t.gender || "",
+        t.dateOfBirth ? new Date(t.dateOfBirth).toLocaleDateString("en-IN") : "",
+        t.teacherProfile?.designation || "",
+        t.teacherProfile?.highestQualification || "",
+        t.teacherProfile?.university || "",
+        t.aadhaarId || "",
+        t.teacherProfile?.panCardNumber || "",
+        t.teacherProfile?.bloodGroup || "",
+        t.teacherProfile?.basicSalary != null ? String(t.teacherProfile.basicSalary) : "",
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=all_teachers.csv");
+      return res.send(csvContent);
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to export teachers",
       });
     }
   }

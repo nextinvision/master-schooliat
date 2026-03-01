@@ -259,9 +259,9 @@ const getSalaryReports = async (schoolId, filters = {}) => {
   const userIds = [...new Set(filteredPayments.map((p) => p.userId))];
   const users = userIds.length
     ? await prisma.user.findMany({
-        where: { id: { in: userIds } },
-        select: { id: true, firstName: true, lastName: true },
-      })
+      where: { id: { in: userIds } },
+      select: { id: true, firstName: true, lastName: true },
+    })
     : [];
   const userMap = Object.fromEntries(users.map((u) => [u.id, `${u.firstName || ""} ${u.lastName || ""}`.trim() || u.id]));
 
@@ -301,7 +301,7 @@ const getDashboardSummary = async (schoolId) => {
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
-  const [attendanceRows, feeRows, marksRows, salaryRows, examCount] = await Promise.all([
+  const [attendanceRows, feeRows, marksRows, salaryRows, examCount, totalEnrolledStudents] = await Promise.all([
     prisma.attendance.findMany({
       where: { schoolId, deletedAt: null, date: { gte: startOfThisMonth, lte: endOfThisMonth } },
       select: { status: true, studentId: true },
@@ -319,9 +319,17 @@ const getDashboardSummary = async (schoolId) => {
       select: { totalAmount: true, userId: true },
     }),
     prisma.exam.count({ where: { schoolId } }),
+    // Count actual enrolled students (matching dashboard logic)
+    prisma.user.count({
+      where: {
+        schoolId,
+        deletedAt: null,
+        role: { name: "STUDENT" },
+        userType: "SCHOOL",
+      },
+    }),
   ]);
 
-  const totalStudentsAttendance = new Set(attendanceRows.map((a) => a.studentId)).size;
   const presentCount = attendanceRows.filter((a) => a.status === "PRESENT").length;
   const attendanceRate =
     attendanceRows.length > 0 ? Number(((presentCount / attendanceRows.length) * 100).toFixed(2)) : 0;
@@ -338,8 +346,8 @@ const getDashboardSummary = async (schoolId) => {
   const avgScore =
     marksRows.length > 0
       ? Number(
-          (marksRows.reduce((s, m) => s + Number(m.percentage || 0), 0) / marksRows.length).toFixed(2)
-        )
+        (marksRows.reduce((s, m) => s + Number(m.percentage || 0), 0) / marksRows.length).toFixed(2)
+      )
       : 0;
   const passCount = marksRows.filter((m) => Number(m.percentage || 0) >= 40).length;
   const passRate = marksRows.length > 0 ? Number(((passCount / marksRows.length) * 100).toFixed(2)) : 0;
@@ -349,7 +357,7 @@ const getDashboardSummary = async (schoolId) => {
 
   return {
     attendance: {
-      totalStudents: totalStudentsAttendance,
+      totalStudents: totalEnrolledStudents,
       averageRate: attendanceRate,
       periodLabel: "This month",
     },

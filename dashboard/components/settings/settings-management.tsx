@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, DollarSign, Bell, Key } from "lucide-react";
+import { Building2, IndianRupee, Bell, Key } from "lucide-react";
 import { SchoolProfileSection } from "./SchoolProfileSection";
 import { SchoolLogoSection } from "./SchoolLogoSection";
 import { FeesConfigSection } from "./FeesConfigSection";
@@ -25,7 +25,7 @@ export function SchoolSettingsManagement() {
             General
           </TabsTrigger>
           <TabsTrigger value="fees" className="flex items-center gap-2">
-            <DollarSign className="h-4 w-4" />
+            <IndianRupee className="h-4 w-4" />
             Fees
           </TabsTrigger>
           <TabsTrigger value="notifications" className="flex items-center gap-2">

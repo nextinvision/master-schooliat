@@ -23,6 +23,7 @@ export default function AddTransportPage() {
       ownerfirstName: "",
       ownerlastName: "",
       vehicleNumber: "",
+      busSerialNumber: "",
       driverfirstName: "",
       driverlastName: "",
       driverDateOfBirth: "",
@@ -125,6 +126,15 @@ export default function AddTransportPage() {
                   {errors.vehicleNumber && (
                     <p className="text-sm text-red-500">{errors.vehicleNumber.message}</p>
                   )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="busSerialNumber">Bus Serial Number</Label>
+                  <Input
+                    id="busSerialNumber"
+                    {...methods.register("busSerialNumber")}
+                    placeholder="Bus Serial Number"
+                  />
                 </div>
               </div>
             </FormCard>

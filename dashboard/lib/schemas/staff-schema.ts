@@ -26,6 +26,7 @@ export const staffSchema = z.object({
         .min(12, "Aadhaar ID must be 12 digits")
         .max(12, "Aadhaar ID must be 12 digits")
         .regex(/^\d{12}$/, "Aadhaar ID must be exactly 12 digits"),
+    basicSalary: z.number().min(0, "Salary cannot be negative").optional(),
 });
 
 export const editStaffSchema = staffSchema.extend({

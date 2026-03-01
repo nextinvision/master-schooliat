@@ -29,8 +29,25 @@ const parseCSV = (csvString) => {
     return results;
 };
 
+const generateCSV = (data, headers) => {
+    if (!data || !Array.isArray(data) || data.length === 0) return "";
+
+    const headerRow = headers.map(h => h.label).join(",");
+    const rows = data.map(item => {
+        return headers.map(h => {
+            const value = h.key.split('.').reduce((obj, key) => obj?.[key], item) || "";
+            // Escape double quotes and wrap in double quotes if it contains comma or newline
+            const escaped = String(value).replace(/"/g, '""');
+            return /[\n,"]/.test(escaped) ? `"${escaped}"` : escaped;
+        }).join(",");
+    });
+
+    return [headerRow, ...rows].join("\n");
+};
+
 const csvUtil = {
     parseCSV,
+    generateCSV,
 };
 
 export default csvUtil;

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Edit, Trash2 } from "lucide-react";
+import { Edit, Trash2, DownloadCloud } from "lucide-react";
 import { useSalaryPayments, useGenerateSalaryPayments } from "@/lib/hooks/use-salary";
 import { toast } from "sonner";
 
@@ -271,6 +271,17 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
+                          {item.slipUrl && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => window.open(item.slipUrl, "_blank")}
+                              className="h-8 w-8"
+                              title="Download Salary Slip"
+                            >
+                              <DownloadCloud className="w-4 h-4" />
+                            </Button>
+                          )}
                           {onEdit && (
                             <Button
                               variant="ghost"

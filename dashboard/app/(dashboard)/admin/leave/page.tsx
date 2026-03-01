@@ -21,9 +21,12 @@ import { Plus, Calendar, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
+import { AdminLeaveTracker } from "@/components/leave/admin-leave-tracker";
+
+// ... Skipping existing imports exactly, replacing Active Tab
 export default function LeavePage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"request" | "history" | "balance">("request");
+  const [activeTab, setActiveTab] = useState<"request" | "history" | "balance" | "tracker">("request");
   const [page, setPage] = useState(1);
 
   const { data: balanceData, isLoading: balanceLoading } = useLeaveBalance();
@@ -67,6 +70,10 @@ export default function LeavePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Leave Management</h1>
+        <Button onClick={() => router.push("/admin/leave/approvals")} variant="outline" className="gap-2">
+          <CheckCircle2 className="h-4 w-4" />
+          Leave Approvals
+        </Button>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
@@ -74,6 +81,7 @@ export default function LeavePage() {
           <TabsTrigger value="request">Request Leave</TabsTrigger>
           <TabsTrigger value="history">Leave History</TabsTrigger>
           <TabsTrigger value="balance">Leave Balance</TabsTrigger>
+          <TabsTrigger value="tracker">Admin Tracker</TabsTrigger>
         </TabsList>
 
         {/* Request Leave Tab */}
@@ -223,6 +231,10 @@ export default function LeavePage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        {/* Admin Tracker Tab */}
+        <TabsContent value="tracker" className="space-y-6">
+          <AdminLeaveTracker />
         </TabsContent>
       </Tabs>
     </div>

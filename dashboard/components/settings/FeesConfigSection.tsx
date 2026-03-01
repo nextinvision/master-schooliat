@@ -10,7 +10,7 @@ import { FormCard } from "@/components/forms/form-card";
 import { useSettings, useUpdateSettings } from "@/lib/hooks/use-settings";
 import { feesConfigSchema, type FeesConfigFormData } from "@/lib/schemas/settings-schema";
 import { useToast } from "@/hooks/use-toast";
-import { DollarSign } from "lucide-react";
+import { IndianRupee } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function FeesConfigSection() {
@@ -51,14 +51,14 @@ export function FeesConfigSection() {
 
   if (isLoading) {
     return (
-      <FormCard title="Fees Configuration" icon={<DollarSign className="h-5 w-5" />}>
+      <FormCard title="Fees Configuration" icon={<IndianRupee className="h-5 w-5" />}>
         <Skeleton className="h-40 w-full" />
       </FormCard>
     );
   }
 
   return (
-    <FormCard title="Fees Configuration" icon={<DollarSign className="h-5 w-5" />}>
+    <FormCard title="Fees Configuration" icon={<IndianRupee className="h-5 w-5" />}>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <Label htmlFor="studentFeeInstallments">Student Fee Installments</Label>

@@ -102,6 +102,23 @@ function calculateFinesApi() {
   return post("/library/calculate-fines");
 }
 
+// Bulk create books
+function bulkCreateBooksApi(data: {
+  books: Array<{
+    title: string;
+    author: string;
+    isbn?: string;
+    publisher?: string;
+    category?: string;
+    totalCopies?: number;
+    location?: string;
+    language?: string;
+    publishedYear?: number;
+  }>;
+}) {
+  return post("/library/books/bulk", { request: data });
+}
+
 /**
  * Fetches all pending returns (ISSUED/OVERDUE) for the school from backend.
  */
@@ -175,7 +192,7 @@ export function useUpdateBook() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, ...data }: { id: string; [key: string]: any }) =>
+    mutationFn: ({ id, ...data }: { id: string;[key: string]: any }) =>
       updateBookApi(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["library-books"] });
@@ -206,7 +223,7 @@ export function useReturnBook() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ issueId, ...data }: { issueId: string; [key: string]: any }) =>
+    mutationFn: ({ issueId, ...data }: { issueId: string;[key: string]: any }) =>
       returnBookApi(issueId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["library-books"] });
@@ -268,6 +285,30 @@ export function usePendingLibraryReturns() {
     queryKey: ["library-pending-returns"],
     queryFn: fetchPendingLibraryReturns,
     staleTime: 30 * 1000,
+  });
+}
+
+export function useBulkUploadBooks() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: {
+      books: Array<{
+        title: string;
+        author: string;
+        isbn?: string;
+        publisher?: string;
+        category?: string;
+        totalCopies?: number;
+        location?: string;
+        language?: string;
+        publishedYear?: number;
+      }>;
+    }) => bulkCreateBooksApi(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["library-books"] });
+      queryClient.invalidateQueries({ queryKey: ["library-dashboard"] });
+    },
   });
 }
 

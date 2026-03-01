@@ -35,6 +35,11 @@ export function SchoolProfileSection() {
       establishedYear: "",
       boardAffiliation: "",
       studentStrength: "",
+      bankName: "",
+      bankAccountNumber: "",
+      bankIfscCode: "",
+      bankBranchName: "",
+      upiId: "",
     },
   });
 
@@ -54,6 +59,11 @@ export function SchoolProfileSection() {
       establishedYear: school.establishedYear != null ? String(school.establishedYear) : "",
       boardAffiliation: school.boardAffiliation ?? "",
       studentStrength: school.studentStrength != null ? String(school.studentStrength) : "",
+      bankName: school.bankName ?? "",
+      bankAccountNumber: school.bankAccountNumber ?? "",
+      bankIfscCode: school.bankIfscCode ?? "",
+      bankBranchName: school.bankBranchName ?? "",
+      upiId: school.upiId ?? "",
     });
   }, [school, form]);
 
@@ -74,6 +84,11 @@ export function SchoolProfileSection() {
           establishedYear: values.establishedYear ? Number(values.establishedYear) : null,
           boardAffiliation: values.boardAffiliation || null,
           studentStrength: values.studentStrength ? Number(values.studentStrength) : null,
+          bankName: values.bankName || null,
+          bankAccountNumber: values.bankAccountNumber || null,
+          bankIfscCode: values.bankIfscCode || null,
+          bankBranchName: values.bankBranchName || null,
+          upiId: values.upiId || null,
         },
       });
       toast({ title: "Success", description: "School profile updated successfully." });
@@ -199,6 +214,32 @@ export function SchoolProfileSection() {
             <div>
               <Label htmlFor="studentStrength">Student Strength</Label>
               <Input id="studentStrength" type="number" {...form.register("studentStrength")} placeholder="e.g. 500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-medium mb-3">Bank Details (for Fee Payments)</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="bankName">Bank Name</Label>
+              <Input id="bankName" {...form.register("bankName")} placeholder="e.g. State Bank of India" />
+            </div>
+            <div>
+              <Label htmlFor="bankAccountNumber">Account Number</Label>
+              <Input id="bankAccountNumber" {...form.register("bankAccountNumber")} placeholder="e.g. 1234567890" />
+            </div>
+            <div>
+              <Label htmlFor="bankIfscCode">IFSC Code</Label>
+              <Input id="bankIfscCode" {...form.register("bankIfscCode")} placeholder="e.g. SBIN0001234" />
+            </div>
+            <div>
+              <Label htmlFor="bankBranchName">Branch Name</Label>
+              <Input id="bankBranchName" {...form.register("bankBranchName")} placeholder="e.g. Main Branch, Mumbai" />
+            </div>
+            <div>
+              <Label htmlFor="upiId">UPI ID</Label>
+              <Input id="upiId" {...form.register("upiId")} placeholder="e.g. school@upi" />
             </div>
           </div>
         </div>

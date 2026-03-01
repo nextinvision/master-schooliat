@@ -187,6 +187,17 @@ export default function StaffPage() {
                                                 />
                                             </div>
 
+                                            <div className="space-y-2 col-span-2 md:col-span-1">
+                                                <Label htmlFor="basicSalary">Monthly Base Salary</Label>
+                                                <Input
+                                                    id="basicSalary"
+                                                    type="number"
+                                                    {...staffForm.register("basicSalary", { valueAsNumber: true })}
+                                                    placeholder="Enter exact salary (e.g. 50000)"
+                                                    className={staffForm.formState.errors.basicSalary ? "border-red-500" : ""}
+                                                />
+                                            </div>
+
                                             <div className="space-y-2 col-span-2">
                                                 <PhotoUpload
                                                     name="registrationPhotoId"

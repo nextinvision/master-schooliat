@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -29,6 +29,8 @@ interface Student {
   firstName: string;
   lastName: string;
   rollNumber?: string;
+  classGrade?: string;
+  classDivision?: string;
   attendance?: {
     status: "PRESENT" | "ABSENT" | "LATE";
     lateArrivalTime?: string;
@@ -58,6 +60,24 @@ export function AttendanceMarkingTable({
   onBulkMark,
   isLoading = false,
 }: AttendanceMarkingTableProps) {
+  const sortedStudents = useMemo(() => {
+    return [...students].sort((a, b) => {
+      // 1. Sort by Grade
+      const gradeA = String(a.classGrade || "").toLowerCase();
+      const gradeB = String(b.classGrade || "").toLowerCase();
+      if (gradeA !== gradeB) return gradeA.localeCompare(gradeB);
+
+      // 2. Sort by Division
+      const divA = String(a.classDivision || "").toLowerCase();
+      const divB = String(b.classDivision || "").toLowerCase();
+      if (divA !== divB) return divA.localeCompare(divB);
+
+      // 3. Sort by Roll Number
+      const rollA = parseInt(a.rollNumber || "99999", 10);
+      const rollB = parseInt(b.rollNumber || "99999", 10);
+      return rollA - rollB;
+    });
+  }, [students]);
   const [attendanceData, setAttendanceData] = useState<Record<string, {
     status: "PRESENT" | "ABSENT" | "LATE";
     lateArrivalTime?: string;
@@ -224,14 +244,14 @@ export function AttendanceMarkingTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {students.length === 0 ? (
+              {sortedStudents.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
                     No students found
                   </TableCell>
                 </TableRow>
               ) : (
-                students.map((student, index) => {
+                sortedStudents.map((student, index) => {
                   const attendance = attendanceData[student.id] || { status: "PRESENT" as const };
                   return (
                     <TableRow key={student.id}>

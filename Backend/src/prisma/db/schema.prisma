@@ -613,6 +613,11 @@ model School {
   establishedYear         Int?                  @map("established_year")
   boardAffiliation        String?               @map("board_affiliation")
   studentStrength         Int?                  @map("student_strength")
+  bankName                String?               @map("bank_name")
+  bankAccountNumber       String?               @map("bank_account_number")
+  bankIfscCode            String?               @map("bank_ifsc_code")
+  bankBranchName          String?               @map("bank_branch_name")
+  upiId                   String?               @map("upi_id")
 
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
@@ -710,6 +715,7 @@ model User {
   // Profile relations (one-to-one optional)
   studentProfile StudentProfile?
   teacherProfile TeacherProfile?
+  staffProfile   StaffProfile?
 
   // Employee-specific relations
   assignedVendors   Vendor[]   @relation("EmployeeVendors")
@@ -820,6 +826,7 @@ model TeacherProfile {
   transportId          String?     @map("transport_id")
   panCardNumber        String?     @map("pan_card_number")
   bloodGroup           BloodGroup? @map("blood_group")
+  basicSalary          Int?        @map("basic_salary") // Added for salary automation
 
   transport Transport? @relation(fields: [transportId], references: [id])
 
@@ -833,14 +840,33 @@ model TeacherProfile {
   @@map("teacher_profiles")
 }
 
+model StaffProfile {
+  id     String @id @default(uuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  designation          String?
+  basicSalary          Int?        @map("basic_salary")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("staff_profiles")
+}
+
 model Transport {
   id String @id @default(uuid())
 
   // Vehicle
-  type          TransportType
-  licenseNumber String        @unique @map("license_number")
-  vehicleNumber String?       @map("vehicle_number")
-  schoolId      String        @map("school_id")
+  type            TransportType
+  licenseNumber   String        @unique @map("license_number")
+  vehicleNumber   String?       @map("vehicle_number")
+  busSerialNumber String?       @map("bus_serial_number")
+  schoolId        String        @map("school_id")
 
   // Vehicle Owner
   ownerFirstName String @map("owner_first_name")

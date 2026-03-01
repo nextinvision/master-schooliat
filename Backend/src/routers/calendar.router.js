@@ -702,6 +702,7 @@ router.get(
         deletedAt: null,
         deletedBy: null,
       },
+      orderBy: { createdAt: "desc" },
       ...paginateUtil.getPaginationParams(req),
     });
 

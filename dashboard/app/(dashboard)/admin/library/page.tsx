@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   useBooks,
@@ -9,6 +9,7 @@ import {
   useDeleteBook,
   useIssueBook,
   useReturnBook,
+  useBulkUploadBooks,
 } from "@/lib/hooks/use-library";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,7 @@ import {
   BookCheck,
   BookX,
   Library,
+  Upload,
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -69,6 +71,8 @@ export default function LibraryPage() {
   const deleteBook = useDeleteBook();
   const issueBook = useIssueBook();
   const returnBook = useReturnBook();
+  const bulkUpload = useBulkUploadBooks();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const books = booksData?.data || [];
   const history = historyData?.data || [];
@@ -118,6 +122,69 @@ export default function LibraryPage() {
     [router]
   );
 
+  const handleBulkUpload = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const text = await file.text();
+      const lines = text.split("\n").filter((l) => l.trim());
+      if (lines.length < 2) {
+        toast.error("CSV file must have a header row and at least one data row");
+        return;
+      }
+
+      const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+      const titleIdx = headers.findIndex((h) => h.includes("title"));
+      const authorIdx = headers.findIndex((h) => h.includes("author"));
+
+      if (titleIdx === -1 || authorIdx === -1) {
+        toast.error("CSV must have 'title' and 'author' columns");
+        return;
+      }
+
+      const isbnIdx = headers.findIndex((h) => h.includes("isbn"));
+      const publisherIdx = headers.findIndex((h) => h.includes("publisher"));
+      const categoryIdx = headers.findIndex((h) => h.includes("category"));
+      const copiesIdx = headers.findIndex((h) => h.includes("copies") || h.includes("quantity"));
+      const locationIdx = headers.findIndex((h) => h.includes("location"));
+      const languageIdx = headers.findIndex((h) => h.includes("language"));
+      const yearIdx = headers.findIndex((h) => h.includes("year"));
+
+      const books = lines.slice(1).map((line) => {
+        const cols = line.split(",").map((c) => c.trim());
+        return {
+          title: cols[titleIdx] || "",
+          author: cols[authorIdx] || "",
+          isbn: isbnIdx >= 0 ? cols[isbnIdx] || undefined : undefined,
+          publisher: publisherIdx >= 0 ? cols[publisherIdx] || undefined : undefined,
+          category: categoryIdx >= 0 ? cols[categoryIdx] || undefined : undefined,
+          totalCopies: copiesIdx >= 0 ? parseInt(cols[copiesIdx]) || 1 : 1,
+          location: locationIdx >= 0 ? cols[locationIdx] || undefined : undefined,
+          language: languageIdx >= 0 ? cols[languageIdx] || undefined : undefined,
+          publishedYear: yearIdx >= 0 ? parseInt(cols[yearIdx]) || undefined : undefined,
+        };
+      }).filter((b) => b.title && b.author);
+
+      if (books.length === 0) {
+        toast.error("No valid book entries found in CSV");
+        return;
+      }
+
+      try {
+        const result = await bulkUpload.mutateAsync({ books });
+        toast.success(result?.message || `${books.length} books uploaded successfully`);
+        refetchBooks();
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to upload books");
+      }
+
+      // Reset file input
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+    [bulkUpload, refetchBooks]
+  );
+
   const getAvailabilityBadge = (available: number, total: number) => {
     const percentage = total > 0 ? (available / total) * 100 : 0;
     if (percentage === 0) {
@@ -147,10 +214,28 @@ export default function LibraryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Library Management</h1>
-        <Button onClick={handleAddNew} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Book
-        </Button>
+        <div className="flex gap-2">
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".csv"
+            className="hidden"
+            onChange={handleBulkUpload}
+          />
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            className="gap-2"
+            disabled={bulkUpload.isPending}
+          >
+            <Upload className="h-4 w-4" />
+            {bulkUpload.isPending ? "Uploading..." : "Bulk Upload"}
+          </Button>
+          <Button onClick={handleAddNew} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Book
+          </Button>
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>

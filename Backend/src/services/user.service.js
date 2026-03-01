@@ -9,6 +9,7 @@ import stringUtil from "../utils/string.util.js";
 const getUserSelect = (
   fetchStudentProfile = false,
   fetchTeacherProfile = false,
+  fetchStaffProfile = false,
 ) => {
   const baseSelect = {
     id: true,
@@ -77,6 +78,7 @@ const getUserSelect = (
         transportId: true,
         panCardNumber: true,
         bloodGroup: true,
+        basicSalary: true,
         transport: {
           select: {
             id: true,
@@ -88,15 +90,25 @@ const getUserSelect = (
     };
   }
 
+  if (fetchStaffProfile) {
+    select.staffProfile = {
+      select: {
+        id: true,
+        designation: true,
+        basicSalary: true,
+      },
+    };
+  }
+
   return select;
 };
 
 // Convenience exports for different user types
-const getStudentSelect = () => getUserSelect(true, false);
-const getTeacherSelect = () => getUserSelect(false, true);
-const getStaffSelect = () => getUserSelect(false, false);
+const getStudentSelect = () => getUserSelect(true, false, false);
+const getTeacherSelect = () => getUserSelect(false, true, false);
+const getStaffSelect = () => getUserSelect(false, false, true);
 const getEmployeeSelect = () => ({
-  ...getUserSelect(false, false),
+  ...getUserSelect(false, false, false),
   assignedRegion: {
     select: {
       id: true,

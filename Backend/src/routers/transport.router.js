@@ -40,6 +40,7 @@ router.post(
         conductorPhotoLink: request.conductorPhotoLink,
         licenseNumber: request.licenseNumber,
         vehicleNumber: request.vehicleNumber,
+        busSerialNumber: request.busSerialNumber || null,
         createdBy: currentUser.id,
         schoolId: currentUser.schoolId,
       },
@@ -129,6 +130,8 @@ router.patch(
       transportUpdateData.licenseNumber = updateData.licenseNumber;
     if (updateData.vehicleNumber !== undefined)
       transportUpdateData.vehicleNumber = updateData.vehicleNumber;
+    if (updateData.busSerialNumber !== undefined)
+      transportUpdateData.busSerialNumber = updateData.busSerialNumber || null;
 
     transportUpdateData.updatedBy = currentUser.id;
 

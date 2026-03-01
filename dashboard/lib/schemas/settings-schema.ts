@@ -37,6 +37,11 @@ export const schoolProfileSchema = z.object({
     .string()
     .optional()
     .refine((v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0), "Must be 0 or greater"),
+  bankName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankIfscCode: z.string().optional(),
+  bankBranchName: z.string().optional(),
+  upiId: z.string().optional(),
 });
 
 export type SchoolProfileFormData = z.infer<typeof schoolProfileSchema>;

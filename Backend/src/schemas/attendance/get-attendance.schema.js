@@ -7,13 +7,14 @@ const getAttendanceSchema = z
       .object({
         studentId: z.string().uuid("Invalid student ID").optional(),
         classId: z.string().uuid("Invalid class ID").optional(),
-        startDate: z.string().datetime().or(z.date()).optional(),
-        endDate: z.string().datetime().or(z.date()).optional(),
-        date: z.string().datetime().or(z.date()).optional(),
+        startDate: z.string().or(z.date()).optional(),
+        endDate: z.string().or(z.date()).optional(),
+        date: z.string().or(z.date()).optional(),
+        periodId: z.string().uuid("Invalid period ID").optional(),
         page: z.string().regex(/^\d+$/).transform(Number).optional().default("1"),
         limit: z.string().regex(/^\d+$/).transform(Number).optional().default("20"),
       })
-      ,
+    ,
     params: z.object({}),
   })
   ;

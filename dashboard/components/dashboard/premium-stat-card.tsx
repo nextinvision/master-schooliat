@@ -87,7 +87,7 @@ export function PremiumStatCard({
   const CardWrapper = ({ children }: { children: React.ReactNode }) => {
     if (href) {
       return (
-        <NextLink href={href} className="block no-underline">
+        <NextLink href={href} className="block no-underline h-full">
           {children}
         </NextLink>
       );
@@ -100,10 +100,9 @@ export function PremiumStatCard({
       <Card
         ref={cardRef}
         className={cn(
-          href ? "cursor-pointer" : "",
           "border-0 overflow-hidden transition-all duration-300",
           "hover:shadow-xl hover:-translate-y-1",
-          "relative isolate",
+          "relative isolate h-full",
           className
         )}
         style={{

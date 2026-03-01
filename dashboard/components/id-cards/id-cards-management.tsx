@@ -18,11 +18,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Download, Settings } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FileText, Download, Settings, Loader2, ExternalLink, Info } from "lucide-react";
 import { useClassFilters } from "@/lib/hooks/use-class-filters";
 import {
   useIdCardsStatus,
   useGenerateClassIdCards,
+  useIdCardConfig,
   IdCardStatus,
 } from "@/lib/hooks/use-id-cards";
 import { toast } from "sonner";
@@ -37,8 +39,21 @@ export function IDCardsManagement() {
 
   const { data, isLoading, isError, error, refetch } = useIdCardsStatus();
   const generateIdCards = useGenerateClassIdCards();
+  const { data: configData } = useIdCardConfig();
 
-  const idCardsData: IdCardStatus[] = data?.data ?? [];
+  const idCardConfig = configData?.data;
+  const hasConfig = !!idCardConfig;
+
+  const idCardsData: IdCardStatus[] = useMemo(() => {
+    const raw = data?.data ?? [];
+    return raw.map((item: any) => ({
+      ...item,
+      status: item.idCardCollection?.status === "GENERATED" ? "Generated" : "Not generated",
+      generatedOn: item.idCardCollection?.generatedAt || null,
+      fileUrl: item.idCardCollection?.fileUrl || null,
+      collectionId: item.idCardCollection?.id || null,
+    }));
+  }, [data]);
 
   const filteredData = useMemo(() => {
     return idCardsData
@@ -46,7 +61,7 @@ export function IDCardsManagement() {
         ...item,
         no: String(index + 1).padStart(2, "0"),
         class: item.grade,
-        generatedOn: item.generatedOn
+        generatedOnFormatted: item.generatedOn
           ? format(new Date(item.generatedOn), "dd MMM yyyy")
           : "NA",
       }))
@@ -71,6 +86,11 @@ export function IDCardsManagement() {
   }, [classFilterValue, divisionFilterValue]);
 
   const handleGenerateAll = async () => {
+    if (!hasConfig) {
+      toast.error("Please configure an ID card template first (Settings → Configure)");
+      return;
+    }
+
     const notGenerated = filteredData.filter(
       (item) => item.status === "Not generated"
     );
@@ -88,9 +108,9 @@ export function IDCardsManagement() {
     }
 
     try {
-      await Promise.all(
-        notGenerated.map((item) => generateIdCards.mutateAsync(item.id))
-      );
+      for (const item of notGenerated) {
+        await generateIdCards.mutateAsync(item.id);
+      }
       toast.success(
         `ID cards generated successfully for ${notGenerated.length} class(es)!`
       );
@@ -105,6 +125,11 @@ export function IDCardsManagement() {
   };
 
   const handleGenerateRow = async (item: IdCardStatus) => {
+    if (!hasConfig) {
+      toast.error("Please configure an ID card template first (Settings → Configure)");
+      return;
+    }
+
     if (item.status === "Generated") {
       toast.info("ID cards for this class have already been generated");
       return;
@@ -115,27 +140,40 @@ export function IDCardsManagement() {
     }
 
     try {
-      await generateIdCards.mutateAsync(item.id);
+      const result = await generateIdCards.mutateAsync(item.id);
+      // If backend returned a zipFileUrl, open for download
+      const zipUrl = (result as any)?.data?.zipFileUrl;
+      if (zipUrl) {
+        window.open(zipUrl, "_blank");
+      }
       toast.success("ID cards generated successfully!");
       refetch();
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "Failed to generate ID cards";
+          : "Failed to generate ID cards. Please ensure the template is configured.";
       toast.error(errorMessage);
     }
   };
 
   const handleViewTemplate = () => {
-    toast.info("Template configuration coming soon");
+    if (!idCardConfig?.sampleUrl) {
+      toast.error("No template preview available. Please configure a template first.");
+      return;
+    }
+    window.open(idCardConfig.sampleUrl, "_blank");
+  };
+
+  const handleDownload = (fileUrl: string) => {
+    window.open(fileUrl, "_blank");
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <Loader2 className="h-12 w-12 animate-spin text-gray-400 mx-auto mb-4" />
           <p className="text-gray-600">Loading ID cards status...</p>
         </div>
       </div>
@@ -166,20 +204,33 @@ export function IDCardsManagement() {
             <FileText className="w-4 h-4" />
             View Template
           </Button>
-          <Button onClick={() => {}} variant="outline" className="gap-2">
-            <Settings className="w-4 h-4" />
-            Configure
-          </Button>
           <Button
             onClick={handleGenerateAll}
             disabled={generateIdCards.isPending}
             className="gap-2"
           >
-            <Download className="w-4 h-4" />
+            {generateIdCards.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )}
             {generateIdCards.isPending ? "Generating..." : "Generate All"}
           </Button>
         </div>
       </div>
+
+      {/* Size specification info */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          ID cards are generated in <strong>A6 size (105 × 148 mm)</strong>. Each class generates a ZIP file containing individual PDF ID cards for all students.
+          {!hasConfig && (
+            <span className="text-amber-600 font-medium ml-1">
+              ⚠ No template configured. Please configure a template before generating.
+            </span>
+          )}
+        </AlertDescription>
+      </Alert>
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -220,7 +271,7 @@ export function IDCardsManagement() {
                 <TableHead>Division</TableHead>
                 <TableHead className="w-40">Status</TableHead>
                 <TableHead>Generated On</TableHead>
-                <TableHead className="w-32">Action</TableHead>
+                <TableHead className="w-48">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -235,7 +286,7 @@ export function IDCardsManagement() {
                   <TableRow key={item.id} className="hover:bg-gray-50">
                     <TableCell className="font-medium">{item.no}</TableCell>
                     <TableCell>{item.class}</TableCell>
-                    <TableCell>{item.division}</TableCell>
+                    <TableCell>{item.division || "-"}</TableCell>
                     <TableCell>
                       <Badge
                         variant={item.status === "Generated" ? "default" : "secondary"}
@@ -248,18 +299,36 @@ export function IDCardsManagement() {
                         {item.status}
                       </Badge>
                     </TableCell>
-                    <TableCell>{item.generatedOn}</TableCell>
+                    <TableCell>{item.generatedOnFormatted}</TableCell>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleGenerateRow(item)}
-                        disabled={item.status === "Generated" || generateIdCards.isPending}
-                        className="gap-2"
-                      >
-                        <Download className="w-4 h-4" />
-                        Generate
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {item.status === "Generated" && item.fileUrl ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDownload(item.fileUrl!)}
+                            className="gap-1 text-primary"
+                          >
+                            <Download className="w-4 h-4" />
+                            Download
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleGenerateRow(item)}
+                            disabled={generateIdCards.isPending || !hasConfig}
+                            className="gap-1"
+                          >
+                            {generateIdCards.isPending ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                            Generate
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -298,4 +367,3 @@ export function IDCardsManagement() {
     </div>
   );
 }
-

@@ -19,6 +19,11 @@ export interface MySchool {
   establishedYear?: number | null;
   boardAffiliation?: string | null;
   studentStrength?: number | null;
+  bankName?: string | null;
+  bankAccountNumber?: string | null;
+  bankIfscCode?: string | null;
+  bankBranchName?: string | null;
+  upiId?: string | null;
 }
 
 export type UpdateMySchoolPayload = Partial<{
@@ -35,6 +40,11 @@ export type UpdateMySchoolPayload = Partial<{
   establishedYear: number | null;
   boardAffiliation: string | null;
   studentStrength: number | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankIfscCode: string | null;
+  bankBranchName: string | null;
+  upiId: string | null;
 }>;
 
 function fetchMySchool(): Promise<{ data: MySchool | null }> {

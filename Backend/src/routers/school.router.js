@@ -166,6 +166,11 @@ router.get(
         establishedYear: true,
         boardAffiliation: true,
         studentStrength: true,
+        bankName: true,
+        bankAccountNumber: true,
+        bankIfscCode: true,
+        bankBranchName: true,
+        upiId: true,
       },
     });
 
@@ -217,6 +222,11 @@ router.patch(
     if (updateData.establishedYear !== undefined) schoolUpdateData.establishedYear = updateData.establishedYear;
     if (updateData.boardAffiliation !== undefined) schoolUpdateData.boardAffiliation = updateData.boardAffiliation;
     if (updateData.studentStrength !== undefined) schoolUpdateData.studentStrength = updateData.studentStrength;
+    if (updateData.bankName !== undefined) schoolUpdateData.bankName = updateData.bankName;
+    if (updateData.bankAccountNumber !== undefined) schoolUpdateData.bankAccountNumber = updateData.bankAccountNumber;
+    if (updateData.bankIfscCode !== undefined) schoolUpdateData.bankIfscCode = updateData.bankIfscCode;
+    if (updateData.bankBranchName !== undefined) schoolUpdateData.bankBranchName = updateData.bankBranchName;
+    if (updateData.upiId !== undefined) schoolUpdateData.upiId = updateData.upiId;
 
     schoolUpdateData.updatedBy = currentUser.id;
 

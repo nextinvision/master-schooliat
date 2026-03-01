@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, TrendingUp, BarChart3, Users } from "lucide-react";
+import { IndianRupee, TrendingUp, BarChart3, Users } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import { aggregateFeesByMonth, feeStatusDistribution, formatCurrency, CHART_COLORS } from "@/lib/utils/analytics";
 import type { FeeStatistics } from "@/lib/types/reports";
@@ -37,7 +37,7 @@ export function FeeSection({ data, statistics, isLoading }: FeeSectionProps) {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <DollarSign className="h-8 w-8 text-primary" />
+              <IndianRupee className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{formatCurrency(statistics.totalRevenue ?? 0)}</span>
             </div>
           </CardContent>

@@ -399,6 +399,17 @@ export default function AddTeacherPage() {
             <FormCard title="Additional Information">
               <div className="space-y-4">
                 <div className="space-y-2">
+                  <Label htmlFor="basicSalary">Monthly Base Salary</Label>
+                  <Input
+                    id="basicSalary"
+                    type="number"
+                    {...methods.register("basicSalary", { valueAsNumber: true })}
+                    placeholder="E.g. 60000"
+                    className={errors.basicSalary ? "border-red-500" : ""}
+                  />
+                </div>
+
+                <div className="space-y-2">
                   <Label>Transport Mode</Label>
                   <Controller
                     control={methods.control}

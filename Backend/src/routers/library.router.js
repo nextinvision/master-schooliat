@@ -43,6 +43,52 @@ router.post(
   },
 );
 
+// Bulk create books
+router.post(
+  "/books/bulk",
+  withPermission(Permission.CREATE_LIBRARY_BOOK),
+  async (req, res) => {
+    try {
+      const { books } = req.body.request;
+      const currentUser = req.context.user;
+
+      if (!Array.isArray(books) || books.length === 0) {
+        return res.status(400).json({
+          message: "Please provide an array of books",
+        });
+      }
+
+      const createdBooks = await prisma.libraryBook.createMany({
+        data: books.map((book) => ({
+          title: book.title,
+          author: book.author,
+          isbn: book.isbn || null,
+          publisher: book.publisher || null,
+          category: book.category || null,
+          description: book.description || null,
+          totalCopies: book.totalCopies ? parseInt(book.totalCopies) : 1,
+          availableCopies: book.totalCopies ? parseInt(book.totalCopies) : 1,
+          location: book.location || null,
+          language: book.language || "English",
+          publishedYear: book.publishedYear ? parseInt(book.publishedYear) : null,
+          schoolId: currentUser.schoolId,
+          createdBy: currentUser.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      return res.status(201).json({
+        message: `${createdBooks.count} books created successfully`,
+        data: { count: createdBooks.count },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk create books",
+      });
+    }
+  },
+);
+
 // Update book
 router.put(
   "/books/:id",

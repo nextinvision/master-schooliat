@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DollarSign, Users, TrendingUp, BarChart3 } from "lucide-react";
+import { IndianRupee, Users, TrendingUp, BarChart3 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { formatCurrency, CHART_COLORS } from "@/lib/utils/analytics";
 import type { SalaryStatistics } from "@/lib/types/reports";
@@ -44,7 +44,7 @@ export function SalarySection({ data, statistics, isLoading }: SalarySectionProp
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              <DollarSign className="h-8 w-8 text-primary" />
+              <IndianRupee className="h-8 w-8 text-primary" />
               <span className="text-3xl font-bold">{formatCurrency(statistics.totalPaid ?? 0)}</span>
             </div>
           </CardContent>

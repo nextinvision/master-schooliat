@@ -1,11 +1,18 @@
 import { z } from "zod";
 
 export const paymentSchema = z.object({
-  amount: z
-    .number()
-    .positive("Amount must be greater than 0")
-    .min(0.01, "Amount must be at least 0.01"),
-});
+  amount: z.number().min(0).optional(),
+  paymentMethod: z.enum(["BANK_TRANSFER", "CASH", "CHEQUE", "UPI", "CREDIT_CARD", "DEBIT_CARD"]).optional(),
+  isWaiver: z.boolean().optional(),
+}).refine(
+  (data) => {
+    if (data.isWaiver) return true;
+    return data.amount !== undefined && data.amount > 0 && data.paymentMethod !== undefined;
+  },
+  {
+    message: "Amount and Payment Method are required unless applying a waiver.",
+    path: ["amount"],
+  }
+);
 
 export type PaymentFormData = z.infer<typeof paymentSchema>;
-

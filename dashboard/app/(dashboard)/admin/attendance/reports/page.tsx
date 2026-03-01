@@ -93,6 +93,33 @@ export default function AttendanceReportsPage() {
   const attendanceRecords = reportsData?.data || [];
   const statistics = reportsData?.statistics || {};
 
+  const sortedAttendanceRecords = useMemo(() => {
+    if (!attendanceRecords || attendanceRecords.length === 0) return [];
+    return [...attendanceRecords].sort((a: any, b: any) => {
+      // 1. Sort by Date (Descending)
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateA !== dateB) return dateB - dateA;
+
+      // 2. Sort by Class Grade
+      const classA = a.student?.studentProfile?.class;
+      const classB = b.student?.studentProfile?.class;
+      const gradeA = String(classA?.grade || "").toLowerCase();
+      const gradeB = String(classB?.grade || "").toLowerCase();
+      if (gradeA !== gradeB) return gradeA.localeCompare(gradeB);
+
+      // 3. Sort by Class Division
+      const divA = String(classA?.division || "").toLowerCase();
+      const divB = String(classB?.division || "").toLowerCase();
+      if (divA !== divB) return divA.localeCompare(divB);
+
+      // 4. Sort by Roll Number
+      const rollA = parseInt(a.student?.studentProfile?.rollNumber || "99999", 10);
+      const rollB = parseInt(b.student?.studentProfile?.rollNumber || "99999", 10);
+      return rollA - rollB;
+    });
+  }, [attendanceRecords]);
+
   // Process data for charts
   const dailyAttendanceData = useMemo(() => {
     if (!attendanceRecords || attendanceRecords.length === 0) return [];
@@ -440,8 +467,8 @@ export default function AttendanceReportsPage() {
                             entry.name === "Present"
                               ? COLORS.PRESENT
                               : entry.name === "Absent"
-                              ? COLORS.ABSENT
-                              : COLORS.LATE
+                                ? COLORS.ABSENT
+                                : COLORS.LATE
                           }
                         />
                       ))}
@@ -494,7 +521,7 @@ export default function AttendanceReportsPage() {
         <CardContent>
           {reportsLoading ? (
             <Skeleton className="h-64 w-full" />
-          ) : attendanceRecords.length === 0 ? (
+          ) : sortedAttendanceRecords.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <p>No attendance records found for the selected filters</p>
@@ -513,7 +540,7 @@ export default function AttendanceReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {attendanceRecords.map((record: any, index: number) => (
+                  {sortedAttendanceRecords.map((record: any, index: number) => (
                     <TableRow key={record.id || index}>
                       <TableCell className="font-medium">
                         {format(new Date(record.date), "MMM dd, yyyy")}

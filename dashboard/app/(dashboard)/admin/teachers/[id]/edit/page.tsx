@@ -71,6 +71,7 @@ export default function EditTeacherPage() {
       subjects: "",
       aadhaarId: "",
       panCardNumber: "",
+      basicSalary: undefined,
     },
     mode: "onBlur",
   });
@@ -112,8 +113,8 @@ export default function EditTeacherPage() {
       yearOfPassing: teacher.yearOfPassing
         ? String(teacher.yearOfPassing)
         : tp.yearOfPassing
-        ? String(tp.yearOfPassing)
-        : "",
+          ? String(tp.yearOfPassing)
+          : "",
       percentage: teacher.grade || teacher.percentage || tp.grade || "",
       transportMode: teacher.transportId == null ? "Non Transport" : "Transport",
       transportId: teacher.transportId || "",
@@ -121,6 +122,7 @@ export default function EditTeacherPage() {
       subjects: teacher.subjects || "",
       aadhaarId: teacher.aadhaarId || "",
       panCardNumber: teacher.panCardNumber || "",
+      basicSalary: teacher.teacherProfile?.basicSalary || undefined,
     });
   }, [teacher, reset]);
 
@@ -479,6 +481,17 @@ export default function EditTeacherPage() {
             {/* Additional Information */}
             <FormCard title="Additional Information">
               <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="basicSalary">Monthly Base Salary</Label>
+                  <Input
+                    id="basicSalary"
+                    type="number"
+                    {...methods.register("basicSalary", { valueAsNumber: true })}
+                    placeholder="E.g. 60000"
+                    className={errors.basicSalary ? "border-red-500" : ""}
+                  />
+                </div>
+
                 <div className="space-y-2">
                   <Label>Transport Mode</Label>
                   <Controller

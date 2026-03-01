@@ -19,6 +19,11 @@ const updateMySchoolSchema = z.object({
       establishedYear: z.number().int().min(1800).max(2100).optional().nullable(),
       boardAffiliation: z.string().trim().optional().nullable(),
       studentStrength: z.number().int().min(0).optional().nullable(),
+      bankName: z.string().trim().optional().nullable(),
+      bankAccountNumber: z.string().trim().optional().nullable(),
+      bankIfscCode: z.string().trim().optional().nullable(),
+      bankBranchName: z.string().trim().optional().nullable(),
+      upiId: z.string().trim().optional().nullable(),
     })
     .strict(),
   query: z.object({}),

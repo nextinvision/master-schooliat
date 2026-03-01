@@ -26,6 +26,7 @@ import {
   Plus,
   FileText,
   FileUp,
+  FileDown,
   Eye,
   CheckCircle,
   XCircle,
@@ -33,6 +34,7 @@ import {
   Users,
   UserPlus,
   GraduationCap,
+  Loader2,
 } from "lucide-react";
 import {
   Select,
@@ -96,6 +98,7 @@ export default function StudentsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const limit = 15;
 
   // Students data
@@ -288,6 +291,40 @@ export default function StudentsPage() {
           >
             <FileUp className="h-4 w-4" />
             Bulk Upload
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setIsExporting(true);
+              try {
+                const token = window.sessionStorage.getItem("accessToken");
+                const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+                const resp = await fetch(`${baseUrl}/users/students/export`, {
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    "x-platform": "web",
+                  },
+                });
+                if (!resp.ok) throw new Error("Export failed");
+                const blob = await resp.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "all_students.csv";
+                a.click();
+                URL.revokeObjectURL(url);
+                toast.success("Students exported successfully!");
+              } catch (e: any) {
+                toast.error(e?.message || "Failed to export students");
+              } finally {
+                setIsExporting(false);
+              }
+            }}
+            className="gap-2"
+            disabled={isExporting}
+          >
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Download All
           </Button>
         </div>
       </div>
