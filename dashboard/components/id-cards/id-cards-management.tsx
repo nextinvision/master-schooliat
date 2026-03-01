@@ -158,11 +158,20 @@ export function IDCardsManagement() {
   };
 
   const handleViewTemplate = () => {
-    if (!idCardConfig?.sampleUrl) {
-      toast.error("No template preview available. Please configure a template first.");
+    if (idCardConfig?.sampleUrl) {
+      window.open(idCardConfig.sampleUrl, "_blank");
       return;
     }
-    window.open(idCardConfig.sampleUrl, "_blank");
+
+    // Fallback to the auto-generated template preview image if no custom sample is saved yet
+    const templateId = idCardConfig?.templateId || form.getValues("templateId");
+    if (templateId) {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      window.open(`${baseUrl}/images/previews/id-cards/${templateId}.png`, "_blank");
+      return;
+    }
+
+    toast.error("No template preview available. Please select a template first.");
   };
 
   const handleDownload = (fileUrl: string) => {
