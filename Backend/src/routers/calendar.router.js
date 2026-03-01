@@ -80,8 +80,8 @@ router.get(
       const firstDayOfMonth = dateUtil.getFirstDayOfMonth(monthNum, year);
       const lastDayOfMonth = dateUtil.getLastDayOfMonth(monthNum, year);
 
-      where.from = { gte: firstDayOfMonth };
-      where.till = { lte: lastDayOfMonth };
+      where.from = { lte: lastDayOfMonth };
+      where.till = { gte: firstDayOfMonth };
     }
 
     // Filter by date: from <= date AND till >= date
@@ -236,8 +236,8 @@ router.get(
       const firstDayOfMonth = dateUtil.getFirstDayOfMonth(monthNum, year);
       const lastDayOfMonth = dateUtil.getLastDayOfMonth(monthNum, year);
 
-      where.from = { gte: firstDayOfMonth };
-      where.till = { lte: lastDayOfMonth };
+      where.from = { lte: lastDayOfMonth };
+      where.till = { gte: firstDayOfMonth };
     }
 
     // Filter by date: from <= date AND till >= date
@@ -702,6 +702,7 @@ router.get(
         deletedAt: null,
         deletedBy: null,
       },
+      orderBy: { createdAt: "desc" },
       ...paginateUtil.getPaginationParams(req),
     });
 

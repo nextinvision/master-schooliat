@@ -124,7 +124,7 @@ export function EmployeesManagement() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead>Employee Name</TableHead>
                 <TableHead>Region</TableHead>
                 <TableHead className="text-right">Locations</TableHead>

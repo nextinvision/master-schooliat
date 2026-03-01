@@ -12,6 +12,7 @@ export const addTransportSchema = z.object({
   ownerfirstName: z.string().min(1, "Owner first name is required").trim(),
   ownerlastName: z.string().min(1, "Owner last name is required").trim(),
   vehicleNumber: z.string().min(1, "Vehicle number is required").trim(),
+  busSerialNumber: z.string().optional(),
   driverfirstName: z.string().min(1, "Driver first name is required").trim(),
   driverlastName: z.string().min(1, "Driver last name is required").trim(),
   driverDateOfBirth: z.string().min(1, "Driver date of birth is required"),

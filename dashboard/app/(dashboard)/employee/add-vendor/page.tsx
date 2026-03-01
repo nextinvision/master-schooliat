@@ -137,7 +137,7 @@ export default function AddVendorPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Store className="w-5 h-5 text-green-600" />
+              <Store className="w-5 h-5 text-primary" />
               Vendor Information
             </CardTitle>
           </CardHeader>

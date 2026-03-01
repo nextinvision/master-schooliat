@@ -225,21 +225,27 @@ const getStudentAttendance = async (studentId, startDate, endDate) => {
  * @param {Date} date - Attendance date
  * @returns {Promise<Array>} - Attendance records
  */
-const getClassAttendance = async (classId, date) => {
+const getClassAttendance = async (classId, date, periodId = null) => {
   const startOfDay = new Date(date);
   startOfDay.setHours(0, 0, 0, 0);
   const endOfDay = new Date(date);
   endOfDay.setHours(23, 59, 59, 999);
 
-  return await prisma.attendance.findMany({
-    where: {
-      classId,
-      date: {
-        gte: startOfDay,
-        lte: endOfDay,
-      },
-      deletedAt: null,
+  const where = {
+    classId,
+    date: {
+      gte: startOfDay,
+      lte: endOfDay,
     },
+    deletedAt: null,
+  };
+
+  if (periodId && periodId !== "all") {
+    where.periodId = periodId;
+  }
+
+  return await prisma.attendance.findMany({
+    where,
     include: {
       student: {
         select: {
@@ -279,7 +285,7 @@ const getClassAttendance = async (classId, date) => {
  * @param {Date} endDate - End date
  * @returns {Promise<Object>} - Attendance statistics
  */
-const getAttendanceStatistics = async (studentId, classId, schoolId, startDate, endDate) => {
+const getAttendanceStatistics = async (studentId, classId, schoolId, startDate, endDate, periodId = null) => {
   const where = {
     date: {
       gte: startDate,
@@ -291,6 +297,7 @@ const getAttendanceStatistics = async (studentId, classId, schoolId, startDate, 
   if (studentId) where.studentId = studentId;
   if (classId) where.classId = classId;
   if (schoolId) where.schoolId = schoolId;
+  if (periodId && periodId !== "all") where.periodId = periodId;
 
   const [total, present, absent, late, halfDay] = await Promise.all([
     prisma.attendance.count({ where }),

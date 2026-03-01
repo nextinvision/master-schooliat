@@ -206,8 +206,8 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
           </div>
 
           <div className="grid grid-cols-7 gap-1 mb-2">
-            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-              <div key={day} className="text-center text-sm font-medium text-gray-600 p-2">
+            {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, i) => (
+              <div key={day} className={`text-center text-sm font-medium p-2 ${i === 0 || i === 6 ? "text-red-500" : "text-gray-600"}`}>
                 {day}
               </div>
             ))}
@@ -217,25 +217,48 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
             {daysInMonth.map((day) => {
               const isSelected = selectedDate && isSameDay(day, selectedDate);
               const isToday = isSameDay(day, new Date());
-              const hasEvents = currentData.some((item: any) => {
-                const fromDate = item.from ? new Date(item.from) : null;
-                const tillDate = item.till ? new Date(item.till) : null;
-                if (!fromDate || !tillDate) return false;
+              const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+              const hasEvents = events.some((item: any) => {
+                if (!item.from || !item.till) return false;
+                const fromDate = new Date(item.from);
+                fromDate.setHours(0, 0, 0, 0);
+                const tillDate = new Date(item.till);
+                tillDate.setHours(23, 59, 59, 999);
+                return day >= fromDate && day <= tillDate;
+              });
+              const isHoliday = holidays.some((holiday: any) => {
+                if (!holiday.from || !holiday.till) return false;
+                const fromDate = new Date(holiday.from);
+                fromDate.setHours(0, 0, 0, 0);
+                const tillDate = new Date(holiday.till);
+                tillDate.setHours(23, 59, 59, 999);
                 return day >= fromDate && day <= tillDate;
               });
 
               return (
                 <button
                   key={day.toISOString()}
+                  id={`calendar-day-${format(day, "yyyy-MM-dd")}`}
                   onClick={() => handleDayClick(day)}
                   className={`
-                    aspect-square p-2 text-sm rounded
-                    ${isSelected ? "bg-blue-500 text-white" : "hover:bg-gray-100"}
-                    ${isToday ? "ring-2 ring-blue-400" : ""}
-                    ${hasEvents ? "font-semibold" : ""}
+                    aspect-square p-2 text-sm rounded-md relative transition-all duration-200
+                    flex flex-col items-center justify-center
+                    ${isSelected ? "bg-primary text-white scale-105 z-10 shadow-md" : "hover:bg-gray-100"}
+                    ${isToday && !isSelected ? "ring-2 ring-primary bg-schooliat-tint/30" : ""}
+                    ${isWeekend && !isSelected ? "text-red-500 bg-red-50/30" : ""}
+                    ${isHoliday && !isSelected ? "bg-red-50 text-red-600 font-bold" : ""}
+                    ${hasEvents && !isHoliday && !isSelected ? "font-semibold text-primary bg-primary/5" : ""}
                   `}
                 >
-                  {format(day, "d")}
+                  <span className="relative z-10">{format(day, "d")}</span>
+                  <div className="flex gap-0.5 mt-1">
+                    {hasEvents && (
+                      <div className={`w-1 h-1 rounded-full ${isSelected ? "bg-white" : "bg-primary"}`} />
+                    )}
+                    {isHoliday && (
+                      <div className={`w-1 h-1 rounded-full ${isSelected ? "bg-white" : "bg-red-500 animate-pulse"}`} />
+                    )}
+                  </div>
                 </button>
               );
             })}
@@ -279,7 +302,7 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-[#e5ffc7]">
+                <TableRow className="bg-schooliat-tint">
                   <TableHead className="w-16">No</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Date</TableHead>

@@ -4,25 +4,29 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
+// Fetch exams (for marks entry - exams router)
+function fetchExams(params: { pageNumber?: number; pageSize?: number } = {}) {
+  return get("/exams", {
+    pageNumber: params.pageNumber ?? 1,
+    pageSize: params.pageSize ?? 100,
+  });
+}
+
 // Fetch marks
 function fetchMarks(params: {
   examId?: string;
   studentId?: string;
   classId?: string;
-  subjectId?: string;
-  page?: number;
-  limit?: number;
 }) {
   return get("/marks", params);
 }
 
-// Fetch exams
-function fetchExams(params?: {
-  classId?: string;
-  page?: number;
-  limit?: number;
+// Fetch results
+function fetchResults(params: {
+  examId?: string;
+  studentId?: string;
 }) {
-  return get("/exams", params);
+  return get("/marks/results", params);
 }
 
 // Enter marks
@@ -51,50 +55,54 @@ function enterBulkMarksApi(data: {
   return post("/marks/bulk", { request: data });
 }
 
-// Calculate result
-function calculateResultApi(data: {
+// Calculate results
+function calculateResultsApi(data: {
   examId: string;
-  studentId: string;
-  classId: string;
-  gradeConfig?: Record<string, any>;
+  classId?: string;
 }) {
-  return post("/marks/calculate-result", { request: data });
+  return post("/marks/calculate", { request: data });
 }
 
 // Publish results
 function publishResultsApi(data: {
   examId: string;
-  classId: string;
+  classId?: string;
 }) {
-  return post("/marks/publish-results", { request: data });
+  return post("/marks/publish", { request: data });
+}
+
+// Hooks
+export function useExams(params: { pageNumber?: number; pageSize?: number } = {}) {
+  return useQuery({
+    queryKey: ["exams", params],
+    queryFn: () => fetchExams(params),
+    staleTime: 5 * 60 * 1000,
+  });
 }
 
 export function useMarks(params: {
   examId?: string;
   studentId?: string;
   classId?: string;
-  subjectId?: string;
-  page?: number;
-  limit?: number;
 } = {}) {
   return useQuery({
     queryKey: ["marks", params],
     queryFn: () => fetchMarks(params),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
+    enabled: !!(params.examId && params.classId) || !!params.studentId,
   });
 }
 
-export function useExams(params?: {
-  classId?: string;
-  page?: number;
-  limit?: number;
-}) {
+export function useResults(params: {
+  examId?: string;
+  studentId?: string;
+} = {}) {
   return useQuery({
-    queryKey: ["exams", params],
-    queryFn: () => fetchExams(params),
+    queryKey: ["results", params],
+    queryFn: () => fetchResults(params),
     placeholderData: keepPreviousData,
-    staleTime: 5 * 60 * 1000,
+    staleTime: 60 * 1000,
   });
 }
 
@@ -112,6 +120,7 @@ export function useEnterMarks() {
     }) => enterMarksApi(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["marks"] });
+      queryClient.invalidateQueries({ queryKey: ["results"] });
     },
   });
 }
@@ -132,22 +141,19 @@ export function useEnterBulkMarks() {
     }) => enterBulkMarksApi(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["marks"] });
+      queryClient.invalidateQueries({ queryKey: ["results"] });
     },
   });
 }
 
-export function useCalculateResult() {
+export function useCalculateResults() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: {
-      examId: string;
-      studentId: string;
-      classId: string;
-      gradeConfig?: Record<string, any>;
-    }) => calculateResultApi(data),
+    mutationFn: (data: { examId: string; classId?: string }) =>
+      calculateResultsApi(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["marks"] });
+      queryClient.invalidateQueries({ queryKey: ["results"] });
     },
   });
 }
@@ -156,10 +162,11 @@ export function usePublishResults() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { examId: string; classId: string }) => publishResultsApi(data),
+    mutationFn: (data: { examId: string; classId?: string }) =>
+      publishResultsApi(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["marks"] });
       queryClient.invalidateQueries({ queryKey: ["results"] });
+      queryClient.invalidateQueries({ queryKey: ["marks"] });
     },
   });
 }

@@ -105,7 +105,7 @@ export function ContactSchooliat() {
             <div
               key={status}
               className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                statusFilter === status ? "border-green-500" : ""
+                statusFilter === status ? "border-primary" : ""
               }`}
               style={{ backgroundColor: config.bgColor }}
               onClick={() => setStatusFilter(statusFilter === status ? null : status)}
@@ -187,7 +187,7 @@ export function ContactSchooliat() {
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <span>{formatDate(grievance.createdAt)}</span>
                   {grievance.comments?.length > 0 && (
-                    <span className="text-green-600">
+                    <span className="text-primary">
                       {grievance.comments.length} replies
                     </span>
                   )}

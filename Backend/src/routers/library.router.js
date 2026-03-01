@@ -10,6 +10,7 @@ import issueBookSchema from "../schemas/library/issue-book.schema.js";
 import returnBookSchema from "../schemas/library/return-book.schema.js";
 import reserveBookSchema from "../schemas/library/reserve-book.schema.js";
 import getBooksSchema from "../schemas/library/get-books.schema.js";
+import getBookByIdSchema from "../schemas/library/get-book-by-id.schema.js";
 import getHistorySchema from "../schemas/library/get-history.schema.js";
 
 const router = Router();
@@ -42,6 +43,52 @@ router.post(
   },
 );
 
+// Bulk create books
+router.post(
+  "/books/bulk",
+  withPermission(Permission.CREATE_LIBRARY_BOOK),
+  async (req, res) => {
+    try {
+      const { books } = req.body.request;
+      const currentUser = req.context.user;
+
+      if (!Array.isArray(books) || books.length === 0) {
+        return res.status(400).json({
+          message: "Please provide an array of books",
+        });
+      }
+
+      const createdBooks = await prisma.libraryBook.createMany({
+        data: books.map((book) => ({
+          title: book.title,
+          author: book.author,
+          isbn: book.isbn || null,
+          publisher: book.publisher || null,
+          category: book.category || null,
+          description: book.description || null,
+          totalCopies: book.totalCopies ? parseInt(book.totalCopies) : 1,
+          availableCopies: book.totalCopies ? parseInt(book.totalCopies) : 1,
+          location: book.location || null,
+          language: book.language || "English",
+          publishedYear: book.publishedYear ? parseInt(book.publishedYear) : null,
+          schoolId: currentUser.schoolId,
+          createdBy: currentUser.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      return res.status(201).json({
+        message: `${createdBooks.count} books created successfully`,
+        data: { count: createdBooks.count },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk create books",
+      });
+    }
+  },
+);
+
 // Update book
 router.put(
   "/books/:id",
@@ -65,6 +112,35 @@ router.put(
     } catch (error) {
       return res.status(400).json({
         message: error.message || "Failed to update book",
+      });
+    }
+  },
+);
+
+// Get single book
+router.get(
+  "/books/:id",
+  withPermission(Permission.GET_LIBRARY_BOOKS),
+  validateRequest(getBookByIdSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const book = await libraryService.getBookById(currentUser.schoolId, id);
+      if (!book) {
+        return res.status(404).json({
+          message: "Book not found",
+        });
+      }
+
+      return res.status(200).json({
+        message: "Book fetched successfully",
+        data: book,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch book",
       });
     }
   },
@@ -102,6 +178,36 @@ router.get(
     } catch (error) {
       return res.status(400).json({
         message: error.message || "Failed to fetch books",
+      });
+    }
+  },
+);
+
+// Delete book (soft delete)
+router.delete(
+  "/books/:id",
+  withPermission(Permission.EDIT_LIBRARY_BOOK),
+  validateRequest(getBookByIdSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const book = await libraryService.getBookById(currentUser.schoolId, id);
+      if (!book) {
+        return res.status(404).json({
+          message: "Book not found",
+        });
+      }
+
+      await libraryService.deleteBook(id, currentUser.id);
+
+      return res.status(200).json({
+        message: "Book deleted successfully",
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to delete book",
       });
     }
   },
@@ -191,7 +297,7 @@ router.post(
   },
 );
 
-// Get library history
+// Get library history (school-wide when userId not provided and user has schoolId)
 router.get(
   "/history",
   withPermission(Permission.GET_LIBRARY_HISTORY),
@@ -201,13 +307,18 @@ router.get(
       const query = req.query;
       const currentUser = req.context.user;
 
-      const userId = query.userId || currentUser.id;
-
-      const result = await libraryService.getUserHistory(userId, {
+      const options = {
         page: query.page,
         limit: query.limit,
         status: query.status,
-      });
+      };
+
+      const result =
+        query.userId != null && query.userId !== ""
+          ? await libraryService.getUserHistory(query.userId, options)
+          : currentUser.schoolId
+            ? await libraryService.getSchoolHistory(currentUser.schoolId, options)
+            : await libraryService.getUserHistory(currentUser.id, options);
 
       return res.status(200).json({
         message: "Library history fetched successfully",
@@ -217,6 +328,35 @@ router.get(
     } catch (error) {
       return res.status(400).json({
         message: error.message || "Failed to fetch library history",
+      });
+    }
+  },
+);
+
+// Get pending returns (all ISSUED/OVERDUE for school)
+router.get(
+  "/pending-returns",
+  withPermission(Permission.GET_LIBRARY_HISTORY),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+
+      if (!currentUser.schoolId) {
+        return res.status(200).json({
+          message: "Pending returns fetched successfully",
+          data: [],
+        });
+      }
+
+      const issues = await libraryService.getPendingReturns(currentUser.schoolId);
+
+      return res.status(200).json({
+        message: "Pending returns fetched successfully",
+        data: issues,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch pending returns",
       });
     }
   },

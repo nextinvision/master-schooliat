@@ -13,6 +13,7 @@ import updateSchoolSchema from "../schemas/school/update-school.schema.js";
 import updateClassSchema from "../schemas/school/update-class.schema.js";
 import getSchoolsSchema from "../schemas/school/get-schools.schema.js";
 import getMySchoolSchema from "../schemas/school/get-my-school.schema.js";
+import updateMySchoolSchema from "../schemas/school/update-my-school.schema.js";
 import getClassesSchema from "../schemas/school/get-classes.schema.js";
 import deleteSchoolSchema from "../schemas/school/delete-school.schema.js";
 import deleteClassSchema from "../schemas/school/delete-class.schema.js";
@@ -93,7 +94,11 @@ router.get(
     }
 
     const schools = await prisma.school.findMany({
-      where,
+      where: {
+        ...where,
+        deletedAt: null,
+        deletedBy: null,
+      },
       select: {
         id: true,
         name: true,
@@ -102,10 +107,6 @@ router.get(
         phone: true,
         address: true,
         createdAt: true,
-      },
-      where: {
-        deletedAt: null,
-        deletedBy: null,
       },
     });
 
@@ -142,6 +143,7 @@ router.get(
   withPermission(Permission.GET_MY_SCHOOL),
   validateRequest(getMySchoolSchema),
   async (req, res) => {
+    const currentUser = req.context.user;
     const school = await prisma.school.findFirst({
       where: {
         id: currentUser.schoolId,
@@ -151,14 +153,89 @@ router.get(
       select: {
         id: true,
         name: true,
+        code: true,
         address: true,
+        email: true,
+        phone: true,
+        certificateLink: true,
+        logoId: true,
+        gstNumber: true,
+        principalName: true,
+        principalEmail: true,
+        principalPhone: true,
+        establishedYear: true,
+        boardAffiliation: true,
+        studentStrength: true,
+        bankName: true,
+        bankAccountNumber: true,
+        bankIfscCode: true,
+        bankBranchName: true,
+        upiId: true,
       },
     });
 
     return res.json({
       message: "School fetched!",
-      data: { ...school },
+      data: school ? { ...school } : null,
     });
+  },
+);
+
+// PATCH my-school: school admin updates their own school (requires EDIT_SETTINGS)
+router.patch(
+  "/my-school",
+  withPermission(Permission.EDIT_SETTINGS),
+  validateRequest(updateMySchoolSchema),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const updateData = req.body.request || {};
+
+    if (!currentUser.schoolId) {
+      return res.status(403).json({
+        message: "School context required to update school profile.",
+      });
+    }
+
+    const existingSchool = await prisma.school.findFirst({
+      where: {
+        id: currentUser.schoolId,
+        deletedAt: null,
+        deletedBy: null,
+      },
+    });
+
+    if (!existingSchool) {
+      return res.status(404).json({ message: "School not found!" });
+    }
+
+    const schoolUpdateData = {};
+    if (updateData.name !== undefined) schoolUpdateData.name = updateData.name;
+    if (updateData.code !== undefined) schoolUpdateData.code = updateData.code;
+    if (updateData.email !== undefined) schoolUpdateData.email = updateData.email;
+    if (updateData.phone !== undefined) schoolUpdateData.phone = updateData.phone;
+    if (updateData.address !== undefined) schoolUpdateData.address = updateData.address;
+    if (updateData.certificateLink !== undefined) schoolUpdateData.certificateLink = updateData.certificateLink;
+    if (updateData.gstNumber !== undefined) schoolUpdateData.gstNumber = updateData.gstNumber;
+    if (updateData.principalName !== undefined) schoolUpdateData.principalName = updateData.principalName;
+    if (updateData.principalEmail !== undefined) schoolUpdateData.principalEmail = updateData.principalEmail;
+    if (updateData.principalPhone !== undefined) schoolUpdateData.principalPhone = updateData.principalPhone;
+    if (updateData.establishedYear !== undefined) schoolUpdateData.establishedYear = updateData.establishedYear;
+    if (updateData.boardAffiliation !== undefined) schoolUpdateData.boardAffiliation = updateData.boardAffiliation;
+    if (updateData.studentStrength !== undefined) schoolUpdateData.studentStrength = updateData.studentStrength;
+    if (updateData.bankName !== undefined) schoolUpdateData.bankName = updateData.bankName;
+    if (updateData.bankAccountNumber !== undefined) schoolUpdateData.bankAccountNumber = updateData.bankAccountNumber;
+    if (updateData.bankIfscCode !== undefined) schoolUpdateData.bankIfscCode = updateData.bankIfscCode;
+    if (updateData.bankBranchName !== undefined) schoolUpdateData.bankBranchName = updateData.bankBranchName;
+    if (updateData.upiId !== undefined) schoolUpdateData.upiId = updateData.upiId;
+
+    schoolUpdateData.updatedBy = currentUser.id;
+
+    const updatedSchool = await prisma.school.update({
+      where: { id: currentUser.schoolId },
+      data: schoolUpdateData,
+    });
+
+    return res.json({ message: "School profile updated!", data: updatedSchool });
   },
 );
 
@@ -556,6 +633,74 @@ router.delete(
 
     return res.json({ message: "Class deleted!" });
   },
+);
+
+// Export students of a class
+router.get(
+  "/classes/:id/students/export",
+  withPermission(Permission.GET_CLASSES),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const classEntity = await prisma.class.findUnique({
+        where: { id, schoolId: currentUser.schoolId, deletedAt: null },
+      });
+
+      if (!classEntity) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+
+      const students = await prisma.user.findMany({
+        where: {
+          schoolId: currentUser.schoolId,
+          studentProfile: { classId: id },
+          deletedAt: null,
+        },
+        select: {
+          publicUserId: true,
+          firstName: true,
+          lastName: true,
+          contact: true,
+          email: true,
+          studentProfile: {
+            select: {
+              rollNumber: true,
+            },
+          },
+        },
+        orderBy: { studentProfile: { rollNumber: "asc" } },
+      });
+
+      // Simple CSV generation
+      const headers = ["Roll No", "ID", "First Name", "Last Name", "Contact", "Email"];
+      const rows = students.map((s) => [
+        s.studentProfile?.rollNumber || "",
+        s.publicUserId || "",
+        s.firstName,
+        s.lastName || "",
+        s.contact || "",
+        s.email,
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=class_${classEntity.grade}${classEntity.division ? "_" + classEntity.division : ""}_students.csv`
+      );
+      return res.send(csvContent);
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to export class data",
+      });
+    }
+  }
 );
 
 export default router;

@@ -45,17 +45,20 @@ function deleteGalleryApi(galleryId: string) {
   return del(`/gallery/${galleryId}`);
 }
 
-// Upload image to gallery
-function uploadImageApi(galleryId: string, data: {
-  imageId: string;
-  caption?: string;
-}) {
-  return post(`/gallery/${galleryId}/images`, { request: data });
+// Upload image to gallery (backend: POST /gallery/images with body { request: { galleryId, fileId, caption?, ... } })
+function uploadImageApi(galleryId: string, data: { imageId: string; caption?: string }) {
+  return post("/gallery/images", {
+    request: {
+      galleryId,
+      fileId: data.imageId,
+      caption: data.caption ?? undefined,
+    },
+  });
 }
 
-// Delete image from gallery
-function deleteImageApi(galleryId: string, imageId: string) {
-  return del(`/gallery/${galleryId}/images/${imageId}`);
+// Delete image from gallery (backend: DELETE /gallery/images/:id)
+function deleteImageApi(_galleryId: string, imageId: string) {
+  return del(`/gallery/images/${imageId}`);
 }
 
 // Hooks

@@ -1,5 +1,6 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
+import { parsePagination } from "../utils/pagination.util.js";
 
 /**
  * Create note
@@ -74,8 +75,14 @@ const updateNote = async (noteId, data) => {
  * @returns {Promise<Object>} - Notes with pagination
  */
 const getNotes = async (schoolId, filters = {}, options = {}) => {
-  const { page = 1, limit = 20 } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
+
+  if (!schoolId) {
+    return {
+      notes: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 
   const where = {
     schoolId,
@@ -105,27 +112,31 @@ const getNotes = async (schoolId, filters = {}, options = {}) => {
     };
   }
 
-  const [notes, total] = await Promise.all([
-    prisma.note.findMany({
-      where,
-      orderBy: {
-        createdAt: "desc",
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.note.count({ where }),
-  ]);
-
-  return {
-    notes,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+  try {
+    const [notes, total] = await Promise.all([
+      prisma.note.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: {
+          subject: { select: { name: true } },
+          class: { select: { grade: true, division: true } },
+        },
+      }),
+      prisma.note.count({ where }),
+    ]);
+    return {
+      notes,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId }, "notes getNotes failed");
+    return {
+      notes: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 };
 
 /**
@@ -201,8 +212,14 @@ const updateSyllabus = async (syllabusId, data) => {
  * @returns {Promise<Object>} - Syllabus with pagination
  */
 const getSyllabus = async (schoolId, filters = {}, options = {}) => {
-  const { page = 1, limit = 20 } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
+
+  if (!schoolId) {
+    return {
+      syllabus: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 
   const where = {
     schoolId,
@@ -230,6 +247,10 @@ const getSyllabus = async (schoolId, filters = {}, options = {}) => {
       },
       skip,
       take: limit,
+      include: {
+        subject: { select: { name: true } },
+        class: { select: { grade: true, division: true } },
+      },
     }),
     prisma.syllabus.count({ where }),
   ]);

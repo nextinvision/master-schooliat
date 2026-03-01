@@ -1,7 +1,15 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
+import { parsePagination } from "../utils/pagination.util.js";
 import pkg from "../prisma/generated/index.js";
-const { GalleryPrivacy } = pkg;
+const { GalleryPrivacy } = pkg || {};
+
+// Fallback if GalleryPrivacy enum doesn't exist
+const PrivacyEnum = GalleryPrivacy || {
+  PUBLIC: "PUBLIC",
+  PRIVATE: "PRIVATE",
+  SCHOOL_ONLY: "SCHOOL_ONLY",
+};
 
 /**
  * Create gallery
@@ -13,7 +21,7 @@ const createGallery = async (data) => {
     title,
     description = null,
     eventId = null,
-    privacy = GalleryPrivacy.PUBLIC,
+    privacy = PrivacyEnum.PUBLIC,
     classId = null,
     schoolId,
     createdBy,
@@ -63,8 +71,7 @@ const updateGallery = async (galleryId, data) => {
  * @returns {Promise<Object>} - Galleries with pagination
  */
 const getGalleries = async (schoolId, filters = {}, options = {}) => {
-  const { page = 1, limit = 20 } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
 
   const where = {
     schoolId,

@@ -8,25 +8,49 @@ import {
 import roleService from "./role.service.js";
 import dateUtil from "../utils/date.util.js";
 import cacheService from "./cache.service.js";
+import logger from "../config/logger.js";
 
 const getDashboard = async (currentUser) => {
-  const roleName = currentUser?.role?.name;
+  try {
+    const roleName = currentUser?.role?.name;
 
-  if (roleName === RoleName.SUPER_ADMIN) {
-    return await getSuperAdminDashboard();
-  } else if (roleName === RoleName.SCHOOL_ADMIN) {
-    return await getSchoolAdminDashboard(currentUser);
-  } else if (roleName === RoleName.TEACHER) {
-    return await getTeacherDashboard(currentUser);
-  } else if (roleName === RoleName.STAFF) {
-    return await getStaffDashboard(currentUser);
-  } else if (roleName === RoleName.STUDENT) {
-    return await getStudentDashboard(currentUser);
-  } else if (roleName === RoleName.PARENT) {
-    return await getParentDashboard(currentUser);
+    if (roleName === RoleName.SUPER_ADMIN) {
+      return await getSuperAdminDashboard();
+    }
+    if (roleName === RoleName.SCHOOL_ADMIN) {
+      return await getSchoolAdminDashboard(currentUser);
+    }
+    if (roleName === RoleName.TEACHER) {
+      return await getTeacherDashboard(currentUser);
+    }
+    if (roleName === RoleName.STAFF) {
+      return await getStaffDashboard(currentUser);
+    }
+    if (roleName === RoleName.STUDENT) {
+      return await getStudentDashboard(currentUser);
+    }
+    if (roleName === RoleName.PARENT) {
+      return await getParentDashboard(currentUser);
+    }
+    if (roleName === RoleName.EMPLOYEE) {
+      return await getEmployeeDashboard(currentUser);
+    }
+
+    // Unknown role or missing role - return fallback for school admin if we have schoolId
+    if (currentUser?.schoolId) {
+      return await getSchoolAdminDashboardFallback(currentUser.schoolId);
+    }
+    return {};
+  } catch (err) {
+    logger.error(
+      { err: err.message, stack: err.stack, userId: currentUser?.id, schoolId: currentUser?.schoolId },
+      "getDashboard failed",
+    );
+    if (currentUser?.schoolId) {
+      return await getSchoolAdminDashboardFallback(currentUser.schoolId);
+    }
+    return {};
   }
-
-  return {};
 };
 
 const getSuperAdminDashboard = async () => {
@@ -134,22 +158,92 @@ const getSchoolAdminDashboard = async (currentUser) => {
 
   // Cache dashboard per school for 5 minutes
   const cacheKey = `dashboard:school_admin:${schoolId}`;
-  return await cacheService.getOrSet(
-    cacheKey,
-    async () => {
-      return await getSchoolAdminDashboardData(currentUser, schoolId);
+  try {
+    return await cacheService.getOrSet(
+      cacheKey,
+      async () => {
+        return await getSchoolAdminDashboardData(currentUser, schoolId);
+      },
+      5 * 60 * 1000, // 5 minutes TTL
+    );
+  } catch (err) {
+    logger.error(
+      { err: err.message, stack: err.stack, schoolId, userId: currentUser?.id },
+      "Dashboard cache/get failed, returning safe fallback",
+    );
+    return getSchoolAdminDashboardFallback(schoolId);
+  }
+};
+
+/**
+ * Return a safe fallback dashboard when getSchoolAdminDashboardData fails (e.g. 500).
+ * Fetches only school name/code so the UI can still render.
+ */
+const getSchoolAdminDashboardFallback = async (schoolId) => {
+  let school = { id: schoolId, name: "School", code: "", address: [] };
+  try {
+    const s = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { id: true, name: true, code: true, address: true },
+    });
+    if (s) {
+      school = {
+        id: s.id,
+        name: s.name || "School",
+        code: s.code || "",
+        address: Array.isArray(s.address) ? s.address : [],
+      };
+    }
+  } catch (e) {
+    logger.warn({ schoolId, err: e.message }, "Fallback: could not load school");
+  }
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1;
+  const currentYear = currentDate.getFullYear();
+  return {
+    school,
+    userCounts: {
+      students: { total: 0, boys: 0, girls: 0 },
+      teachers: 0,
+      staff: 0,
     },
-    5 * 60 * 1000, // 5 minutes TTL
-  );
+    installments: {
+      currentYear,
+      currentInstallmentNumber: 1,
+      paid: 0,
+      pending: 0,
+      partiallyPaid: 0,
+      total: 0,
+    },
+    financial: {
+      totalIncome: 0,
+      totalSalary: 0,
+      incomeChangePercent: "+0",
+      salaryChangePercent: "+0",
+      monthlyEarnings: Array.from({ length: 12 }, (_, i) => ({
+        month: new Date(currentYear, i, 1).toLocaleString("default", { month: "short" }),
+        income: 0,
+        expense: 0,
+      })),
+    },
+    calendar: { events: [], currentMonth, currentYear },
+    notices: [],
+  };
 };
 
 const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
-
-  // Get role IDs
+  // Get role IDs with null checks
   const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
   const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
   const staffRole = await roleService.getRoleByName(RoleName.STAFF);
 
+  // Validate roles exist - return fallback instead of throwing so admin still sees a page
+  if (!studentRole || !teacherRole || !staffRole) {
+    logger.warn({ schoolId }, "Dashboard: required roles not found, returning fallback");
+    return getSchoolAdminDashboardFallback(schoolId);
+  }
+
+  try {
   // Get current month date range
   const currentDate = new Date();
   const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
@@ -160,16 +254,21 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
   );
   const lastDayOfMonth = dateUtil.getLastDayOfMonth(currentMonth, currentYear);
 
-  // Get school settings to fetch current installment number
-  const schoolSettings = await prisma.settings.findFirst({
-    where: {
-      schoolId,
-      deletedAt: null,
-    },
-  });
+  // Get school settings to fetch current installment number (resilient to missing columns e.g. platform_config)
+  let schoolSettings = null;
+  try {
+    schoolSettings = await prisma.settings.findFirst({
+      where: {
+        schoolId,
+        deletedAt: null,
+      },
+    });
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId }, "Dashboard: could not load settings, using defaults");
+  }
 
   const currentInstallmentNumber =
-    schoolSettings?.currentInstallmentNumber || 1;
+    schoolSettings?.currentInstallmentNumber ?? 1;
 
   // Get fee IDs for the current year
   const currentYearFees = await prisma.fee.findMany({
@@ -186,6 +285,16 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
   // Get start and end of current year for financial calculations
   const firstDayOfYear = new Date(currentYear, 0, 1);
   const lastDayOfYear = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+
+  // Build fee filter - if no fees exist, we need to handle this differently
+  // Prisma doesn't handle empty arrays in `in` filters well, so we conditionally add the filter
+  const buildFeeFilter = (baseWhere) => {
+    if (currentYearFeeIds.length > 0) {
+      return { ...baseWhere, feeId: { in: currentYearFeeIds } };
+    }
+    // If no fees exist, return a filter that matches nothing (using an impossible condition)
+    return { ...baseWhere, feeId: { in: ["00000000-0000-0000-0000-000000000000"] } };
+  };
 
   // Get counts for the school
   const [
@@ -279,40 +388,36 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
       take: 5,
     }),
     prisma.feeInstallements.count({
-      where: {
+      where: buildFeeFilter({
         schoolId,
         installementNumber: currentInstallmentNumber,
         paymentStatus: FeePaymentStatus.PAID,
         deletedAt: null,
-        feeId: { in: currentYearFeeIds },
-      },
+      }),
     }),
     prisma.feeInstallements.count({
-      where: {
+      where: buildFeeFilter({
         schoolId,
         installementNumber: currentInstallmentNumber,
         paymentStatus: FeePaymentStatus.PENDING,
         deletedAt: null,
-        feeId: { in: currentYearFeeIds },
-      },
+      }),
     }),
     prisma.feeInstallements.count({
-      where: {
+      where: buildFeeFilter({
         schoolId,
         installementNumber: currentInstallmentNumber,
         paymentStatus: FeePaymentStatus.PARTIALLY_PAID,
         deletedAt: null,
-        feeId: { in: currentYearFeeIds },
-      },
+      }),
     }),
     // Total fee income for current year (sum of all paid amounts)
     prisma.feeInstallements.aggregate({
-      where: {
+      where: buildFeeFilter({
         schoolId,
         paymentStatus: { in: [FeePaymentStatus.PAID, FeePaymentStatus.PARTIALLY_PAID] },
         deletedAt: null,
-        feeId: { in: currentYearFeeIds },
-      },
+      }),
       _sum: {
         paidAmount: true,
       },
@@ -355,8 +460,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     }),
   ]);
 
-  const totalIncome = Number(totalFeeIncome._sum.paidAmount || 0);
-  const totalSalary = Number(totalSalaryDistributed._sum.totalAmount || 0);
+  const totalIncome = Number(totalFeeIncome._sum?.paidAmount || 0);
+  const totalSalary = Number(totalSalaryDistributed._sum?.totalAmount || 0);
   
   // Calculate monthly earnings separately (to avoid complex async in Promise.all)
   const monthlyEarningsData = [];
@@ -368,16 +473,15 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     const [income, expense] = await Promise.all([
       // Income from fees
       prisma.feeInstallements.aggregate({
-        where: {
+        where: buildFeeFilter({
           schoolId,
           paymentStatus: { in: [FeePaymentStatus.PAID, FeePaymentStatus.PARTIALLY_PAID] },
           deletedAt: null,
-          feeId: { in: currentYearFeeIds },
           updatedAt: {
             gte: monthStart,
             lte: monthEnd,
           },
-        },
+        }),
         _sum: {
           paidAmount: true,
         },
@@ -400,8 +504,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     
     monthlyEarningsData.push({
       month: monthDate.toLocaleString('default', { month: 'short' }),
-      income: Number(income._sum.paidAmount || 0),
-      expense: Number(expense._sum.totalAmount || 0),
+      income: Number(income._sum?.paidAmount || 0),
+      expense: Number(expense._sum?.totalAmount || 0),
     });
   }
   
@@ -415,39 +519,60 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     ? ((totalSalary - previousYearSalary) / previousYearSalary * 100).toFixed(1)
     : "0";
 
+  // Validate school exists - return fallback instead of throwing so UI still loads
+  if (!school) {
+    logger.warn({ schoolId }, "Dashboard: school not found, returning fallback");
+    return getSchoolAdminDashboardFallback(schoolId);
+  }
+
+  const schoolAddress = school.address;
+  const safeAddress = Array.isArray(schoolAddress) ? schoolAddress : [];
+
   return {
-    school,
+    school: {
+      id: school.id,
+      name: school.name || "Unknown School",
+      code: school.code || "",
+      address: safeAddress,
+    },
     userCounts: {
       students: {
-        total: totalStudents,
-        boys: totalStudentsBoys,
-        girls: totalStudentsGirls,
+        total: totalStudents || 0,
+        boys: totalStudentsBoys || 0,
+        girls: totalStudentsGirls || 0,
       },
-      teachers: totalTeachers,
-      staff: totalStaff,
+      teachers: totalTeachers || 0,
+      staff: totalStaff || 0,
     },
     installments: {
       currentYear,
       currentInstallmentNumber,
-      paid: paidInstallments,
-      pending: pendingInstallments,
-      partiallyPaid: partialPaidInstallments,
-      total: paidInstallments + pendingInstallments + partialPaidInstallments,
+      paid: paidInstallments || 0,
+      pending: pendingInstallments || 0,
+      partiallyPaid: partialPaidInstallments || 0,
+      total: (paidInstallments || 0) + (pendingInstallments || 0) + (partialPaidInstallments || 0),
     },
     financial: {
-      totalIncome,
-      totalSalary,
+      totalIncome: totalIncome || 0,
+      totalSalary: totalSalary || 0,
       incomeChangePercent: `+${incomeChangePercent}`,
       salaryChangePercent: `+${salaryChangePercent}`,
-      monthlyEarnings: monthlyEarningsData,
+      monthlyEarnings: monthlyEarningsData || [],
     },
     calendar: {
-      events: calendarEvents,
+      events: calendarEvents || [],
       currentMonth,
       currentYear,
     },
-    notices,
+    notices: notices || [],
   };
+  } catch (err) {
+    logger.error(
+      { err: err.message, stack: err.stack, schoolId, userId: currentUser?.id },
+      "Dashboard getSchoolAdminDashboardData failed",
+    );
+    return getSchoolAdminDashboardFallback(schoolId);
+  }
 };
 
 // Teacher Dashboard
@@ -555,20 +680,70 @@ const getTeacherDashboardData = async (schoolId, teacherId) => {
         submittedAt: "desc",
       },
     }),
-    prisma.exam.findMany({
-      where: {
-        schoolId,
-        startDate: { gte: currentDate },
-        deletedAt: null,
-      },
-      include: {
-        examCalendar: true,
-      },
-      take: 5,
-      orderBy: {
-        startDate: "asc",
-      },
-    }),
+    // Get exams with upcoming dates from exam calendar items
+    (async () => {
+      // First, find exam calendar items with upcoming dates
+      const upcomingItems = await prisma.examCalendarItem.findMany({
+        where: {
+          date: { gte: currentDate },
+          deletedAt: null,
+        },
+        select: {
+          examCalendarId: true,
+        },
+        take: 50, // Get enough to find unique calendars
+      });
+      
+      const examCalendarIds = [...new Set(upcomingItems.map(item => item.examCalendarId))];
+      
+      if (examCalendarIds.length === 0) {
+        return [];
+      }
+      
+      // Get exam calendars
+      const upcomingExamCalendars = await prisma.examCalendar.findMany({
+        where: {
+          id: { in: examCalendarIds },
+          schoolId,
+          deletedAt: null,
+        },
+        take: 5,
+      });
+      
+      // Fetch exam calendar items for these calendars
+      const calendarItemMap = new Map();
+      for (const ec of upcomingExamCalendars) {
+        const items = await prisma.examCalendarItem.findMany({
+          where: {
+            examCalendarId: ec.id,
+            deletedAt: null,
+          },
+          orderBy: {
+            date: "asc",
+          },
+        });
+        calendarItemMap.set(ec.id, items);
+      }
+      
+      // Fetch exams separately since there's no relation defined
+      const examIds = [...new Set(upcomingExamCalendars.map(ec => ec.examId))];
+      const exams = await prisma.exam.findMany({
+        where: {
+          id: { in: examIds },
+        },
+      });
+      
+      const examMap = new Map(exams.map(e => [e.id, e]));
+      
+      return upcomingExamCalendars.map(ec => ({
+        ...examMap.get(ec.examId),
+        examCalendar: {
+          ...ec,
+          examCalendarItems: calendarItemMap.get(ec.id) || [],
+          examId: undefined, // Remove redundant field
+        },
+      })).filter(e => e.id); // Filter out any exams that weren't found
+    })(),
     prisma.notice.findMany({
       where: {
         schoolId,
@@ -736,20 +911,70 @@ const getStudentDashboardData = async (schoolId, studentId) => {
         },
       },
     }),
-    prisma.exam.findMany({
-      where: {
-        schoolId,
-        startDate: { gte: currentDate },
-        deletedAt: null,
-      },
-      include: {
-        examCalendar: true,
-      },
-      take: 5,
-      orderBy: {
-        startDate: "asc",
-      },
-    }),
+    // Get exams with upcoming dates from exam calendar items
+    (async () => {
+      // First, find exam calendar items with upcoming dates
+      const upcomingItems = await prisma.examCalendarItem.findMany({
+        where: {
+          date: { gte: currentDate },
+          deletedAt: null,
+        },
+        select: {
+          examCalendarId: true,
+        },
+        take: 50, // Get enough to find unique calendars
+      });
+      
+      const examCalendarIds = [...new Set(upcomingItems.map(item => item.examCalendarId))];
+      
+      if (examCalendarIds.length === 0) {
+        return [];
+      }
+      
+      // Get exam calendars
+      const upcomingExamCalendars = await prisma.examCalendar.findMany({
+        where: {
+          id: { in: examCalendarIds },
+          schoolId,
+          deletedAt: null,
+        },
+        take: 5,
+      });
+      
+      // Fetch exam calendar items for these calendars
+      const calendarItemMap = new Map();
+      for (const ec of upcomingExamCalendars) {
+        const items = await prisma.examCalendarItem.findMany({
+          where: {
+            examCalendarId: ec.id,
+            deletedAt: null,
+          },
+          orderBy: {
+            date: "asc",
+          },
+        });
+        calendarItemMap.set(ec.id, items);
+      }
+      
+      // Fetch exams separately since there's no relation defined
+      const examIds = [...new Set(upcomingExamCalendars.map(ec => ec.examId))];
+      const exams = await prisma.exam.findMany({
+        where: {
+          id: { in: examIds },
+        },
+      });
+      
+      const examMap = new Map(exams.map(e => [e.id, e]));
+      
+      return upcomingExamCalendars.map(ec => ({
+        ...examMap.get(ec.examId),
+        examCalendar: {
+          ...ec,
+          examCalendarItems: calendarItemMap.get(ec.id) || [],
+          examId: undefined, // Remove redundant field
+        },
+      })).filter(e => e.id); // Filter out any exams that weren't found
+    })(),
     prisma.result.findMany({
       where: {
         studentId,
@@ -804,12 +1029,9 @@ const getStudentDashboardData = async (schoolId, studentId) => {
         paymentStatus: { in: ["PENDING", "PARTIALLY_PAID"] },
         deletedAt: null,
       },
-      include: {
-        fee: true,
-      },
       take: 5,
       orderBy: {
-        dueDate: "asc",
+        installementNumber: "asc",
       },
     }),
   ]);
@@ -846,6 +1068,278 @@ const getParentDashboard = async (currentUser) => {
   );
 };
 
+// Employee Dashboard
+const getEmployeeDashboard = async (currentUser) => {
+  const employeeId = currentUser?.id;
+
+  if (!employeeId) {
+    return {};
+  }
+
+  const cacheKey = `dashboard:employee:${employeeId}`;
+  return await cacheService.getOrSet(
+    cacheKey,
+    async () => {
+      return await getEmployeeDashboardData();
+    },
+    5 * 60 * 1000, // 5 minutes TTL
+  );
+};
+
+const getEmployeeDashboardData = async () => {
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth() + 1;
+  const currentYear = currentDate.getFullYear();
+  const firstDayOfMonth = dateUtil.getFirstDayOfMonth(currentMonth, currentYear);
+  const lastDayOfMonth = dateUtil.getLastDayOfMonth(currentMonth, currentYear);
+
+  // Get role IDs for statistics
+  const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
+  const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+  const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+
+  const [
+    totalSchools,
+    activeLicenses,
+    expiringLicenses,
+    expiredLicenses,
+    totalVendors,
+    recentSchools,
+    recentLicenses,
+    recentReceipts,
+    monthlyRevenue,
+    totalRevenue,
+    licenseStatistics,
+  ] = await Promise.all([
+    // Total schools count
+    prisma.school.count({
+      where: { deletedAt: null },
+    }),
+    // Active licenses count
+    prisma.license.count({
+      where: {
+        status: "ACTIVE",
+        deletedAt: null,
+      },
+    }),
+    // Expiring soon licenses (within 30 days)
+    prisma.license.count({
+      where: {
+        status: "EXPIRING_SOON",
+        deletedAt: null,
+      },
+    }),
+    // Expired licenses count
+    prisma.license.count({
+      where: {
+        status: "EXPIRED",
+        deletedAt: null,
+      },
+    }),
+    // Total vendors count
+    prisma.vendor.count({
+      where: { deletedAt: null },
+    }),
+    // Recent schools (last 5)
+    prisma.school.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        email: true,
+        phone: true,
+        address: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    }),
+    // Recent licenses (last 5)
+    prisma.license.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        issuer: true,
+        issueDate: true,
+        expiryDate: true,
+        status: true,
+        certificateNumber: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 5,
+    }),
+    // Recent receipts (last 10)
+    prisma.receipt.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        receiptNumber: true,
+        schoolId: true,
+        baseAmount: true,
+        amount: true,
+        paymentMethod: true,
+        createdAt: true,
+        school: {
+          select: {
+            id: true,
+            name: true,
+            code: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+      take: 10,
+    }),
+    // Monthly revenue (current month)
+    prisma.receipt.aggregate({
+      where: {
+        createdAt: {
+          gte: firstDayOfMonth,
+          lte: lastDayOfMonth,
+        },
+        deletedAt: null,
+      },
+      _sum: {
+        amount: true,
+      },
+      _count: {
+        id: true,
+      },
+    }),
+    // Total revenue (all time)
+    prisma.receipt.aggregate({
+      where: { deletedAt: null },
+      _sum: {
+        amount: true,
+      },
+      _count: {
+        id: true,
+      },
+    }),
+    // License statistics by status
+    prisma.license.groupBy({
+      by: ["status"],
+      where: { deletedAt: null },
+      _count: {
+        id: true,
+      },
+    }),
+  ]);
+
+  // Calculate student and staff counts for recent schools
+  const recentSchoolIds = recentSchools.map((school) => school.id);
+  const [studentCounts, teacherCounts, staffCounts] = await Promise.all([
+    recentSchoolIds.length > 0
+      ? prisma.user.groupBy({
+          by: ["schoolId"],
+          where: {
+            schoolId: { in: recentSchoolIds },
+            roleId: studentRole?.id,
+            userType: UserType.SCHOOL,
+            deletedAt: null,
+          },
+          _count: {
+            _all: true,
+          },
+        })
+      : [],
+    recentSchoolIds.length > 0
+      ? prisma.user.groupBy({
+          by: ["schoolId"],
+          where: {
+            schoolId: { in: recentSchoolIds },
+            roleId: teacherRole?.id,
+            userType: UserType.SCHOOL,
+            deletedAt: null,
+          },
+          _count: {
+            _all: true,
+          },
+        })
+      : [],
+    recentSchoolIds.length > 0
+      ? prisma.user.groupBy({
+          by: ["schoolId"],
+          where: {
+            schoolId: { in: recentSchoolIds },
+            roleId: staffRole?.id,
+            userType: UserType.SCHOOL,
+            deletedAt: null,
+          },
+          _count: {
+            _all: true,
+          },
+        })
+      : [],
+  ]);
+
+  // Create maps for O(1) lookup
+  const studentCountMap = new Map(
+    studentCounts.map((item) => [item.schoolId, item._count._all]),
+  );
+  const teacherCountMap = new Map(
+    teacherCounts.map((item) => [item.schoolId, item._count._all]),
+  );
+  const staffCountMap = new Map(
+    staffCounts.map((item) => [item.schoolId, item._count._all]),
+  );
+
+  // Enhance recent schools with statistics
+  const recentSchoolsWithStats = recentSchools.map((school) => ({
+    ...school,
+    studentCount: studentCountMap.get(school.id) || 0,
+    teacherCount: teacherCountMap.get(school.id) || 0,
+    staffCount: staffCountMap.get(school.id) || 0,
+    status: "Active",
+  }));
+
+  // Calculate license statistics summary
+  const licenseStatsMap = new Map(
+    licenseStatistics.map((stat) => [stat.status, stat._count.id]),
+  );
+
+  return {
+    // Overview statistics
+    totalSchools,
+    totalVendors,
+    totalLicenses: activeLicenses + expiringLicenses + expiredLicenses,
+    activeLicenses,
+    expiringLicenses,
+    expiredLicenses,
+    // License statistics breakdown
+    licenseStatistics: {
+      active: licenseStatsMap.get("ACTIVE") || 0,
+      expiringSoon: licenseStatsMap.get("EXPIRING_SOON") || 0,
+      expired: licenseStatsMap.get("EXPIRED") || 0,
+    },
+    // Financial statistics
+    revenue: {
+      monthly: {
+        amount: monthlyRevenue._sum.amount ? Number(monthlyRevenue._sum.amount) : 0,
+        receiptCount: monthlyRevenue._count.id || 0,
+        period: `${currentMonth}/${currentYear}`,
+      },
+      total: {
+        amount: totalRevenue._sum.amount ? Number(totalRevenue._sum.amount) : 0,
+        receiptCount: totalRevenue._count.id || 0,
+      },
+    },
+    // Recent data
+    recentSchools: recentSchoolsWithStats,
+    recentLicenses,
+    recentReceipts,
+  };
+};
+
 // Invalidate dashboard cache when data changes
 const invalidateDashboardCache = async (schoolId = null, userId = null, roleName = null) => {
   if (schoolId) {
@@ -867,6 +1361,7 @@ const dashboardService = {
   getStaffDashboard,
   getStudentDashboard,
   getParentDashboard,
+  getEmployeeDashboard,
   invalidateDashboardCache,
 };
 

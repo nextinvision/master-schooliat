@@ -67,7 +67,7 @@ export function HomeworkTable({
       return <Badge variant="destructive">Overdue</Badge>;
     }
     if (homework.submissionCount === homework.totalStudents) {
-      return <Badge className="bg-green-500 hover:bg-green-600">All Submitted</Badge>;
+      return <Badge className="bg-primary hover:bg-schooliat-primary-dark">All Submitted</Badge>;
     }
     return <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending</Badge>;
   };
@@ -98,7 +98,7 @@ export function HomeworkTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-16">No</TableHead>
                 <TableHead>Title</TableHead>
                 <TableHead>Subject</TableHead>

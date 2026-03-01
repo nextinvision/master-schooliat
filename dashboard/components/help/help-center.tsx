@@ -88,14 +88,14 @@ export function HelpCenter() {
         {/* Quick Actions */}
         <div className="space-y-4">
           <div className="p-4 border rounded-lg">
-            <BookOpen className="w-6 h-6 text-blue-600 mb-2" />
+            <BookOpen className="w-6 h-6 text-primary mb-2" />
             <h3 className="font-semibold">Documentation</h3>
             <p className="text-sm text-gray-600">
               Browse our comprehensive documentation
             </p>
           </div>
           <div className="p-4 border rounded-lg">
-            <MessageSquare className="w-6 h-6 text-green-600 mb-2" />
+            <MessageSquare className="w-6 h-6 text-primary mb-2" />
             <h3 className="font-semibold">Support</h3>
             <p className="text-sm text-gray-600">
               Contact our support team for assistance
@@ -111,7 +111,7 @@ export function HelpCenter() {
               {faqs.map((faq, index) => (
                 <div key={index} className="border-b pb-4 last:border-0">
                   <div className="flex items-start gap-2 mb-2">
-                    <HelpCircle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <HelpCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                     <h4 className="font-semibold">{faq.question}</h4>
                   </div>
                   <p className="text-sm text-gray-600 ml-7">{faq.answer}</p>

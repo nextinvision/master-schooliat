@@ -32,11 +32,51 @@ export function useSchools(search?: string) {
   });
 }
 
+export function useSchool(id: string) {
+  return useQuery({
+    queryKey: ["school", id],
+    queryFn: async () => {
+      // Get school from list and find by ID
+      const response = await get("/schools");
+      const schools = response?.data || [];
+      return schools.find((s: School) => s.id === id) || null;
+    },
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useCreateSchool() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (formData: CreateSchoolData) =>
       post("/schools", { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schools"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+      queryClient.invalidateQueries({ queryKey: ["schoolStatistics"] });
+    },
+  });
+}
+
+export function useUpdateSchool() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateSchoolData>) =>
+      patch(`/schools/${id}`, { request: formData }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["schools"] });
+      queryClient.invalidateQueries({ queryKey: ["school", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+      queryClient.invalidateQueries({ queryKey: ["schoolStatistics"] });
+    },
+  });
+}
+
+export function useDeleteSchool() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/schools/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
@@ -232,8 +272,18 @@ export interface School {
   email: string;
   phone: string;
   address: string[];
-  status: string;
+  status?: string;
   createdAt: string;
+  userCount?: number;
+  gstNumber?: string;
+  principalName?: string;
+  principalEmail?: string;
+  principalPhone?: string;
+  establishedYear?: number;
+  boardAffiliation?: string;
+  studentStrength?: number;
+  certificateLink?: string;
+  regionId?: string;
 }
 
 export interface CreateSchoolData {
@@ -388,4 +438,172 @@ export interface GenerateLetterheadData {
   date: string;
   signatureName?: string | null;
   signatureDesignation?: string | null;
+}
+
+// Locations
+export function useLocations(params?: { employeeId?: string; regionId?: string }) {
+  return useQuery({
+    queryKey: ["locations", params],
+    queryFn: () => get("/locations", params),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formData: CreateLocationData) =>
+      post("/locations", { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+    },
+  });
+}
+
+export function useUpdateLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateLocationData>) =>
+      patch(`/locations/${id}`, { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+    },
+  });
+}
+
+export function useDeleteLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/locations/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["locations"] });
+    },
+  });
+}
+
+export function useUpdateRegion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<{ name: string }>) =>
+      patch(`/regions/${id}`, { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regions"] });
+    },
+  });
+}
+
+export function useDeleteRegion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/regions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["regions"] });
+    },
+  });
+}
+
+// Templates
+export function useTemplates(type?: string) {
+  return useQuery({
+    queryKey: ["templates", type],
+    queryFn: () => get("/templates", type ? { type } : {}),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useTemplateDefaults(templateId: string) {
+  return useQuery({
+    queryKey: ["templateDefaults", templateId],
+    queryFn: () => get(`/templates/${templateId}/default`),
+    enabled: !!templateId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// Audit Logs
+export function useAuditLogs(params?: {
+  userId?: string;
+  action?: string;
+  entityType?: string;
+  entityId?: string;
+  result?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}) {
+  return useQuery({
+    queryKey: ["auditLogs", params],
+    queryFn: async () => {
+      // Filter out empty values to avoid sending empty query params
+      const cleanParams: Record<string, any> = {};
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            cleanParams[key] = value;
+          }
+        });
+      }
+      return get("/audit", cleanParams);
+    },
+    staleTime: 30 * 1000,
+  });
+}
+
+// System Health
+export function useSystemHealth() {
+  return useQuery({
+    queryKey: ["systemHealth"],
+    queryFn: () => get("/health"),
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 10 * 1000,
+  });
+}
+
+// Types
+export interface Location {
+  id: string;
+  name: string;
+  regionId: string;
+  region?: Region;
+  employeeId?: string;
+  employee?: Employee;
+  createdAt: string;
+}
+
+export interface CreateLocationData {
+  name: string;
+  regionId: string;
+  employeeId: string;
+}
+
+export interface Template {
+  id: string;
+  name: string;
+  type: string;
+  description?: string;
+  imageId?: string;
+  imageUrl?: string;
+  sampleId?: string;
+  sampleUrl?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  userId: string;
+  user?: {
+    id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  action: string;
+  entityType: string;
+  entityId?: string;
+  result: "SUCCESS" | "FAILURE";
+  ipAddress?: string;
+  userAgent?: string;
+  changes?: Record<string, any>;
+  errorMessage?: string;
+  timestamp: string; // Backend uses 'timestamp' not 'createdAt'
 }

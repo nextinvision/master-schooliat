@@ -1,23 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Fee Receipt</title>
     <link rel="stylesheet" href="styles.css">
 </head>
+
 <body>
     <div class="receipt-container">
         <div class="receipt">
             <!-- Header Section -->
             <div class="header">
                 <div class="logo-container">
-                    <img src="{{school.logoSrc}}" alt="School Logo" class="logo-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <img src="{{school.logoSrc}}" alt="School Logo" class="logo-image"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                     <div class="logo-fallback" style="display: none;">
                         <svg class="logo-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
+                            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" />
                         </svg>
                     </div>
                 </div>
@@ -89,6 +95,10 @@
                             <td>Fee Installment {{payment.installmentNumber}}</td>
                             <td class="text-right">{{payment.installmentAmount}}</td>
                         </tr>
+                        <tr>
+                            <td><strong>Payment Method</strong></td>
+                            <td class="text-right"><strong>{{payment.method}}</strong></td>
+                        </tr>
                         <tr class="payment-row">
                             <td><strong>Amount Paid</strong></td>
                             <td class="text-right"><strong>{{payment.amountPaid}}</strong></td>
@@ -143,4 +153,5 @@
         </div>
     </div>
 </body>
+
 </html>

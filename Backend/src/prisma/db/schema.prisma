@@ -30,6 +30,10 @@ enum Permission {
   GET_TEACHERS
   EDIT_TEACHER
   DELETE_TEACHER
+  CREATE_STAFF
+  GET_STAFF
+  EDIT_STAFF
+  DELETE_STAFF
   CREATE_CLASSES
   GET_CLASSES
   EDIT_CLASSES
@@ -168,6 +172,61 @@ enum Permission {
   GET_MESSAGES
   CREATE_ANNOUNCEMENT
   SEND_NOTIFICATION
+
+  // Notes & Syllabus Related Permissions
+  CREATE_NOTE
+  EDIT_NOTE
+  GET_NOTES
+  DELETE_NOTE
+  CREATE_SYLLABUS
+  EDIT_SYLLABUS
+  GET_SYLLABUS
+  DELETE_SYLLABUS
+
+  // Circular Related Permissions
+  CREATE_CIRCULAR
+  EDIT_CIRCULAR
+  PUBLISH_CIRCULAR
+  GET_CIRCULARS
+  DELETE_CIRCULAR
+
+  // Library Related Permissions
+  CREATE_LIBRARY_BOOK
+  EDIT_LIBRARY_BOOK
+  GET_LIBRARY_BOOKS
+  ISSUE_LIBRARY_BOOK
+  RETURN_LIBRARY_BOOK
+  RESERVE_LIBRARY_BOOK
+  GET_LIBRARY_HISTORY
+
+  // Reports Related Permissions
+  GET_ATTENDANCE_REPORTS
+  GET_FEE_ANALYTICS
+  GET_ACADEMIC_REPORTS
+  GET_SALARY_REPORTS
+
+  // AI/Chatbot Related Permissions
+  USE_CHATBOT
+  GET_CHATBOT_HISTORY
+  MANAGE_FAQ
+
+  // Transport Routes Related Permissions
+  MANAGE_ROUTES
+  GET_ROUTES
+  ASSIGN_STUDENTS_TO_ROUTE
+
+  // Parent Related Permissions
+  GET_CHILDREN
+  GET_CHILD_DATA
+  GET_CONSOLIDATED_DASHBOARD
+
+  // Gallery Related Permissions
+  GET_GALLERIES
+  CREATE_GALLERY
+  EDIT_GALLERY
+  DELETE_GALLERY
+  UPLOAD_GALLERY_IMAGE
+  DELETE_GALLERY_IMAGE
 
   // Audit & Security Related Permissions
   VIEW_AUDIT_LOGS
@@ -392,8 +451,45 @@ enum NotificationType {
   LEAVE
   ANNOUNCEMENT
   GENERAL
+  LIBRARY
+  CIRCULAR
 
   @@map("notification_type")
+}
+
+enum LibraryIssueStatus {
+  ISSUED
+  RETURNED
+  OVERDUE
+
+  @@map("library_issue_status")
+}
+
+enum GalleryPrivacy {
+  PUBLIC
+  PRIVATE
+  SCHOOL_ONLY
+
+  @@map("gallery_privacy")
+}
+
+enum CircularStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+
+  @@map("circular_status")
+}
+
+enum ChatbotIntent {
+  GENERAL_QUERY
+  ATTENDANCE_QUERY
+  HOMEWORK_QUERY
+  EXAM_QUERY
+  FEE_QUERY
+  TIMETABLE_QUERY
+
+  @@map("chatbot_intent")
 }
 
 // ============================================
@@ -414,6 +510,10 @@ model File {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
+
+  notes         Note[]
+  syllabi       Syllabus[]
+  galleryImages GalleryImage[]
 
   @@map("files")
 }
@@ -499,6 +599,13 @@ model School {
   grievances              Grievance[]
   schoolTCs               TransferCertificate[] @relation("SchoolTCs")
   schoolEmergencyContacts EmergencyContact[]    @relation("SchoolEmergencyContacts")
+  libraryBooks            LibraryBook[]
+  circulars               Circular[]
+  galleries               Gallery[]
+  faqs                    FAQ[]
+  routes                  Route[]
+  notes                   Note[]
+  syllabi                 Syllabus[]
   gstNumber               String?               @map("gst_number")
   principalName           String?               @map("principal_name")
   principalEmail          String?               @map("principal_email")
@@ -506,6 +613,11 @@ model School {
   establishedYear         Int?                  @map("established_year")
   boardAffiliation        String?               @map("board_affiliation")
   studentStrength         Int?                  @map("student_strength")
+  bankName                String?               @map("bank_name")
+  bankAccountNumber       String?               @map("bank_account_number")
+  bankIfscCode            String?               @map("bank_ifsc_code")
+  bankBranchName          String?               @map("bank_branch_name")
+  upiId                   String?               @map("upi_id")
 
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
@@ -536,6 +648,9 @@ model Class {
   timetable   Timetable[]
   marks       Marks[]
   results     Result[]
+  notes       Note[]
+  syllabi     Syllabus[]
+  galleries   Gallery[]
 
   @@unique(name: "subjects_unique_name_school_id", [grade, division, schoolId])
   @@map("classes")
@@ -556,6 +671,8 @@ model Subject {
   homeworks      Homework[]
   timetableSlots TimetableSlot[]
   marks          Marks[]
+  notes          Note[]
+  syllabi        Syllabus[]
 
   @@unique(name: "subjects_unique_name_school_id", [name, schoolId])
   @@map("subjects")
@@ -598,6 +715,7 @@ model User {
   // Profile relations (one-to-one optional)
   studentProfile StudentProfile?
   teacherProfile TeacherProfile?
+  staffProfile   StaffProfile?
 
   // Employee-specific relations
   assignedVendors   Vendor[]   @relation("EmployeeVendors")
@@ -647,6 +765,13 @@ model User {
   studentTCs               TransferCertificate[] @relation("StudentTCs")
   studentEmergencyContacts EmergencyContact[]    @relation("StudentEmergencyContacts")
 
+  // Library relations
+  libraryIssues       LibraryIssue[]
+  libraryReservations LibraryReservation[]
+
+  // AI/Chatbot relations
+  chatbotConversations ChatbotConversation[]
+
   // Performance indexes for frequently queried fields
   @@index([schoolId, deletedAt], name: "users_school_id_deleted_at_idx")
   @@index([roleId, userType, deletedAt], name: "users_role_id_user_type_deleted_at_idx")
@@ -661,7 +786,7 @@ model StudentProfile {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   rollNumber  Int     @map("roll_number")
-  apaarId     String  @unique @map("apaar_id")
+  apaarId     String? @unique @map("apaar_id")
   classId     String  @map("class_id")
   transportId String? @map("transport_id")
 
@@ -701,6 +826,7 @@ model TeacherProfile {
   transportId          String?     @map("transport_id")
   panCardNumber        String?     @map("pan_card_number")
   bloodGroup           BloodGroup? @map("blood_group")
+  basicSalary          Int?        @map("basic_salary") // Added for salary automation
 
   transport Transport? @relation(fields: [transportId], references: [id])
 
@@ -714,14 +840,33 @@ model TeacherProfile {
   @@map("teacher_profiles")
 }
 
+model StaffProfile {
+  id     String @id @default(uuid())
+  userId String @unique @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  designation          String?
+  basicSalary          Int?        @map("basic_salary")
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@map("staff_profiles")
+}
+
 model Transport {
   id String @id @default(uuid())
 
   // Vehicle
-  type          TransportType
-  licenseNumber String        @unique @map("license_number")
-  vehicleNumber String?       @map("vehicle_number")
-  schoolId      String        @map("school_id")
+  type            TransportType
+  licenseNumber   String        @unique @map("license_number")
+  vehicleNumber   String?       @map("vehicle_number")
+  busSerialNumber String?       @map("bus_serial_number")
+  schoolId        String        @map("school_id")
 
   // Vehicle Owner
   ownerFirstName String @map("owner_first_name")
@@ -750,8 +895,10 @@ model Transport {
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
-  students StudentProfile[]
-  teachers TeacherProfile[]
+  students            StudentProfile[]
+  teachers            TeacherProfile[]
+  routes              Route[]
+  vehicleMaintenances VehicleMaintenance[]
 
   @@unique(name: "transports_unique_vehicle_number_school_id", [vehicleNumber, schoolId])
   @@map("transports")
@@ -791,6 +938,9 @@ model Settings {
   currentInstallmentNumber Int  @map("current_installement_number")
 
   logoId String? @map("logo_id")
+
+  // Platform configuration (JSON field for super admin settings)
+  platformConfig Json? @map("platform_config")
 
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
@@ -871,6 +1021,8 @@ model Event {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
+
+  galleries Gallery[]
 
   @@map("events")
 }
@@ -1159,6 +1311,8 @@ model SalaryStructure {
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
+  components SalaryStructureComponent[]
+
   @@map("salary_structures")
 }
 
@@ -1179,6 +1333,8 @@ model SalaryStructureComponent {
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime? @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
+
+  salaryStructure SalaryStructure? @relation(fields: [salaryStructureId], references: [id])
 
   @@map("salary_structure_components")
 }
@@ -1777,4 +1933,375 @@ model EmergencyContact {
   @@index([schoolId, deletedAt], name: "emergency_contacts_school_id_deleted_at_idx")
   @@index([isPrimary, deletedAt], name: "emergency_contacts_primary_deleted_at_idx")
   @@map("emergency_contacts")
+}
+
+// ============================================
+// LIBRARY
+// ============================================
+
+model LibraryBook {
+  id              String   @id @default(uuid())
+  title           String
+  author          String
+  isbn            String?  @unique
+  publisher       String?
+  category        String?
+  description     String?  @db.Text
+  totalCopies     Int      @default(1) @map("total_copies")
+  availableCopies Int      @default(1) @map("available_copies")
+  location        String?
+  price           Decimal? @db.Decimal(10, 2)
+  language        String   @default("English")
+  publishedYear   Int?     @map("published_year")
+  schoolId        String   @map("school_id")
+
+  school       School               @relation(fields: [schoolId], references: [id])
+  issues       LibraryIssue[]
+  reservations LibraryReservation[]
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([schoolId, deletedAt], name: "library_books_school_id_deleted_at_idx")
+  @@map("library_books")
+}
+
+model LibraryIssue {
+  id         String             @id @default(uuid())
+  bookId     String             @map("book_id")
+  userId     String             @map("user_id")
+  issuedDate DateTime           @map("issued_date")
+  dueDate    DateTime           @map("due_date")
+  returnDate DateTime?          @map("return_date")
+  status     LibraryIssueStatus
+  fineAmount Decimal?           @map("fine_amount") @db.Decimal(10, 2)
+  remarks    String?            @db.Text
+  schoolId   String             @map("school_id")
+
+  book LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([bookId, deletedAt], name: "library_issues_book_id_deleted_at_idx")
+  @@index([userId, deletedAt], name: "library_issues_user_id_deleted_at_idx")
+  @@index([schoolId, deletedAt], name: "library_issues_school_id_deleted_at_idx")
+  @@map("library_issues")
+}
+
+model LibraryReservation {
+  id        String   @id @default(uuid())
+  bookId    String   @map("book_id")
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  isActive  Boolean  @default(true) @map("is_active")
+  schoolId  String   @map("school_id")
+
+  book LibraryBook @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([bookId, isActive, deletedAt], name: "library_reservations_book_active_deleted_at_idx")
+  @@index([userId, deletedAt], name: "library_reservations_user_id_deleted_at_idx")
+  @@map("library_reservations")
+}
+
+// ============================================
+// NOTES & SYLLABUS
+// ============================================
+
+model Note {
+  id          String  @id @default(uuid())
+  title       String
+  description String? @db.Text
+  subjectId   String  @map("subject_id")
+  classId     String? @map("class_id")
+  chapter     String?
+  topic       String?
+  fileId      String? @map("file_id")
+  schoolId    String  @map("school_id")
+  version     Int     @default(1)
+  isActive    Boolean @default(true) @map("is_active")
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class   Class?  @relation(fields: [classId], references: [id], onDelete: SetNull)
+  file    File?   @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  school  School  @relation(fields: [schoolId], references: [id])
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([schoolId, deletedAt], name: "notes_school_id_deleted_at_idx")
+  @@index([subjectId, deletedAt], name: "notes_subject_id_deleted_at_idx")
+  @@map("notes")
+}
+
+model Syllabus {
+  id           String  @id @default(uuid())
+  title        String
+  description  String? @db.Text
+  subjectId    String  @map("subject_id")
+  classId      String  @map("class_id")
+  academicYear String  @map("academic_year")
+  chapters     Json? // array or structured data
+  fileId       String? @map("file_id")
+  schoolId     String  @map("school_id")
+  version      Int     @default(1)
+  isActive     Boolean @default(true) @map("is_active")
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+  file    File?   @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  school  School  @relation(fields: [schoolId], references: [id])
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([schoolId, deletedAt], name: "syllabus_school_id_deleted_at_idx")
+  @@map("syllabi")
+}
+
+// ============================================
+// GALLERY
+// ============================================
+
+model Gallery {
+  id          String         @id @default(uuid())
+  title       String
+  description String?        @db.Text
+  eventId     String?        @map("event_id")
+  privacy     GalleryPrivacy @default(PUBLIC)
+  classId     String?        @map("class_id")
+  schoolId    String         @map("school_id")
+  isActive    Boolean        @default(true) @map("is_active")
+
+  event  Event?         @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  class  Class?         @relation(fields: [classId], references: [id], onDelete: SetNull)
+  school School         @relation(fields: [schoolId], references: [id])
+  images GalleryImage[]
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([schoolId, deletedAt], name: "galleries_school_id_deleted_at_idx")
+  @@map("galleries")
+}
+
+model GalleryImage {
+  id          String  @id @default(uuid())
+  galleryId   String  @map("gallery_id")
+  fileId      String  @map("file_id")
+  caption     String?
+  description String? @db.Text
+  order       Int     @default(0)
+  schoolId    String  @map("school_id")
+
+  gallery Gallery @relation(fields: [galleryId], references: [id], onDelete: Cascade)
+  file    File    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([galleryId, deletedAt], name: "gallery_images_gallery_id_deleted_at_idx")
+  @@map("gallery_images")
+}
+
+// ============================================
+// CIRCULARS
+// ============================================
+
+model Circular {
+  id            String         @id @default(uuid())
+  title         String
+  content       String         @db.Text
+  status        CircularStatus @default(DRAFT)
+  targetRoles   Json           @default("[]") @map("target_roles") // String[]
+  targetUserIds Json           @default("[]") @map("target_user_ids") // String[]
+  classIds      Json           @default("[]") @map("class_ids") // String[]
+  attachments   Json           @default("[]") // String[] file IDs
+  expiresAt     DateTime?      @map("expires_at")
+  publishedAt   DateTime?      @map("published_at")
+  schoolId      String         @map("school_id")
+
+  school School @relation(fields: [schoolId], references: [id])
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([schoolId, status, deletedAt], name: "circulars_school_status_deleted_at_idx")
+  @@map("circulars")
+}
+
+// ============================================
+// AI / FAQ & CHATBOT
+// ============================================
+
+model FAQ {
+  id        String  @id @default(uuid())
+  question  String  @db.Text
+  answer    String  @db.Text
+  category  String?
+  keywords  Json?   @default("[]") // String[]
+  schoolId  String? @map("school_id")
+  isActive  Boolean @default(true) @map("is_active")
+  viewCount Int     @default(0) @map("view_count")
+
+  school School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([schoolId, isActive, deletedAt], name: "faqs_school_active_deleted_at_idx")
+  @@map("faqs")
+}
+
+model ChatbotConversation {
+  id       String         @id @default(uuid())
+  userId   String         @map("user_id")
+  intent   ChatbotIntent?
+  context  Json?
+  schoolId String?        @map("school_id")
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages ChatbotMessage[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId], name: "chatbot_conversations_user_id_idx")
+  @@map("chatbot_conversations")
+}
+
+model ChatbotMessage {
+  id             String @id @default(uuid())
+  conversationId String @map("conversation_id")
+  role           String // "user" | "assistant"
+  content        String @db.Text
+  metadata       Json?
+
+  conversation ChatbotConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([conversationId], name: "chatbot_messages_conversation_id_idx")
+  @@map("chatbot_messages")
+}
+
+// ============================================
+// TRANSPORT ROUTES & MAINTENANCE
+// ============================================
+
+model Route {
+  id            String   @id @default(uuid())
+  name          String
+  transportId   String   @map("transport_id")
+  startPoint    String   @map("start_point")
+  endPoint      String   @map("end_point")
+  distance      Decimal? @db.Decimal(10, 2)
+  estimatedTime Int?     @map("estimated_time") // minutes
+  schoolId      String   @map("school_id")
+  isActive      Boolean  @default(true) @map("is_active")
+
+  transport Transport   @relation(fields: [transportId], references: [id], onDelete: Cascade)
+  school    School      @relation(fields: [schoolId], references: [id])
+  stops     RouteStop[]
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([schoolId, deletedAt], name: "routes_school_id_deleted_at_idx")
+  @@index([transportId, deletedAt], name: "routes_transport_id_deleted_at_idx")
+  @@map("routes")
+}
+
+model RouteStop {
+  id          String   @id @default(uuid())
+  routeId     String   @map("route_id")
+  name        String
+  address     String?  @db.Text
+  latitude    Decimal? @db.Decimal(10, 7)
+  longitude   Decimal? @db.Decimal(10, 7)
+  sequence    Int
+  arrivalTime String?  @map("arrival_time") // e.g. "08:00"
+  schoolId    String   @map("school_id")
+
+  route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([routeId, deletedAt], name: "route_stops_route_id_deleted_at_idx")
+  @@map("route_stops")
+}
+
+model VehicleMaintenance {
+  id                  String    @id @default(uuid())
+  transportId         String    @map("transport_id")
+  maintenanceType     String    @map("maintenance_type")
+  description         String?   @db.Text
+  cost                Decimal?  @db.Decimal(10, 2)
+  maintenanceDate     DateTime  @map("maintenance_date")
+  nextMaintenanceDate DateTime? @map("next_maintenance_date")
+  serviceProvider     String?
+  odometerReading     Int?      @map("odometer_reading")
+  schoolId            String    @map("school_id")
+
+  transport Transport @relation(fields: [transportId], references: [id], onDelete: Cascade)
+
+  createdBy String    @map("created_by")
+  updatedBy String?   @map("updated_by")
+  deletedBy String?   @map("deleted_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime? @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@index([transportId, deletedAt], name: "vehicle_maintenance_transport_id_deleted_at_idx")
+  @@map("vehicle_maintenance")
 }

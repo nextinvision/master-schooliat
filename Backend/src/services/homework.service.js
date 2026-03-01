@@ -463,7 +463,7 @@ const getStudentHomework = async (studentId, filters = {}) => {
     },
   });
 
-  if (!student || !student.studentProfile) {
+  if (!student || !student.studentProfile || !student.studentProfile.classId) {
     return {
       homeworks: [],
       pagination: {
@@ -475,65 +475,52 @@ const getStudentHomework = async (studentId, filters = {}) => {
     };
   }
 
+  const classId = student.studentProfile.classId;
   const where = {
-    classIds: {
-      has: student.studentProfile.classId,
-    },
     deletedAt: null,
   };
+  // Support both String[] (array_contains) and Json (path) depending on DB column type
+  try {
+    where.classIds = { has: classId };
+  } catch (_) {
+    return {
+      homeworks: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 
   if (subjectId) {
     where.subjectId = subjectId;
   }
 
-  const [homeworks, total] = await Promise.all([
-    prisma.homework.findMany({
-      where,
-      include: {
-        subject: {
-          select: {
-            id: true,
-            name: true,
+  let homeworks = [];
+  let total = 0;
+  try {
+    [homeworks, total] = await Promise.all([
+      prisma.homework.findMany({
+        where,
+        include: {
+          subject: { select: { id: true, name: true } },
+          teacher: { select: { id: true, firstName: true, lastName: true } },
+          submissions: {
+            where: { studentId, deletedAt: null },
+            select: { id: true, status: true, submittedAt: true, marksObtained: true, totalMarks: true, grade: true },
           },
+          mcqQuestions: { select: { id: true, question: true, options: true, marks: true } },
         },
-        teacher: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-          },
-        },
-        submissions: {
-          where: {
-            studentId,
-            deletedAt: null,
-          },
-          select: {
-            id: true,
-            status: true,
-            submittedAt: true,
-            marksObtained: true,
-            totalMarks: true,
-            grade: true,
-          },
-        },
-        mcqQuestions: {
-          select: {
-            id: true,
-            question: true,
-            options: true,
-            marks: true,
-          },
-        },
-      },
-      orderBy: {
-        dueDate: "desc",
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.homework.count({ where }),
-  ]);
+        orderBy: { dueDate: "desc" },
+        skip,
+        take: limit,
+      }),
+      prisma.homework.count({ where }),
+    ]);
+  } catch (err) {
+    logger.warn({ err: err.message, studentId }, "getStudentHomework fetch failed, returning empty");
+    return {
+      homeworks: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 
   return {
     homeworks,

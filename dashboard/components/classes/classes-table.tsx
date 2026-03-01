@@ -11,13 +11,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { Plus, Download } from "lucide-react";
+import { toast } from "sonner";
+import { getAuthToken } from "@/lib/auth/storage";
 
 const CLASS_COLUMNS = [
   { key: "no", title: "No", width: "w-16" },
   { key: "grade", title: "Grade", width: "w-32" },
   { key: "division", title: "Division", width: "w-32" },
   { key: "teacher", title: "Class Teacher", width: "w-64" },
+  { key: "action", title: "Action", width: "w-24" },
 ];
 
 interface ClassesTableProps {
@@ -56,6 +59,33 @@ export function ClassesTable({
     });
   }, [classes, searchQuery]);
 
+  const handleDownload = async (classId: string, className: string) => {
+    try {
+      const token = await getAuthToken();
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      const response = await fetch(`${baseUrl}/schools/classes/${classId}/students/export`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to download file");
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `class_${className.replace(/\s+/g, "_")}_students.csv`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success("Download started");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to download class data");
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -84,7 +114,7 @@ export function ClassesTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 {CLASS_COLUMNS.map((column) => (
                   <TableHead key={column.key} className={column.width}>
                     {column.title}
@@ -117,6 +147,17 @@ export function ClassesTable({
                       {cls.classTeacher
                         ? `${cls.classTeacher.firstName} ${cls.classTeacher.lastName}`
                         : "-"}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDownload(cls.id, `${cls.grade}${cls.division ? "_" + cls.division : ""}`)}
+                        className="h-8 w-8 text-primary hover:text-primary/90"
+                        title="Download Student List"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))

@@ -146,7 +146,7 @@ export function CircularsTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-12">
                   <Checkbox
                     checked={allSelected}

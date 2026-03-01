@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { getToken, getCurrentUser, getUserRoles } from "@/lib/auth/storage";
+import { getAuthToken, getCurrentUser, getUserRoles } from "@/lib/auth/storage";
 import type { User } from "@/lib/auth/storage";
 
 export function useAuth() {
@@ -16,7 +16,7 @@ export function useAuth() {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const token = await getToken();
+        const token = await getAuthToken();
         if (token) {
           const currentUser = await getCurrentUser();
           const userRole = await getUserRoles();

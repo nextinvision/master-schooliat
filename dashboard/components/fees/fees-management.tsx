@@ -19,11 +19,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Eye, DollarSign } from "lucide-react";
+import { Eye, IndianRupee, DownloadCloud } from "lucide-react";
 import { useInstallments, useRecordPayment } from "@/lib/hooks/use-fees";
 import { FeeDetailsModal } from "./fee-details-modal";
 import { PaymentModal } from "./payment-modal";
+import { PaymentFormData } from "@/lib/schemas/fees-schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { PaymentInfoCard } from "./payment-info-card";
 
 const STATUS_OPTIONS = ["All Status", "Paid", "Pending"];
 const YEAR_OPTIONS = ["2023-2024", "2024-2025", "2025-2026"];
@@ -81,6 +83,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
   const itemsPerPage = 10;
   const [searchQuery, setSearchQuery] = useState("");
   const [installmentNumber, setInstallmentNumber] = useState(1);
+  const [endInstallmentNumber, setEndInstallmentNumber] = useState(1);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
@@ -96,7 +99,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     isError,
     error,
     refetch,
-  } = useInstallments(installmentNumber);
+  } = useInstallments(installmentNumber, endInstallmentNumber, { enabled: true });
   const { mutateAsync: recordPayment, isPending: isRecordingPayment } = useRecordPayment();
 
   const handleViewDetails = (item: any) => {
@@ -119,13 +122,15 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     setSelectedInstallment(null);
   };
 
-  const handleSubmitPayment = async (amount: number) => {
+  const handleSubmitPayment = async (data: PaymentFormData) => {
     if (!selectedInstallment) return;
 
     try {
       await recordPayment({
         installmentId: selectedInstallment.id,
-        amount,
+        amount: data.amount,
+        paymentMethod: data.paymentMethod,
+        isWaiver: data.isWaiver,
       });
       handleClosePaymentModal();
       refetch();
@@ -197,6 +202,9 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Fees Management</h1>
 
+      {/* Payment Info Card */}
+      <PaymentInfoCard />
+
       {/* Summary Cards Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Chart Card */}
@@ -227,7 +235,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Total Paid</span>
-              <span className="font-semibold text-green-600">{feeStats.totalPaid}</span>
+              <span className="font-semibold text-primary">{feeStats.totalPaid}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-sm text-gray-600">Total Remaining</span>
@@ -235,7 +243,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
             </div>
             <div className="flex gap-4 pt-2 border-t">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className="w-3 h-3 rounded-full bg-primary"></div>
                 <span className="text-sm">Paid: {feeStats.paid}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -257,18 +265,32 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
             className="w-full"
           />
         </div>
-        <Select value={String(installmentNumber)} onValueChange={(v) => setInstallmentNumber(Number(v))}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Select Installment" />
-          </SelectTrigger>
-          <SelectContent>
-            {INSTALLMENT_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-2">
+          <Select value={String(installmentNumber)} onValueChange={(v) => setInstallmentNumber(Number(v))}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="From Installment" />
+            </SelectTrigger>
+            <SelectContent>
+              {INSTALLMENT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  From: {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={String(endInstallmentNumber)} onValueChange={(v) => setEndInstallmentNumber(Number(v))}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="To Installment" />
+            </SelectTrigger>
+            <SelectContent>
+              {INSTALLMENT_OPTIONS.map((option) => (
+                <SelectItem key={option.value} value={option.value} disabled={Number(option.value) < installmentNumber}>
+                  To: {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
           <SelectTrigger className="w-[140px]">
             <SelectValue />
@@ -288,7 +310,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-16">No</TableHead>
                 <TableHead>Student</TableHead>
                 <TableHead className="w-32">Amount</TableHead>
@@ -333,7 +355,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                           variant={status === "Paid" ? "default" : "secondary"}
                           className={
                             status === "Paid"
-                              ? "bg-green-100 text-green-800"
+                              ? "bg-schooliat-tint text-primary"
                               : "bg-orange-100 text-orange-800"
                           }
                         >
@@ -356,9 +378,21 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                             onClick={() => handleRecordPayment(item)}
                             disabled={status === "Paid" || isRecordingPayment}
                             className="h-8 w-8"
+                            title="Record Payment"
                           >
-                            <DollarSign className="w-4 h-4" />
+                            <IndianRupee className="w-4 h-4" />
                           </Button>
+                          {status === "Paid" && item.receiptFileUrl && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => window.open(item.receiptFileUrl, "_blank")}
+                              className="h-8 w-8 text-primary"
+                              title="Download Receipt"
+                            >
+                              <DownloadCloud className="w-4 h-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

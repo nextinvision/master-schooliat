@@ -136,16 +136,16 @@ export function ClassFormTable({
                   </td>
                   <td className="px-4 py-3">
                     <Select
-                      value={cls.classTeacherId || ""}
+                      value={cls.classTeacherId || "none"}
                       onValueChange={(value) =>
-                        onFieldChange(index, "classTeacherId", value || null)
+                        onFieldChange(index, "classTeacherId", value === "none" ? null : value)
                       }
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select Teacher" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {teacherOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
                             {option.label}

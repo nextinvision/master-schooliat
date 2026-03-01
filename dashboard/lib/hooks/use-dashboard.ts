@@ -12,6 +12,7 @@ export function useDashboard(options = {}) {
     queryKey: ["dashboard", "statistics"],
     queryFn: fetchDashboardStats,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1, // Retry once on failure (e.g. transient 500)
     ...options,
   });
 }

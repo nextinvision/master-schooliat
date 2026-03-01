@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../prisma/client.js";
+import csvUtil from "../utils/csv.util.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
@@ -144,6 +145,7 @@ router.get(
       const attendance = await attendanceService.getClassAttendance(
         classId,
         new Date(date),
+        periodId || null,
       );
 
       return res.json({
@@ -181,7 +183,7 @@ router.get(
   validateRequest(getAttendanceSchema),
   async (req, res) => {
     const currentUser = req.context.user;
-    const { studentId, classId, startDate, endDate } = req.query;
+    const { studentId, classId, startDate, endDate, periodId } = req.query;
 
     const start = startDate ? new Date(startDate) : new Date(new Date().setMonth(new Date().getMonth() - 1));
     const end = endDate ? new Date(endDate) : new Date();
@@ -214,6 +216,7 @@ router.get(
       finalSchoolId,
       start,
       end,
+      periodId || null,
     );
 
     res.json({
@@ -243,20 +246,43 @@ router.get(
 
     const reportData = await attendanceService.getAttendanceReport(filters);
 
+    if (format === "csv" || format === "excel") {
+      const headers = [
+        { label: "Date", key: "date" },
+        { label: "Student Name", key: "firstName" }, // Note: We need to flat the data or handle it in generateCSV
+        { label: "Roll Number", key: "rollNumber" },
+        { label: "Class", key: "className" },
+        { label: "Period", key: "periodName" },
+        { label: "Status", key: "status" },
+        { label: "Late Time", key: "lateArrivalTime" },
+        { label: "Reason", key: "absenceReason" },
+      ];
+
+      // Flatten the data for CSV
+      const flattenedData = reportData.map(record => ({
+        date: new Date(record.date).toLocaleDateString(),
+        firstName: `${record.student.firstName} ${record.student.lastName} `,
+        rollNumber: record.student.studentProfile?.rollNumber || "N/A",
+        className: `${record.class.grade}${record.class.division ? `-${record.class.division}` : ""} `,
+        periodName: record.period?.name || "Daily",
+        status: record.status,
+        lateArrivalTime: record.lateArrivalTime ? new Date(record.lateArrivalTime).toLocaleTimeString() : "N/A",
+        absenceReason: record.absenceReason || "N/A",
+      }));
+
+      const csv = csvUtil.generateCSV(flattenedData, headers);
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename = attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
+      return res.send(csv);
+    }
+
     if (format === "json") {
       return res.json({
         message: "Attendance report retrieved successfully",
         data: reportData,
       });
     }
-
-    // TODO: Implement PDF and Excel export
-    // For now, return JSON
-    res.json({
-      message: "Attendance report retrieved successfully",
-      data: reportData,
-      note: "PDF and Excel export coming soon",
-    });
   },
 );
 

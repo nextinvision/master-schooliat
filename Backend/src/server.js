@@ -61,6 +61,7 @@ import auditRouter from "./routers/audit.router.js";
 import deletionOtpRouter from "./routers/deletion-otp.router.js";
 import tcRouter from "./routers/tc.router.js";
 import emergencyContactRouter from "./routers/emergency-contact.router.js";
+import subjectRouter from "./routers/subject.router.js";
 import roleService from "./services/role.service.js";
 import userService from "./services/user.service.js";
 import logRequestStart from "./middlewares/log-request-start.middleware.js";
@@ -177,7 +178,7 @@ async function main() {
 
   // API versioning - all routes under /api/v1
   const apiRouter = express.Router();
-  
+
   // Health check for versioned API
   apiRouter.get("/health", (req, res) => {
     res.json({
@@ -188,7 +189,7 @@ async function main() {
       version: "1.0.0",
     });
   });
-  
+
   addRouters(apiRouter);
   app.use("/api/v1", apiRouter);
 
@@ -258,11 +259,14 @@ function addRouters(app) {
   app.use("/deletion-otp", deletionOtpRouter);
   app.use("/transfer-certificates", tcRouter);
   app.use("/emergency-contacts", emergencyContactRouter);
+  app.use("/subjects", subjectRouter);
 }
 
 async function setupData() {
   try {
     await roleService.createDefaultRoles();
+    // Update existing roles with latest permissions
+    await roleService.updateRolePermissions();
     await userService.createSuperAdmin();
     // Template loading is optional - server will work without it
     // Templates can be loaded later when Puppeteer is available

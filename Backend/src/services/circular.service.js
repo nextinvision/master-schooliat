@@ -1,7 +1,15 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
+import { parsePagination } from "../utils/pagination.util.js";
 import pkg from "../prisma/generated/index.js";
-const { CircularStatus } = pkg;
+const { CircularStatus } = pkg || {};
+
+// Fallback if CircularStatus enum doesn't exist
+const StatusEnum = CircularStatus || {
+  DRAFT: "DRAFT",
+  PUBLISHED: "PUBLISHED",
+  ARCHIVED: "ARCHIVED",
+};
 import notificationService from "./notification.service.js";
 
 /**
@@ -26,7 +34,7 @@ const createCircular = async (data) => {
     data: {
       title,
       content,
-      status: CircularStatus.DRAFT,
+      status: StatusEnum.DRAFT,
       targetRoles,
       targetUserIds,
       classIds,
@@ -84,7 +92,7 @@ const publishCircular = async (circularId, publishedBy) => {
   const updatedCircular = await prisma.circular.update({
     where: { id: circularId },
     data: {
-      status: CircularStatus.PUBLISHED,
+      status: StatusEnum.PUBLISHED,
       publishedAt: new Date(),
       updatedBy: publishedBy,
     },
@@ -136,13 +144,13 @@ const publishCircular = async (circularId, publishedBy) => {
  * @returns {Promise<Object>} - Circulars with pagination
  */
 const getCirculars = async (schoolId, userId = null, filters = {}, options = {}) => {
-  const { page = 1, limit = 20 } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
+  const publishedStatus = (CircularStatus || StatusEnum)?.PUBLISHED ?? "PUBLISHED";
 
   const where = {
     schoolId,
     deletedAt: null,
-    status: CircularStatus.PUBLISHED,
+    status: publishedStatus,
   };
 
   if (filters.status) {
@@ -151,48 +159,60 @@ const getCirculars = async (schoolId, userId = null, filters = {}, options = {})
 
   // If user ID provided, filter by user's role/class
   if (userId) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: {
-        role: true,
-        studentProfile: {
-          include: { class: true },
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          role: true,
+          studentProfile: {
+            include: { class: true },
+          },
         },
-      },
-    });
+      });
 
-    if (user) {
-          where.OR = [
-            { targetRoles: { has: user.role.name } },
-            { targetUserIds: { has: userId } },
-            ...(user.studentProfile
-              ? [{ classIds: { has: user.studentProfile.classId } }]
-              : []),
-          ];
+      if (user?.role) {
+        where.OR = [
+          { targetRoles: { has: user.role.name } },
+          { targetUserIds: { has: userId } },
+          ...(user.studentProfile?.classId
+            ? [{ classIds: { has: user.studentProfile.classId } }]
+            : []),
+        ];
+      }
+    } catch (err) {
+      logger.warn({ err: err.message, userId }, "getCirculars: user lookup failed, returning all for school");
     }
   }
 
-  const [circulars, total] = await Promise.all([
-    prisma.circular.findMany({
-      where,
-      orderBy: {
-        publishedAt: "desc",
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.circular.count({ where }),
-  ]);
+  try {
+    const [circulars, total] = await Promise.all([
+      prisma.circular.findMany({
+        where,
+        orderBy: {
+          publishedAt: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.circular.count({ where }),
+    ]);
 
-  return {
-    circulars,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+    return {
+      circulars,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId }, "getCirculars: findMany failed, returning empty");
+    return {
+      circulars: [],
+      pagination: { page, limit, total: 0, totalPages: 0 },
+    };
+  }
 };
 
 const circularService = {

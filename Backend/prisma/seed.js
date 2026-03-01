@@ -17,8 +17,14 @@
  * - Settings
  * - Grievances
  * - Salary Structures and Payments
+ * - Library (books, issues)
+ * - Notes and Syllabus
+ * - Galleries and Gallery Images
+ * - Circulars
+ * - FAQs (global and school-specific)
+ * - Transport Routes, Route Stops, Vehicle Maintenance
  * 
- * Usage: node prisma/seed.js
+ * Usage: node prisma/seed.js  (or: npm run seed)
  */
 
 import prisma from "../src/prisma/client.js";
@@ -49,6 +55,11 @@ import {
   ConversationType,
   NotificationType,
   TCStatus,
+  TemplateType,
+  IdCardCollectionStatus,
+  LibraryIssueStatus,
+  GalleryPrivacy,
+  CircularStatus,
 } from "../src/prisma/generated/index.js";
 import logger from "../src/config/logger.js";
 
@@ -102,10 +113,28 @@ const seedData = {
 };
 
 /**
+ * Get permission enum values that exist in the database (handles DB behind migrations).
+ */
+async function getDbPermissionValues() {
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT enumlabel FROM pg_enum
+      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'permission')
+      ORDER BY enumsortorder
+    `;
+    return new Set(rows.map((r) => r.enumlabel));
+  } catch {
+    return null; // e.g. raw not supported or different DB
+  }
+}
+
+/**
  * Seed Roles with Permissions
  */
 async function seedRoles() {
   logger.info("Seeding Roles...");
+
+  const dbPermissions = await getDbPermissionValues();
 
   const defaultRolePermissionsMap = {
     [RoleName.SUPER_ADMIN]: [
@@ -150,12 +179,24 @@ async function seedRoles() {
     ],
     [RoleName.EMPLOYEE]: [
       Permission.GET_SCHOOLS,
+      Permission.CREATE_SCHOOL,
+      Permission.EDIT_SCHOOL,
+      Permission.DELETE_SCHOOL,
       Permission.GET_VENDORS,
       Permission.CREATE_VENDOR,
       Permission.EDIT_VENDOR,
+      Permission.DELETE_VENDOR,
       Permission.GET_REGIONS,
       Permission.CREATE_REGION,
-      Permission.CREATE_SCHOOL,
+      Permission.EDIT_REGION,
+      Permission.DELETE_REGION,
+      Permission.GET_LICENSES,
+      Permission.CREATE_LICENSE,
+      Permission.UPDATE_LICENSE,
+      Permission.GET_RECEIPTS,
+      Permission.CREATE_RECEIPT,
+      Permission.GET_STATISTICS,
+      Permission.GET_DASHBOARD_STATS,
       Permission.CREATE_GRIEVANCE,
       Permission.GET_MY_GRIEVANCES,
       Permission.ADD_GRIEVANCE_COMMENT,
@@ -210,6 +251,53 @@ async function seedRoles() {
       Permission.GET_MY_GRIEVANCES,
       Permission.ADD_GRIEVANCE_COMMENT,
       Permission.GET_DASHBOARD_STATS,
+      // Library Management Permissions (SRS Section 3.14)
+      Permission.CREATE_LIBRARY_BOOK,
+      Permission.EDIT_LIBRARY_BOOK,
+      Permission.GET_LIBRARY_BOOKS,
+      Permission.ISSUE_LIBRARY_BOOK,
+      Permission.RETURN_LIBRARY_BOOK,
+      Permission.RESERVE_LIBRARY_BOOK,
+      Permission.GET_LIBRARY_HISTORY,
+      // Reports & Analytics Permissions (SRS Section 3.20)
+      Permission.GET_ATTENDANCE_REPORTS,
+      Permission.GET_FEE_ANALYTICS,
+      Permission.GET_ACADEMIC_REPORTS,
+      Permission.GET_SALARY_REPORTS,
+      // AI Chatbot Permissions (SRS Section 3.19)
+      Permission.USE_CHATBOT,
+      Permission.GET_CHATBOT_HISTORY,
+      Permission.MANAGE_FAQ,
+      // Additional permissions for comprehensive admin access
+      Permission.CREATE_NOTE,
+      Permission.EDIT_NOTE,
+      Permission.GET_NOTES,
+      Permission.DELETE_NOTE,
+      Permission.CREATE_SYLLABUS,
+      Permission.EDIT_SYLLABUS,
+      Permission.GET_SYLLABUS,
+      Permission.DELETE_SYLLABUS,
+      // Gallery permissions not in schema yet - add when Gallery model exists
+      Permission.CREATE_HOMEWORK,
+      Permission.GET_HOMEWORK,
+      Permission.GRADE_HOMEWORK,
+      Permission.ENTER_MARKS,
+      Permission.GET_MARKS,
+      Permission.GET_RESULTS,
+      Permission.PUBLISH_RESULTS,
+      Permission.CREATE_TIMETABLE,
+      Permission.EDIT_TIMETABLE,
+      Permission.GET_TIMETABLE,
+      Permission.DELETE_TIMETABLE,
+      Permission.MARK_ATTENDANCE,
+      Permission.GET_ATTENDANCE,
+      Permission.CREATE_LEAVE_REQUEST,
+      Permission.GET_LEAVE_REQUESTS,
+      Permission.APPROVE_LEAVE,
+      Permission.SEND_MESSAGE,
+      Permission.GET_MESSAGES,
+      Permission.CREATE_ANNOUNCEMENT,
+      Permission.SEND_NOTIFICATION,
     ],
     [RoleName.STUDENT]: [
       Permission.GET_MY_SCHOOL,
@@ -246,6 +334,12 @@ async function seedRoles() {
   };
 
   for (const [roleName, permissions] of Object.entries(defaultRolePermissionsMap)) {
+    // Filter out undefined and permissions not present in DB enum (e.g. DB behind migrations)
+    let validPermissions = permissions.filter((p) => p != null);
+    if (dbPermissions && dbPermissions.size > 0) {
+      validPermissions = validPermissions.filter((p) => dbPermissions.has(p));
+    }
+
     const existingRole = await prisma.role.findUnique({
       where: { name: roleName },
     });
@@ -254,15 +348,23 @@ async function seedRoles() {
       const role = await prisma.role.create({
         data: {
           name: roleName,
-          permissions: permissions,
+          permissions: validPermissions,
           createdBy: "seed",
         },
       });
       seedData.roles[roleName] = role.id;
       logger.info(`Created role: ${roleName}`);
     } else {
-      seedData.roles[roleName] = existingRole.id;
-      logger.info(`Role already exists: ${roleName}`);
+      // Update permissions for existing role to ensure they match the seed data
+      const updatedRole = await prisma.role.update({
+        where: { name: roleName },
+        data: {
+          permissions: validPermissions,
+          updatedBy: "seed",
+        },
+      });
+      seedData.roles[roleName] = updatedRole.id;
+      logger.info(`Updated permissions for existing role: ${roleName}`);
     }
   }
 }
@@ -1284,6 +1386,77 @@ async function seedSettings() {
 }
 
 /**
+ * Seed ID Card template, config, and collections (so ID Cards page has rows per class).
+ */
+async function seedIdCards() {
+  logger.info("Seeding ID Card template, config, and collections...");
+
+  const currentYear = new Date().getFullYear();
+
+  // 1. Ensure one ID_CARD template exists (required for IdCardConfig)
+  let template = await prisma.template.findFirst({
+    where: { type: TemplateType.ID_CARD },
+  });
+  if (!template) {
+    template = await prisma.template.create({
+      data: {
+        type: TemplateType.ID_CARD,
+        path: "id-card/default",
+        title: "Default ID Card",
+      },
+    });
+    logger.info("Created ID_CARD template");
+  }
+
+  for (const schoolId of seedData.schools) {
+    const schoolAdminId = seedData.users.schoolAdmins[schoolId] || "seed";
+
+    // 2. IdCardConfig for current year (so school can manage config and generate)
+    const existingConfig = await prisma.idCardConfig.findFirst({
+      where: { schoolId, year: currentYear, deletedAt: null },
+    });
+    if (!existingConfig) {
+      await prisma.idCardConfig.create({
+        data: {
+          schoolId,
+          year: currentYear,
+          templateId: template.id,
+          config: {},
+          createdBy: schoolAdminId,
+        },
+      });
+      logger.info(`Created IdCardConfig for school ${schoolId} (year ${currentYear})`);
+    }
+
+    // 3. IdCardCollection per class (so ID Cards page shows one row per class)
+    const classes = await prisma.class.findMany({
+      where: { schoolId, deletedAt: null },
+      select: { id: true },
+    });
+    const classIds = classes.map((c) => c.id);
+    for (const classId of classIds) {
+      const existing = await prisma.idCardCollection.findUnique({
+        where: {
+          schoolId_classId_year: { schoolId, classId, year: currentYear },
+        },
+      });
+      if (!existing) {
+        await prisma.idCardCollection.create({
+          data: {
+            schoolId,
+            classId,
+            year: currentYear,
+            status: IdCardCollectionStatus.NOT_GENERATED,
+            createdBy: schoolAdminId,
+          },
+        });
+      }
+    }
+    logger.info(`Created IdCardCollection for ${classIds.length} classes in school ${schoolId}`);
+  }
+}
+
+/**
  * Seed Grievances
  */
 async function seedGrievances() {
@@ -1545,7 +1718,7 @@ async function seedAttendance() {
 
     // Create attendance for last 30 days
     const today = new Date();
-    const attendanceStatuses = ["PRESENT", "ABSENT", "LATE", "HALF_DAY"];
+    const attendanceStatuses = [AttendanceStatus.PRESENT, AttendanceStatus.ABSENT, AttendanceStatus.LATE, AttendanceStatus.HALF_DAY];
 
     for (let day = 0; day < 30; day++) {
       const date = new Date(today);
@@ -1567,8 +1740,8 @@ async function seedAttendance() {
             status: status,
             markedBy: teacher.id,
             schoolId: schoolId,
-            lateArrivalTime: status === "LATE" ? new Date(date.setHours(8, 30)) : null,
-            absenceReason: status === "ABSENT" ? "Sick" : null,
+            lateArrivalTime: status === AttendanceStatus.LATE ? (() => { const d = new Date(date); d.setHours(8, 30); return d; })() : null,
+            absenceReason: status === AttendanceStatus.ABSENT ? "Sick" : null,
             createdBy: teacher.id,
           },
         });
@@ -1615,9 +1788,10 @@ async function seedTimetables() {
       const effectiveFrom = new Date();
       effectiveFrom.setMonth(effectiveFrom.getMonth() - 1);
 
+      const classLabel = `${classItem.grade}${classItem.division ? "-" + classItem.division : ""}`;
       const timetable = await prisma.timetable.create({
         data: {
-          name: `Timetable - ${classItem.name}`,
+          name: `Timetable - ${classLabel}`,
           classId: classItem.id,
           schoolId: schoolId,
           effectiveFrom: effectiveFrom,
@@ -1659,7 +1833,7 @@ async function seedTimetables() {
         }
       }
 
-      logger.info(`Created timetable with ${days.length * periods.length} slots for class: ${classItem.name}`);
+      logger.info(`Created timetable with ${days.length * periods.length} slots for class: ${classLabel}`);
     }
   }
 }
@@ -1755,8 +1929,8 @@ async function seedHomeworks() {
       });
 
       for (const student of students) {
-        const status = Math.random() > 0.3 ? "SUBMITTED" : "PENDING";
-        const submittedAt = status === "SUBMITTED" ? new Date() : null;
+        const status = Math.random() > 0.3 ? SubmissionStatus.SUBMITTED : SubmissionStatus.PENDING;
+        const submittedAt = status === SubmissionStatus.SUBMITTED ? new Date() : null;
 
         await prisma.homeworkSubmission.create({
           data: {
@@ -1765,8 +1939,8 @@ async function seedHomeworks() {
             submittedAt: submittedAt,
             status: status,
             files: [],
-            feedback: status === "SUBMITTED" && Math.random() > 0.5 ? "Good work!" : null,
-            grade: status === "SUBMITTED" && Math.random() > 0.5 ? "A" : null,
+            feedback: status === SubmissionStatus.SUBMITTED && Math.random() > 0.5 ? "Good work!" : null,
+            grade: status === SubmissionStatus.SUBMITTED && Math.random() > 0.5 ? "A" : null,
             createdBy: student.id,
           },
         });
@@ -2003,7 +2177,7 @@ async function seedLeaveRequests() {
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + Math.floor(Math.random() * 3) + 1);
 
-      const statuses = ["PENDING", "APPROVED", "REJECTED"];
+      const statuses = [LeaveStatus.PENDING, LeaveStatus.APPROVED, LeaveStatus.REJECTED];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
 
       await prisma.leaveRequest.create({
@@ -2014,8 +2188,8 @@ async function seedLeaveRequests() {
           endDate: endDate,
           reason: "Personal work",
           status: status,
-          approvedBy: status === "APPROVED" ? (schoolAdmin?.id || "seed") : null,
-          approvedAt: status === "APPROVED" ? new Date() : null,
+          approvedBy: status === LeaveStatus.APPROVED ? (schoolAdmin?.id || "seed") : null,
+          approvedAt: status === LeaveStatus.APPROVED ? new Date() : null,
           schoolId: schoolId,
           createdBy: user.id,
         },
@@ -2085,7 +2259,7 @@ async function seedCommunication() {
         const conversation = await prisma.conversation.create({
           data: {
             participants: [teacher.id, student.id],
-            type: "DIRECT",
+            type: ConversationType.DIRECT,
             schoolId: schoolId,
             createdBy: teacher.id,
           },
@@ -2110,7 +2284,7 @@ async function seedCommunication() {
 
     // Create notifications
     for (const student of students) {
-      const notificationTypes = ["ATTENDANCE", "HOMEWORK", "EXAM", "FEE", "ANNOUNCEMENT"];
+      const notificationTypes = [NotificationType.ATTENDANCE, NotificationType.HOMEWORK, NotificationType.EXAM, NotificationType.FEE, NotificationType.ANNOUNCEMENT];
       for (let i = 0; i < 5; i++) {
         await prisma.notification.create({
           data: {
@@ -2135,43 +2309,383 @@ async function seedCommunication() {
 // ============================================
 
 /**
- * Seed Library (Note: Library models may not exist yet, so this is a placeholder)
+ * Seed Library (LibraryBook, LibraryIssue, LibraryReservation)
  */
 async function seedLibrary() {
   logger.info("Seeding library data...");
-  // Library models (LibraryBook, LibraryIssue, LibraryReservation) may not be in schema yet
-  // This is a placeholder for when they are added
-  logger.info("Library models not found in schema, skipping...");
+
+  const bookTitles = [
+    { title: "Mathematics for Class 10", author: "NCERT", category: "Academic", isbn: "978-81-7450-100-1" },
+    { title: "English Grammar", author: "Wren & Martin", category: "Academic", isbn: "978-81-7450-101-2" },
+    { title: "Science Experiments", author: "Dr. R. Sharma", category: "Academic", isbn: "978-81-7450-102-3" },
+    { title: "History of India", author: "Romila Thapar", category: "Academic", isbn: "978-81-7450-103-4" },
+    { title: "Computer Basics", author: "Tech Publications", category: "Reference", isbn: "978-81-7450-104-5" },
+    { title: "General Knowledge 2024", author: "Arihant", category: "Reference", isbn: "978-81-7450-105-6" },
+    { title: "Story Tales", author: "Various", category: "Fiction", isbn: "978-81-7450-106-7" },
+    { title: "Dictionary", author: "Oxford", category: "Reference", isbn: "978-81-7450-107-8" },
+  ];
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const books = [];
+
+    for (const b of bookTitles) {
+      const existing = await prisma.libraryBook.findFirst({
+        where: { schoolId, title: b.title, deletedAt: null },
+      });
+      if (existing) continue;
+
+      const book = await prisma.libraryBook.create({
+        data: {
+          title: b.title,
+          author: b.author,
+          isbn: b.isbn,
+          category: b.category,
+          totalCopies: randomInt(2, 5),
+          availableCopies: randomInt(1, 4),
+          language: "English",
+          schoolId,
+          createdBy,
+        },
+      });
+      books.push(book);
+    }
+
+    // Issue a few books to students
+    const students = await prisma.user.findMany({
+      where: { schoolId, role: { name: RoleName.STUDENT }, deletedAt: null },
+      take: 3,
+    });
+    const allBooks = await prisma.libraryBook.findMany({
+      where: { schoolId, deletedAt: null, availableCopies: { gt: 0 } },
+      take: 5,
+    });
+    for (let i = 0; i < Math.min(3, students.length, allBooks.length); i++) {
+      const issueExists = await prisma.libraryIssue.findFirst({
+        where: { bookId: allBooks[i].id, userId: students[i].id, status: LibraryIssueStatus.ISSUED, deletedAt: null },
+      });
+      if (issueExists) continue;
+      const due = new Date();
+      due.setDate(due.getDate() + 14);
+      await prisma.libraryIssue.create({
+        data: {
+          bookId: allBooks[i].id,
+          userId: students[i].id,
+          issuedDate: new Date(),
+          dueDate: due,
+          status: LibraryIssueStatus.ISSUED,
+          schoolId,
+          createdBy,
+        },
+      });
+      await prisma.libraryBook.update({
+        where: { id: allBooks[i].id },
+        data: { availableCopies: { decrement: 1 } },
+      });
+    }
+
+    logger.info(`Created ${books.length} library books and issues for school: ${schoolId}`);
+  }
 }
 
 /**
- * Seed Notes and Syllabus (Note: These models may not exist yet)
+ * Seed Notes and Syllabus
  */
 async function seedNotesAndSyllabus() {
   logger.info("Seeding notes and syllabus...");
-  // Note and Syllabus models may not be in schema yet
-  // This is a placeholder for when they are added
-  logger.info("Notes and Syllabus models not found in schema, skipping...");
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const classIds = seedData.classes[schoolId] || [];
+    const subjectIds = seedData.subjects[schoolId] || [];
+    if (classIds.length === 0 || subjectIds.length === 0) continue;
+
+    const noteTitles = [
+      "Algebra Basics", "Quadratic Equations", "Trigonometry Introduction",
+      "Essay Writing", "Comprehension Tips", "Grammar Rules",
+      "Physics Motion", "Chemistry Basics", "Biology Cells",
+    ];
+    for (let i = 0; i < noteTitles.length; i++) {
+      const existing = await prisma.note.findFirst({
+        where: { schoolId, title: noteTitles[i], deletedAt: null },
+      });
+      if (existing) continue;
+      await prisma.note.create({
+        data: {
+          title: noteTitles[i],
+          description: `Study notes for ${noteTitles[i]}. Use for revision.`,
+          subjectId: subjectIds[i % subjectIds.length],
+          classId: classIds[i % classIds.length],
+          chapter: `Chapter ${(i % 5) + 1}`,
+          topic: "Overview",
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+
+    const syllabusTitles = ["Mathematics Syllabus 2024-25", "Science Syllabus 2024-25", "English Syllabus 2024-25"];
+    for (let i = 0; i < syllabusTitles.length; i++) {
+      const existing = await prisma.syllabus.findFirst({
+        where: { schoolId, title: syllabusTitles[i], deletedAt: null },
+      });
+      if (existing) continue;
+      await prisma.syllabus.create({
+        data: {
+          title: syllabusTitles[i],
+          description: `Full syllabus for academic year 2024-25`,
+          subjectId: subjectIds[i % subjectIds.length],
+          classId: classIds[0],
+          academicYear: "2024-25",
+          chapters: ["Ch1", "Ch2", "Ch3", "Ch4", "Ch5"],
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+
+    logger.info(`Created notes and syllabi for school: ${schoolId}`);
+  }
 }
 
 /**
- * Seed Gallery (Note: Gallery models may not exist yet)
+ * Seed Gallery (Gallery + GalleryImage; creates minimal File records for images)
  */
 async function seedGallery() {
   logger.info("Seeding gallery data...");
-  // Gallery models may not be in schema yet
-  // This is a placeholder for when they are added
-  logger.info("Gallery models not found in schema, skipping...");
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const classIds = seedData.classes[schoolId] || [];
+    const events = await prisma.event.findMany({ where: { schoolId, deletedAt: null }, take: 2 });
+
+    const galleryTitles = ["Annual Day 2024", "Sports Day", "Science Exhibition", "Class Photos"];
+    for (let i = 0; i < galleryTitles.length; i++) {
+      const existing = await prisma.gallery.findFirst({
+        where: { schoolId, title: galleryTitles[i], deletedAt: null },
+      });
+      if (existing) continue;
+
+      const gallery = await prisma.gallery.create({
+        data: {
+          title: galleryTitles[i],
+          description: `${galleryTitles[i]} - School events gallery`,
+          eventId: events[i % events.length]?.id || null,
+          privacy: i === 0 ? GalleryPrivacy.PUBLIC : GalleryPrivacy.SCHOOL_ONLY,
+          classId: classIds[i % classIds.length] || null,
+          schoolId,
+          createdBy,
+        },
+      });
+
+      // Create a minimal file record for each gallery image (seed placeholder)
+      for (let j = 0; j < 2; j++) {
+        const file = await prisma.file.create({
+          data: {
+            extension: "jpg",
+            name: `gallery-${gallery.id}-${j}.jpg`,
+            contentType: "image/jpeg",
+            size: 1024,
+            createdBy,
+          },
+        });
+        await prisma.galleryImage.create({
+          data: {
+            galleryId: gallery.id,
+            fileId: file.id,
+            caption: `Image ${j + 1}`,
+            order: j,
+            schoolId,
+            createdBy,
+          },
+        });
+      }
+    }
+
+    logger.info(`Created galleries for school: ${schoolId}`);
+  }
 }
 
 /**
- * Seed Circulars (Note: Circular model may not exist yet)
+ * Seed Circulars
  */
 async function seedCirculars() {
   logger.info("Seeding circulars...");
-  // Circular model may not be in schema yet
-  // This is a placeholder for when it is added
-  logger.info("Circular model not found in schema, skipping...");
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const classIds = seedData.classes[schoolId] || [];
+
+    const circulars = [
+      { title: "School Reopening Notice", content: "School reopens on 1st June. All students must report by 8 AM.", status: CircularStatus.PUBLISHED },
+      { title: "Parent-Teacher Meeting", content: "PTM scheduled for 15th of this month. Please attend.", status: CircularStatus.PUBLISHED },
+      { title: "Holiday List 2024-25", content: "Please find the list of holidays for the academic year.", status: CircularStatus.DRAFT },
+      { title: "Exam Schedule", content: "Unit test schedule will be shared shortly.", status: CircularStatus.PUBLISHED },
+    ];
+
+    for (const c of circulars) {
+      const existing = await prisma.circular.findFirst({
+        where: { schoolId, title: c.title, deletedAt: null },
+      });
+      if (existing) continue;
+      await prisma.circular.create({
+        data: {
+          title: c.title,
+          content: c.content,
+          status: c.status,
+          targetRoles: ["TEACHER", "STAFF", "STUDENT"],
+          targetUserIds: [],
+          classIds: classIds.slice(0, 2),
+          attachments: [],
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          publishedAt: c.status === CircularStatus.PUBLISHED ? new Date() : null,
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+
+    logger.info(`Created circulars for school: ${schoolId}`);
+  }
+}
+
+/**
+ * Seed FAQs (school-specific and global)
+ */
+async function seedFAQs() {
+  logger.info("Seeding FAQs...");
+
+  const globalFaqs = [
+    { question: "How do I check my attendance?", answer: "Go to Dashboard > Attendance to view your attendance summary." },
+    { question: "Where can I see homework?", answer: "Homework is listed under Homework section. Submit before the due date." },
+    { question: "How to view exam results?", answer: "Results are published under Results after the exam. Check Marks for subject-wise breakdown." },
+    { question: "How to pay fees online?", answer: "Go to Finance > Fees and use the Pay option for pending installments." },
+    { question: "How do I apply for leave?", answer: "Go to Leave > My Leaves and submit a new leave request with dates and reason." },
+  ];
+
+  for (const faq of globalFaqs) {
+    const existing = await prisma.fAQ.findFirst({
+      where: { question: faq.question, schoolId: null, deletedAt: null },
+    });
+    if (existing) continue;
+    await prisma.fAQ.create({
+      data: {
+        question: faq.question,
+        answer: faq.answer,
+        category: "General",
+        keywords: ["help", "faq"],
+        schoolId: null,
+        createdBy: "seed",
+      },
+    });
+  }
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const schoolFaqs = [
+      { question: "What are the school timings?", answer: "School timings are 8:00 AM to 2:30 PM. Refer to the timetable for period details." },
+      { question: "How to collect transfer certificate?", answer: "Submit a written application at the admin office. TC will be issued within 5 working days." },
+    ];
+    for (const faq of schoolFaqs) {
+      const existing = await prisma.fAQ.findFirst({
+        where: { schoolId, question: faq.question, deletedAt: null },
+      });
+      if (existing) continue;
+      await prisma.fAQ.create({
+        data: {
+          question: faq.question,
+          answer: faq.answer,
+          category: "School",
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+  }
+
+  logger.info("Created global and school FAQs.");
+}
+
+/**
+ * Seed Routes and Vehicle Maintenance (for transports)
+ */
+async function seedRoutesAndMaintenance() {
+  logger.info("Seeding routes and vehicle maintenance...");
+
+  for (const schoolId of seedData.schools) {
+    const createdBy = seedData.users.schoolAdmins[schoolId] || "seed";
+    const transports = seedData.transports[schoolId] || [];
+    if (transports.length === 0) continue;
+
+    const transportIds = seedData.transports[schoolId] || [];
+
+    for (let i = 0; i < Math.min(2, transportIds.length); i++) {
+      const routeName = `Route ${i + 1} - Main`;
+      const existingRoute = await prisma.route.findFirst({
+        where: { schoolId, name: routeName, deletedAt: null },
+      });
+      if (existingRoute) continue;
+
+      const route = await prisma.route.create({
+        data: {
+          name: routeName,
+          transportId: transportIds[i],
+          startPoint: "School Main Gate",
+          endPoint: i === 0 ? "Central Station" : "North Colony",
+          distance: 5.5 + i,
+          estimatedTime: 25 + i * 10,
+          schoolId,
+          createdBy,
+        },
+      });
+
+      await prisma.routeStop.create({
+        data: {
+          routeId: route.id,
+          name: "Stop 1 - Market",
+          address: "Near Central Market",
+          sequence: 1,
+          arrivalTime: "08:15",
+          schoolId,
+          createdBy,
+        },
+      });
+      await prisma.routeStop.create({
+        data: {
+          routeId: route.id,
+          name: "Stop 2 - Junction",
+          sequence: 2,
+          arrivalTime: "08:25",
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+
+    for (const transportId of transportIds.slice(0, 2)) {
+      const existing = await prisma.vehicleMaintenance.findFirst({
+        where: { transportId, deletedAt: null },
+      });
+      if (existing) continue;
+      const maintDate = new Date();
+      maintDate.setMonth(maintDate.getMonth() - 1);
+      await prisma.vehicleMaintenance.create({
+        data: {
+          transportId,
+          maintenanceType: "General Service",
+          description: "Oil change, brake check, tyre inspection",
+          cost: 3500,
+          maintenanceDate: maintDate,
+          nextMaintenanceDate: new Date(maintDate.getTime() + 90 * 24 * 60 * 60 * 1000),
+          serviceProvider: "Authorized Service Center",
+          schoolId,
+          createdBy,
+        },
+      });
+    }
+  }
+
+  logger.info("Created routes and vehicle maintenance records.");
 }
 
 // ============================================
@@ -2271,7 +2785,7 @@ async function seedTransferCertificates() {
 
     for (const student of students) {
       const tcNumber = `TC-${schoolId}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const statuses = ["ISSUED", "COLLECTED", "CANCELLED"];
+      const statuses = [TCStatus.ISSUED, TCStatus.COLLECTED, TCStatus.CANCELLED];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
 
       await prisma.transferCertificate.create({
@@ -2323,7 +2837,7 @@ async function seedEmergencyContacts() {
           data: {
             studentId: student.id,
             schoolId: schoolId,
-            name: `${relationship} of ${student.name}`,
+            name: `${relationship} of ${[student.firstName, student.lastName].filter(Boolean).join(" ")}`,
             relationship: relationship,
             contact: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
             alternateContact: i === 0 ? `+91${Math.floor(Math.random() * 9000000000) + 1000000000}` : null,
@@ -2360,6 +2874,11 @@ async function main() {
     await seedLicenses();
     await seedVendors();
     await seedSettings();
+    try {
+      await seedIdCards();
+    } catch (error) {
+      logger.warn(`Skipping ID cards seed: ${error.message}`);
+    }
     await seedGrievances();
     await seedSalaries();
     
@@ -2425,6 +2944,16 @@ async function main() {
       await seedCirculars();
     } catch (error) {
       logger.warn(`Skipping circulars: ${error.message}`);
+    }
+    try {
+      await seedFAQs();
+    } catch (error) {
+      logger.warn(`Skipping FAQs: ${error.message}`);
+    }
+    try {
+      await seedRoutesAndMaintenance();
+    } catch (error) {
+      logger.warn(`Skipping routes and maintenance: ${error.message}`);
     }
     
     // Phase 3: Additional Features

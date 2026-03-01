@@ -90,7 +90,7 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
                       <div
                         className={`px-3 py-1 rounded-full text-xs font-medium ${
                           installment.paymentStatus === "PAID"
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-schooliat-tint text-primary"
                             : "bg-orange-100 text-orange-800"
                         }`}
                       >

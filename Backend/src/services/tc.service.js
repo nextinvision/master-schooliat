@@ -1,5 +1,6 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
+import { parsePagination } from "../utils/pagination.util.js";
 import { TCStatus } from "../prisma/generated/index.js";
 
 /**
@@ -63,17 +64,27 @@ const createTC = async (data) => {
     throw new Error("Transfer Certificate already exists for this student");
   }
 
-  // Generate TC number (format: TC-YYYY-XXXXX)
+  // Get school code for TC number
+  const school = await prisma.school.findUnique({
+    where: { id: schoolId },
+    select: { code: true }
+  });
+
+  if (!school) {
+    throw new Error("School not found");
+  }
+
+  // Generate TC number (format: SCHOOLCODE/TC/YYYY/XXXXX)
   const year = new Date().getFullYear();
   const tcCount = await prisma.transferCertificate.count({
     where: {
       schoolId,
       tcNumber: {
-        startsWith: `TC-${year}-`,
+        contains: `/TC/${year}/`,
       },
     },
   });
-  const tcNumber = `TC-${year}-${String(tcCount + 1).padStart(5, "0")}`;
+  const tcNumber = `${school.code}/TC/${year}/${String(tcCount + 1).padStart(5, "0")}`;
 
   // Create TC
   const tc = await prisma.transferCertificate.create({
@@ -150,8 +161,7 @@ const getTCById = async (tcId, schoolId = null) => {
  * @returns {Promise<Object>} - TCs with pagination
  */
 const getTCs = async (filters = {}, options = {}) => {
-  const { page = 1, limit = 50 } = options;
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(options);
 
   const where = {
     deletedAt: null,
@@ -176,42 +186,47 @@ const getTCs = async (filters = {}, options = {}) => {
     };
   }
 
-  const [tcs, total] = await Promise.all([
-    prisma.transferCertificate.findMany({
-      where,
-      include: {
-        student: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            email: true,
-            studentProfile: {
-              include: {
-                class: true,
+  try {
+    const [tcs, total] = await Promise.all([
+      prisma.transferCertificate.findMany({
+        where,
+        include: {
+          student: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              studentProfile: {
+                include: {
+                  class: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      skip,
-      take: limit,
-    }),
-    prisma.transferCertificate.count({ where }),
-  ]);
+        orderBy: {
+          createdAt: "desc",
+        },
+        skip,
+        take: limit,
+      }),
+      prisma.transferCertificate.count({ where }),
+    ]);
 
-  return {
-    tcs,
-    pagination: {
-      page,
-      limit,
-      total,
-      totalPages: Math.ceil(total / limit),
-    },
-  };
+    return {
+      tcs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId: filters.schoolId }, "getTCs failed");
+    throw err;
+  }
 };
 
 /**

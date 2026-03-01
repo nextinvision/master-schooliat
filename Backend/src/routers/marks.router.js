@@ -266,9 +266,10 @@ router.get(
         });
       }
 
-      res.status(400).json({
-        errorCode: "INVALID_QUERY",
-        message: "Please specify examId with classId, or studentId",
+      // No filters: return empty list so the panel can show empty state
+      return res.json({
+        message: "Marks retrieved successfully",
+        data: [],
       });
     } catch (error) {
       logger.error({ error, query: req.query }, "Failed to get marks");

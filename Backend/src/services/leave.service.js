@@ -1,4 +1,5 @@
 import prisma from "../prisma/client.js";
+import { parsePagination } from "../utils/pagination.util.js";
 import { LeaveStatus } from "../prisma/generated/index.js";
 import logger from "../config/logger.js";
 import notificationService from "./notification.service.js";
@@ -237,11 +238,10 @@ const getLeaveHistory = async (userId, filters = {}) => {
     status = null,
     startDate = null,
     endDate = null,
-    page = 1,
-    limit = 20,
+    ...paginationOptions
   } = filters;
 
-  const skip = (page - 1) * limit;
+  const { page, limit, skip } = parsePagination(paginationOptions);
 
   const where = {
     userId,

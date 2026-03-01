@@ -9,8 +9,9 @@ function fetchLeaveBalance() {
   return get("/leave/balance");
 }
 
-// Fetch leave history
+// Fetch leave history (optionally for a specific user - school admin can pass userId)
 function fetchLeaveHistory(params: {
+  userId?: string;
   page?: number;
   limit?: number;
   status?: string;
@@ -44,18 +45,16 @@ function createLeaveRequestApi(data: {
   return post("/leave/request", { request: data });
 }
 
-// Approve leave request
-function approveLeaveApi(leaveRequestId: string, data: {
-  comments?: string;
-}) {
-  return post(`/leave/${leaveRequestId}/approve`, { request: data });
+// Approve leave request (backend: POST /leave/approve, body.request.leaveRequestId)
+function approveLeaveApi(leaveRequestId: string) {
+  return post("/leave/approve", { request: { leaveRequestId } });
 }
 
-// Reject leave request
-function rejectLeaveApi(leaveRequestId: string, data: {
-  comments: string;
-}) {
-  return post(`/leave/${leaveRequestId}/reject`, { request: data });
+// Reject leave request (backend: POST /leave/reject, body.request.leaveRequestId, rejectionReason)
+function rejectLeaveApi(leaveRequestId: string, data: { rejectionReason?: string }) {
+  return post("/leave/reject", {
+    request: { leaveRequestId, rejectionReason: data.rejectionReason ?? null },
+  });
 }
 
 // Cancel leave request
@@ -73,6 +72,7 @@ export function useLeaveBalance() {
 }
 
 export function useLeaveHistory(params: {
+  userId?: string;
   page?: number;
   limit?: number;
   status?: string;
@@ -83,6 +83,45 @@ export function useLeaveHistory(params: {
     queryKey: ["leave-history", params],
     queryFn: () => fetchLeaveHistory(params),
     placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Fetches all pending leave requests for the school by aggregating leave/history per teacher.
+ * Backend does not expose a single "pending for school" endpoint; this uses existing APIs only.
+ * Enriches each leave with requesterName from the teachers list (leave history does not include user).
+ */
+async function fetchPendingLeaveRequestsForApproval(): Promise<any[]> {
+  const teachersRes = await get("/users/teachers", { pageNumber: 1, pageSize: 100 });
+  const teachers = teachersRes?.data ?? [];
+  const userIds = teachers.map((t: { id: string }) => t.id).filter(Boolean);
+  if (userIds.length === 0) return [];
+
+  const results = await Promise.all(
+    userIds.map((userId: string) =>
+      get("/leave/history", { userId, status: "PENDING", limit: 50 })
+    )
+  );
+  const allLeaves: any[] = [];
+  results.forEach((res) => {
+    const leaves = res?.data?.leaves ?? [];
+    allLeaves.push(...leaves);
+  });
+  allLeaves.sort(
+    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+  );
+  const userMap = new Map(teachers.map((t: any) => [t.id, `${t.firstName || ""} ${t.lastName || ""}`.trim() || t.email]));
+  return allLeaves.map((leave) => ({
+    ...leave,
+    requesterName: userMap.get(leave.userId) || leave.userId,
+  }));
+}
+
+export function usePendingLeaveRequestsForApproval() {
+  return useQuery({
+    queryKey: ["leave-pending-approvals"],
+    queryFn: fetchPendingLeaveRequestsForApproval,
     staleTime: 30 * 1000,
   });
 }
@@ -130,12 +169,12 @@ export function useApproveLeave() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ leaveRequestId, ...data }: { leaveRequestId: string; comments?: string }) =>
-      approveLeaveApi(leaveRequestId, data),
+    mutationFn: (leaveRequestId: string) => approveLeaveApi(leaveRequestId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-balance"] });
       queryClient.invalidateQueries({ queryKey: ["leave-history"] });
       queryClient.invalidateQueries({ queryKey: ["leave-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-pending-approvals"] });
     },
   });
 }
@@ -144,12 +183,13 @@ export function useRejectLeave() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ leaveRequestId, ...data }: { leaveRequestId: string; comments: string }) =>
-      rejectLeaveApi(leaveRequestId, data),
+    mutationFn: ({ leaveRequestId, rejectionReason }: { leaveRequestId: string; rejectionReason?: string }) =>
+      rejectLeaveApi(leaveRequestId, { rejectionReason }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-balance"] });
       queryClient.invalidateQueries({ queryKey: ["leave-history"] });
       queryClient.invalidateQueries({ queryKey: ["leave-calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["leave-pending-approvals"] });
     },
   });
 }

@@ -13,7 +13,7 @@ function fetchNotes(params: {
   page?: number;
   limit?: number;
 }) {
-  return get("/notes", params);
+  return get("/notes/notes", params);
 }
 
 // Fetch syllabus
@@ -22,7 +22,7 @@ function fetchSyllabus(params: {
   classId?: string;
   academicYear?: string;
 }) {
-  return get("/syllabus", params);
+  return get("/notes/syllabus", params);
 }
 
 // Create note

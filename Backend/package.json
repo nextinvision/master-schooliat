@@ -23,10 +23,12 @@
     "prisma:migrate:create": "prisma migrate dev --create-only --schema=src/prisma/db/schema.prisma",
     "prisma:migrate:deploy": "prisma migrate deploy --schema=src/prisma/db/schema.prisma",
     "prisma:format": "prisma format --schema=src/prisma/db/schema.prisma",
-    "seed": "node prisma/seed.js",
+    "seed": "node prisma/seed-run.js",
     "test:phase1": "node test-phase1-apis.js",
     "test:all": "node test-all-apis.js",
     "test:comprehensive": "node test-comprehensive-apis.js",
+    "test:mobile": "node test-mobile-apis.js",
+    "test:mobile:staging-production": "node test-mobile-apis-staging-production.js",
     "test:staging": "bash scripts/test-staging-apis.sh",
     "test:production": "bash scripts/test-production-apis.sh",
     "migrate:phase1": "bash scripts/run-migration.sh",
@@ -34,7 +36,8 @@
     "migrate:production": "bash scripts/migrate-production.sh",
     "migrate:status": "bash scripts/check-migration-status.sh",
     "migrate:seed": "bash scripts/migrate-and-seed.sh",
-    "migrate:seed:production": "bash scripts/migrate-and-seed-production.sh"
+    "migrate:seed:production": "bash scripts/migrate-and-seed-production.sh",
+    "check:dashboard-db": "node scripts/check-dashboard-db.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.948.0",
@@ -61,7 +64,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.10",
-    "pino-pretty": "^13.0.0",
+    "pino-pretty": "^13.1.3",
     "prisma": "^7.2.0",
     "swagger-ui-express": "^5.0.1"
   }

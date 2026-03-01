@@ -222,13 +222,14 @@ router.get(
         status: status || null,
         startDate: startDate ? new Date(startDate) : null,
         endDate: endDate ? new Date(endDate) : null,
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10) || 1,
+        limit: parseInt(limit, 10) || 20,
       });
 
       res.json({
         message: "Leave history retrieved successfully",
-        data: result,
+        data: result.leaves,
+        pagination: result.pagination,
       });
     } catch (error) {
       logger.error({ error, userId: targetUserId }, "Failed to get leave history");

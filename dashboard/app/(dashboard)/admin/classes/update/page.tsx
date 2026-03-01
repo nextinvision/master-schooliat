@@ -9,11 +9,22 @@ import { useClassesPage, useCreateClasses } from "@/lib/hooks/use-classes";
 import { useTeachersPage } from "@/lib/hooks/use-teachers";
 import { ClassItem, classesSchema } from "@/lib/schemas/class-schema";
 import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { AlertCircle } from "lucide-react";
 
 export default function UpdateClassesPage() {
   const router = useRouter();
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const { mutateAsync: createClasses, isPending: isSaving } = useCreateClasses();
 
   // Fetch all classes
@@ -41,7 +52,7 @@ export default function UpdateClassesPage() {
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
-    
+
     try {
       classesSchema.parse(classes);
     } catch (error: any) {
@@ -82,12 +93,16 @@ export default function UpdateClassesPage() {
     setErrors(newErrors);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!validate()) {
       toast.error("Please fix errors in the form");
       return;
     }
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmSave = async () => {
+    setIsConfirmOpen(false);
     try {
       await createClasses(classes);
       toast.success("Classes updated successfully");
@@ -143,6 +158,38 @@ export default function UpdateClassesPage() {
           onFieldChange={handleFieldChange}
         />
       </FormCard>
+
+      <Dialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-amber-600 mb-2">
+              <AlertCircle className="h-5 w-5" />
+              <DialogTitle>Confirm Changes</DialogTitle>
+            </div>
+            <DialogDescription>
+              Are you sure you want to save the changes to the school classes?
+              This will update the configuration for {classes.length} class(es).
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="sm:justify-end gap-2 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsConfirmOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleConfirmSave}
+              disabled={isSaving}
+              className="bg-primary hover:bg-schooliat-primary-dark"
+            >
+              {isSaving ? "Saving..." : "Confirm & Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { Permission, RoleName, UserType } from "../prisma/generated/index.js";
 import roleService from "../services/role.service.js";
 import dashboardService from "../services/dashboard.service.js";
 import paginateUtil from "../utils/paginate.util.js";
+import logger from "../config/logger.js";
 
 const router = Router();
 
@@ -187,13 +188,36 @@ router.get(
   "/dashboard",
   withPermission(Permission.GET_DASHBOARD_STATS),
   async (req, res) => {
-    const currentUser = req.context.user;
-    const data = await dashboardService.getDashboard(currentUser);
+    try {
+      const currentUser = req.context.user;
+      
+      if (!currentUser) {
+        return res.status(401).json({
+          message: "User not authenticated",
+        });
+      }
 
-    return res.json({
-      message: "Dashboard statistics fetched!",
-      data,
-    });
+      const data = await dashboardService.getDashboard(currentUser);
+
+      return res.json({
+        message: "Dashboard statistics fetched!",
+        data,
+      });
+    } catch (error) {
+      logger.error(
+        {
+          error: error.message,
+          stack: error.stack,
+          userId: req.context?.user?.id,
+          roleName: req.context?.user?.role?.name,
+          schoolId: req.context?.user?.schoolId,
+        },
+        "Dashboard statistics error",
+      );
+      return res.status(500).json({
+        message: error.message || "Failed to fetch dashboard statistics",
+      });
+    }
   },
 );
 

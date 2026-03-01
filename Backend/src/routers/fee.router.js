@@ -158,6 +158,8 @@ const generateFeeReceiptHTML = async (
   school,
   paymentAmount,
   previousPaidAmount,
+  paymentMethod,
+  isWaiver,
 ) => {
   const template = getFeeReceiptTemplate();
 
@@ -172,7 +174,10 @@ const generateFeeReceiptHTML = async (
 
   let paymentStatus;
   let statusClass;
-  if (remainingAmount === 0) {
+  if (remainingAmount <= 0 && isWaiver) {
+    paymentStatus = "WAIVED";
+    statusClass = "paid";
+  } else if (remainingAmount === 0) {
     paymentStatus = "PAID";
     statusClass = "paid";
   } else if (newPaidAmount > 0) {
@@ -231,7 +236,7 @@ const generateFeeReceiptHTML = async (
   );
   html = html.replace(
     /\{\{payment\.amountPaid\}\}/g,
-    paymentAmount.toLocaleString("en-IN"),
+    isWaiver ? "Waived" : paymentAmount.toLocaleString("en-IN"),
   );
   html = html.replace(
     /\{\{payment\.previouslyPaid\}\}/g,
@@ -245,8 +250,9 @@ const generateFeeReceiptHTML = async (
   html = html.replace(/\{\{payment\.statusClass\}\}/g, statusClass);
   html = html.replace(
     /\{\{payment\.amountInWords\}\}/g,
-    numberToWords(paymentAmount),
+    isWaiver ? "Waived" : numberToWords(paymentAmount),
   );
+  html = html.replace(/\{\{payment\.method\}\}/g, isWaiver ? "Fee Waiver" : paymentMethod || "System");
 
   return html;
 };
@@ -336,6 +342,7 @@ router.get(
     const currentUser = req.context.user;
     const { installmentNumber } = req.params;
     const installmentNum = parseInt(installmentNumber, 10);
+    const endInstallmentNum = req.query.end ? parseInt(req.query.end, 10) : installmentNum;
 
     if (!currentUser.schoolId) {
       return res
@@ -347,11 +354,14 @@ router.get(
       return res.status(400).json({ message: "Invalid installment number!" });
     }
 
-    // Get all fee installments for the specified installment number
+    // Get all fee installments for the specified installment number range
     const installments = await prisma.feeInstallements.findMany({
       where: {
         schoolId: currentUser.schoolId,
-        installementNumber: installmentNum,
+        installementNumber: {
+          gte: installmentNum,
+          lte: isNaN(endInstallmentNum) ? installmentNum : endInstallmentNum,
+        },
         deletedAt: null,
       },
       orderBy: { createdAt: "desc" },
@@ -489,7 +499,7 @@ router.patch(
   validateRequest(recordPaymentSchema),
   async (req, res) => {
     const { id } = req.params;
-    const { amount } = req.body.request;
+    const { amount, paymentMethod, isWaiver } = req.body.request;
     const currentUser = req.context.user;
 
     if (!currentUser.schoolId) {
@@ -511,17 +521,19 @@ router.patch(
       return res.status(404).json({ message: "Fee installment not found!" });
     }
 
-    // Validate payment amount
-    if (amount <= 0) {
-      return res
-        .status(400)
-        .json({ message: "Payment amount must be greater than 0!" });
-    }
+    // Validate payment amount (if not a waiver)
+    if (!isWaiver) {
+      if (amount <= 0) {
+        return res
+          .status(400)
+          .json({ message: "Payment amount must be greater than 0!" });
+      }
 
-    if (amount > installment.remainingAmount) {
-      return res.status(400).json({
-        message: `Payment amount cannot exceed remaining amount of ${installment.remainingAmount}!`,
-      });
+      if (amount > installment.remainingAmount) {
+        return res.status(400).json({
+          message: `Payment amount cannot exceed remaining amount of ${installment.remainingAmount}!`,
+        });
+      }
     }
 
     // Get student and school details for receipt generation
@@ -541,10 +553,10 @@ router.patch(
       }),
     ]);
 
-    // Calculate new values
+    const appliedAmount = isWaiver ? installment.remainingAmount : amount;
     const previousPaidAmount = installment.paidAmount;
-    const newPaidAmount = installment.paidAmount + amount;
-    const newRemainingAmount = installment.remainingAmount - amount;
+    const newPaidAmount = installment.paidAmount + appliedAmount;
+    const newRemainingAmount = installment.remainingAmount - appliedAmount;
 
     // Determine new payment status
     let newPaymentStatus;
@@ -556,14 +568,13 @@ router.patch(
       newPaymentStatus = FeePaymentStatus.PENDING;
     }
 
-    // Generate receipt HTML and save as file
     let receiptFileId = null;
     try {
       const receiptHTML = await generateFeeReceiptHTML(
         installment,
         student,
         school,
-        amount,
+        appliedAmount,
         previousPaidAmount,
       );
 
@@ -604,8 +615,8 @@ router.patch(
           await tx.fee.update({
             where: { id: installment.feeId },
             data: {
-              totalPaidAmount: fee.totalPaidAmount + amount,
-              totalRemainingAmount: fee.totalRemainingAmount - amount,
+              totalPaidAmount: fee.totalPaidAmount + appliedAmount,
+              totalRemainingAmount: fee.totalRemainingAmount - appliedAmount,
               updatedBy: currentUser.id,
             },
           });

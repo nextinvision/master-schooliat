@@ -17,6 +17,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useClassFilters } from "@/lib/hooks/use-class-filters";
+import { useTimetable } from "@/lib/hooks/use-timetable";
+import { Loader2 } from "lucide-react";
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const PERIOD_TIMES = [
@@ -41,35 +43,78 @@ const ROW_TEMPLATE = [
   { period: 6, time: PERIOD_TIMES[7], isBreak: false },
 ];
 
-// Mock data - replace with API call
-const INITIAL_TIMETABLE = ROW_TEMPLATE.map((template, i) => ({
-  id: template.isBreak ? `break-${i}` : i + 1,
-  ...template,
-  ...Object.fromEntries(
-    DAYS.map((d) => [
-      d.toLowerCase(),
-      template.isBreak
-        ? {
-            subject: template.period,
-            teacher: "",
-          }
-        : {
-            subject: "Math",
-            teacher: "Mr. Sharma",
-          },
-    ])
-  ),
-}));
-
 export function TimetableView() {
-  const { classFilter, divisionFilter } = useClassFilters();
+  const { classFilter, divisionFilter, classes } = useClassFilters();
   const [classFilterValue, setClassFilterValue] = useState(classFilter.defaultValue);
   const [divisionFilterValue, setDivisionFilterValue] = useState(divisionFilter.defaultValue);
-  const [timeTable, setTimeTable] = useState(INITIAL_TIMETABLE);
+
+  // Derive classId
+  const targetClassId = useMemo(() => {
+    if (!classFilterValue || classFilterValue === classFilter.defaultValue) return undefined;
+    const parts = classFilterValue.split("-");
+    const grade = parts[0];
+    const divisionFromClass = parts[1] || "";
+
+    let targetDivision = divisionFromClass;
+    if (divisionFilterValue !== divisionFilter.defaultValue) {
+      targetDivision = divisionFilterValue;
+    }
+
+    const matched = classes.find(c =>
+      c.grade === grade &&
+      (!targetDivision || c.division === targetDivision)
+    );
+    return matched?.id;
+  }, [classFilterValue, divisionFilterValue, classes, classFilter.defaultValue, divisionFilter.defaultValue]);
+
+  // If no class selected, we don't pass classId; wait until one is chosen.
+  const queryParams = targetClassId ? { classId: targetClassId } : {};
+  const { data: timetableData, isLoading } = useTimetable(queryParams);
 
   const filteredTimeTable = useMemo(() => {
-    return timeTable; // Add filtering logic when API is available
-  }, [timeTable, classFilterValue, divisionFilterValue]);
+    // If no data or not a specific class payload (admin fetch-all doesn't have slots)
+    if (!timetableData?.data || !timetableData.data.slots) {
+      return ROW_TEMPLATE.map((template, i) => ({
+        id: template.isBreak ? `break-${i}` : i + 1,
+        ...template,
+        ...Object.fromEntries(DAYS.map(d => [d.toLowerCase(), null]))
+      }));
+    }
+
+    const tt = timetableData.data;
+
+    return ROW_TEMPLATE.map((template, i) => {
+      const row: any = {
+        id: template.isBreak ? `break-${i}` : i + 1,
+        ...template,
+      };
+
+      for (let dayIdx = 0; dayIdx < DAYS.length; dayIdx++) {
+        const dayName = DAYS[dayIdx].toLowerCase();
+
+        if (template.isBreak) {
+          row[dayName] = { subject: template.period, teacher: "" };
+          continue;
+        }
+
+        // 1 = Monday, 6 = Saturday
+        const dayOfWeek = dayIdx + 1;
+        const periodNumber = template.period as number;
+
+        const slot = tt.slots.find((s: any) => s.dayOfWeek === dayOfWeek && s.periodNumber === periodNumber);
+
+        if (slot && slot.subject && slot.teacher) {
+          row[dayName] = {
+            subject: slot.subject.name,
+            teacher: `${slot.teacher.firstName} ${slot.teacher.lastName || ""}`.trim(),
+          };
+        } else {
+          row[dayName] = null;
+        }
+      }
+      return row;
+    });
+  }, [timetableData]);
 
   return (
     <div className="space-y-6">
@@ -103,11 +148,16 @@ export function TimetableView() {
         </div>
       </div>
 
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border rounded-lg overflow-hidden relative min-h-[400px]">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10 backdrop-blur-sm">
+            <Loader2 className="h-8 w-8 animate-spin text-schooliat-primary" />
+          </div>
+        )}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-32">Period/Time</TableHead>
                 {DAYS.map((day) => (
                   <TableHead key={day} className="min-w-[150px]">
@@ -117,42 +167,56 @@ export function TimetableView() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredTimeTable.map((row) => {
-                if (row.isBreak) {
+              {!targetClassId && !isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-gray-500">
+                    Please select a class to view its timetable.
+                  </TableCell>
+                </TableRow>
+              ) : timetableData?.data === null ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-gray-500">
+                    No active timetable found for the selected class.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTimeTable.map((row) => {
+                  if (row.isBreak) {
+                    return (
+                      <TableRow key={row.id} className="bg-gray-100">
+                        <TableCell colSpan={7} className="text-center font-semibold py-3 text-gray-600">
+                          {row.period} ({row.time})
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
                   return (
-                    <TableRow key={row.id} className="bg-gray-100">
-                      <TableCell colSpan={7} className="text-center font-semibold py-3">
-                        {row.period} ({row.time})
+                    <TableRow key={row.id} className="hover:bg-gray-50">
+                      <TableCell className="font-medium">
+                        <div>
+                          <div>Period {row.period}</div>
+                          <div className="text-xs text-gray-500">{row.time}</div>
+                        </div>
                       </TableCell>
+                      {DAYS.map((day) => {
+                        const dayData = row[day.toLowerCase() as keyof typeof row] as any;
+                        return (
+                          <TableCell key={day} className="min-w-[150px] align-top">
+                            {dayData ? (
+                              <div className="p-2 border border-gray-100 rounded bg-white shadow-sm h-full">
+                                <div className="font-semibold text-schooliat-primary">{dayData.subject}</div>
+                                <div className="text-sm text-gray-600 truncate" title={dayData.teacher}>{dayData.teacher}</div>
+                              </div>
+                            ) : (
+                              <div className="text-gray-300 text-center py-2">—</div>
+                            )}
+                          </TableCell>
+                        );
+                      })}
                     </TableRow>
                   );
-                }
-                return (
-                  <TableRow key={row.id} className="hover:bg-gray-50">
-                    <TableCell className="font-medium">
-                      <div>
-                        <div>Period {row.period}</div>
-                        <div className="text-xs text-gray-500">{row.time}</div>
-                      </div>
-                    </TableCell>
-                    {DAYS.map((day) => {
-                      const dayData = row[day.toLowerCase() as keyof typeof row] as any;
-                      return (
-                        <TableCell key={day} className="min-w-[150px]">
-                          {dayData ? (
-                            <div>
-                              <div className="font-semibold">{dayData.subject}</div>
-                              <div className="text-sm text-gray-600">{dayData.teacher}</div>
-                            </div>
-                          ) : (
-                            <div className="text-gray-400">—</div>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                );
-              })}
+                })
+              )}
             </TableBody>
           </Table>
         </div>
@@ -160,4 +224,3 @@ export function TimetableView() {
     </div>
   );
 }
-

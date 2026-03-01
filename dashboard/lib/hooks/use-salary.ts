@@ -20,7 +20,7 @@ function fetchSalaryStructures() {
 }
 
 function fetchSalaryAssignments() {
-  return get("/salary-assignments");
+  return get("/salaries");
 }
 
 export function useSalaryPayments(month?: string) {

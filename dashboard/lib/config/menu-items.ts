@@ -40,6 +40,13 @@ export const RESULTS_SUBMENU: SubMenuItem[] = [
   { name: "Marks Entry", route: "/admin/marks/entry" },
 ];
 
+// Submenu items for Students (if needed in future)
+export const STUDENTS_SUBMENU: SubMenuItem[] = [
+  { name: "All Students", route: "/admin/students" },
+  { name: "Add Student", route: "/admin/students/add" },
+  { name: "Transfer Certificates", route: "/admin/transfer-certificates" },
+];
+
 export const MENU_ITEMS: MenuItem[] = [
   {
     name: "Dashboard",
@@ -60,6 +67,11 @@ export const MENU_ITEMS: MenuItem[] = [
     name: "Students",
     icon: "UserCheck",
     route: "/admin/students",
+  },
+  {
+    name: "Staff",
+    icon: "SquareUser",
+    route: "/admin/staff",
   },
   {
     name: "Attendance",
@@ -137,9 +149,24 @@ export const MENU_ITEMS: MenuItem[] = [
     route: "/admin/circulars",
   },
   {
+    name: "Reports & Analytics",
+    icon: "BarChart3",
+    route: "/admin/reports",
+  },
+  {
+    name: "Settings",
+    icon: "ShieldCheck",
+    route: "/admin/settings",
+  },
+  {
+    name: "Help",
+    icon: "Info",
+    route: "/admin/help",
+  },
+  {
     name: "Contact Schooliat",
     icon: "MessageCircle",
-    route: "/admin/contact-schooliat",
+    route: "/admin/contact",
   },
 ];
 
@@ -150,9 +177,9 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     route: "/super-admin/dashboard",
   },
   {
-    name: "Register Schools",
+    name: "Schools",
     icon: "School",
-    route: "/super-admin/schools/register",
+    route: "/super-admin/schools",
   },
   {
     name: "Receipts",
@@ -180,6 +207,27 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     route: "/super-admin/vendors",
   },
   {
+    name: "Master Data",
+    icon: "Database",
+    route: "/super-admin/master-data",
+    hasSubmenu: true,
+  },
+  {
+    name: "Templates",
+    icon: "FileText",
+    route: "/super-admin/templates",
+  },
+  {
+    name: "Audit Logs",
+    icon: "ScrollText",
+    route: "/super-admin/audit-logs",
+  },
+  {
+    name: "System Health",
+    icon: "Activity",
+    route: "/super-admin/system-health",
+  },
+  {
     name: "About Us",
     icon: "Info",
     route: "/super-admin/about-us",
@@ -194,5 +242,64 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     icon: "MessageSquare",
     route: "/super-admin/grievances",
   },
+  {
+    name: "Reports & Analytics",
+    icon: "BarChart3",
+    route: "/super-admin/reports",
+  },
+  {
+    name: "Settings",
+    icon: "ShieldCheck",
+    route: "/super-admin/settings",
+  },
+  {
+    name: "Help",
+    icon: "Info",
+    route: "/super-admin/help",
+  },
 ];
+
+// Submenu items for Master Data
+export const MASTER_DATA_SUBMENU: SubMenuItem[] = [
+  { name: "Regions", route: "/super-admin/master-data/regions" },
+  { name: "Locations", route: "/super-admin/master-data/locations" },
+];
+
+/** Flat list of { name, route } for navbar quick search (admin + all submenus) */
+export function getAdminSearchItems(): { name: string; route: string }[] {
+  const out: { name: string; route: string }[] = [];
+  for (const item of MENU_ITEMS) {
+    if (item.hasSubmenu) {
+      const sub =
+        item.name === "Finance"
+          ? FINANCE_SUBMENU
+          : item.name === "Attendance"
+            ? ATTENDANCE_SUBMENU
+            : item.name === "Leave Management"
+              ? LEAVE_SUBMENU
+              : item.name === "Library"
+                ? LIBRARY_SUBMENU
+                : item.name === "Result Management"
+                  ? RESULTS_SUBMENU
+                  : [];
+      sub.forEach((s) => out.push({ name: s.name, route: s.route }));
+    } else {
+      out.push({ name: item.name, route: item.route });
+    }
+  }
+  return out;
+}
+
+/** Flat list of { name, route } for navbar quick search (super-admin + submenus) */
+export function getSuperAdminSearchItems(): { name: string; route: string }[] {
+  const out: { name: string; route: string }[] = [];
+  for (const item of SUPER_ADMIN_MENU_ITEMS) {
+    if (item.hasSubmenu) {
+      MASTER_DATA_SUBMENU.forEach((s) => out.push({ name: s.name, route: s.route }));
+    } else {
+      out.push({ name: item.name, route: item.route });
+    }
+  }
+  return out;
+}
 

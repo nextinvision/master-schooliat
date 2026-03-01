@@ -1,22 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import { usePendingLeaveRequests, useApproveLeave, useRejectLeave } from "@/lib/hooks/use-leave-admin";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useState } from "react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
-import { CheckCircle2, XCircle, Calendar } from "lucide-react";
-import { format } from "date-fns";
+  usePendingLeaveRequestsForApproval,
+  useApproveLeave,
+  useRejectLeave,
+} from "@/lib/hooks/use-leave";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -25,7 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -34,238 +24,202 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { CheckCircle2, XCircle, ArrowLeft, Calendar } from "lucide-react";
+import { format } from "date-fns";
+import Link from "next/link";
 
 export default function LeaveApprovalsPage() {
-  const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState<string>("PENDING");
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
-  const [rejectionReason, setRejectionReason] = useState("");
-
-  const { data, isLoading, refetch } = usePendingLeaveRequests({
-    page,
-    limit: 15,
-    status: statusFilter,
-  });
-
+  const { data: pendingLeaves, isLoading, refetch } = usePendingLeaveRequestsForApproval();
   const approveLeave = useApproveLeave();
   const rejectLeave = useRejectLeave();
 
-  const requests = data?.data || [];
-  const totalPages = data?.pagination?.totalPages || 1;
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState<any>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
-  const handleApprove = useCallback(
-    async (requestId: string) => {
-      try {
-        await approveLeave.mutateAsync({ leaveRequestId: requestId });
-        toast.success("Leave request approved successfully");
-        refetch();
-      } catch (error: any) {
-        toast.error(error?.message || "Failed to approve leave request");
-      }
-    },
-    [approveLeave, refetch]
-  );
+  const list = Array.isArray(pendingLeaves) ? pendingLeaves : [];
 
-  const handleReject = useCallback(
-    async () => {
-      if (!selectedRequest) return;
+  const handleApprove = async (leaveRequestId: string) => {
+    try {
+      await approveLeave.mutateAsync(leaveRequestId);
+      toast.success("Leave request approved");
+      refetch();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to approve leave");
+    }
+  };
 
-      try {
-        await rejectLeave.mutateAsync({
-          leaveRequestId: selectedRequest.id,
-          rejectionReason: rejectionReason || undefined,
-        });
-        toast.success("Leave request rejected");
-        setRejectDialogOpen(false);
-        setSelectedRequest(null);
-        setRejectionReason("");
-        refetch();
-      } catch (error: any) {
-        toast.error(error?.message || "Failed to reject leave request");
-      }
-    },
-    [selectedRequest, rejectionReason, rejectLeave, refetch]
-  );
-
-  const openRejectDialog = (request: any) => {
-    setSelectedRequest(request);
+  const openRejectDialog = (leave: any) => {
+    setSelectedLeave(leave);
+    setRejectionReason("");
     setRejectDialogOpen(true);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "APPROVED":
-        return <Badge className="bg-green-500 hover:bg-green-600">Approved</Badge>;
-      case "REJECTED":
-        return <Badge variant="destructive">Rejected</Badge>;
-      case "PENDING":
-        return <Badge className="bg-yellow-500 hover:bg-yellow-600">Pending</Badge>;
-      case "CANCELLED":
-        return <Badge variant="secondary">Cancelled</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+  const handleReject = async () => {
+    if (!selectedLeave?.id) return;
+    try {
+      await rejectLeave.mutateAsync({
+        leaveRequestId: selectedLeave.id,
+        rejectionReason: rejectionReason.trim() || undefined,
+      });
+      toast.success("Leave request rejected");
+      setRejectDialogOpen(false);
+      setSelectedLeave(null);
+      setRejectionReason("");
+      refetch();
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to reject leave");
     }
   };
 
   return (
     <div className="space-y-6 pb-8">
-      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Leave Approvals</h1>
-        <div className="flex items-center gap-2">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="PENDING">Pending</SelectItem>
-              <SelectItem value="APPROVED">Approved</SelectItem>
-              <SelectItem value="REJECTED">Rejected</SelectItem>
-              <SelectItem value="ALL">All</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="flex items-center gap-3">
+          <Link href="/admin/leave">
+            <Button variant="ghost" size="icon" className="h-8 w-8">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-semibold">Leave Approvals</h1>
+            <p className="text-sm text-gray-600 mt-0.5">
+              Review and approve or reject pending leave requests
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Leave Requests Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Leave Requests</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Pending Requests ({list.length})
+          </CardTitle>
+          <CardDescription>
+            Leave requests from teachers and staff awaiting your action. Approve or reject with optional reason.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {isLoading ? (
             <Skeleton className="h-64 w-full" />
-          ) : requests.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p>No leave requests found</p>
+          ) : list.length === 0 ? (
+            <div className="text-center py-12 text-gray-600">
+              <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="font-medium">No pending leave requests</p>
+              <p className="text-sm mt-1">New requests will appear here for approval.</p>
+              <Link href="/admin/leave">
+                <Button variant="outline" className="mt-4">
+                  Back to Leave Management
+                </Button>
+              </Link>
             </div>
           ) : (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-[#e5ffc7]">
-                      <TableHead>Employee</TableHead>
-                      <TableHead>Leave Type</TableHead>
-                      <TableHead>Start Date</TableHead>
-                      <TableHead>End Date</TableHead>
-                      <TableHead>Days</TableHead>
-                      <TableHead>Reason</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Applied On</TableHead>
-                      <TableHead className="w-48">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {requests.map((request: any) => {
-                      const start = new Date(request.startDate);
-                      const end = new Date(request.endDate);
-                      const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-                      return (
-                        <TableRow key={request.id}>
-                          <TableCell className="font-medium">
-                            {request.user?.firstName} {request.user?.lastName}
-                          </TableCell>
-                          <TableCell>{request.leaveType?.name || "N/A"}</TableCell>
-                          <TableCell>{format(start, "MMM dd, yyyy")}</TableCell>
-                          <TableCell>{format(end, "MMM dd, yyyy")}</TableCell>
-                          <TableCell>{days} day{days !== 1 ? "s" : ""}</TableCell>
-                          <TableCell className="max-w-xs truncate">{request.reason}</TableCell>
-                          <TableCell>{getStatusBadge(request.status)}</TableCell>
-                          <TableCell>
-                            {format(new Date(request.createdAt), "MMM dd, yyyy")}
-                          </TableCell>
-                          <TableCell>
-                            {request.status === "PENDING" && (
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  onClick={() => handleApprove(request.id)}
-                                  disabled={approveLeave.isPending}
-                                  className="bg-green-600 hover:bg-green-700"
-                                >
-                                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => openRejectDialog(request)}
-                                  disabled={rejectLeave.isPending}
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Reject
-                                </Button>
-                              </div>
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <div className="text-sm text-gray-600">
-                    Page {page} of {totalPages}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1}
-                    >
-                      Previous
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setPage(page + 1)}
-                      disabled={page >= totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-schooliat-tint">
+                    <TableHead>Requester</TableHead>
+                    <TableHead>Leave Type</TableHead>
+                    <TableHead>Start Date</TableHead>
+                    <TableHead>End Date</TableHead>
+                    <TableHead>Days</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead>Applied On</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {list.map((leave: any) => {
+                    const start = new Date(leave.startDate);
+                    const end = new Date(leave.endDate);
+                    const days =
+                      Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                    return (
+                      <TableRow key={leave.id}>
+                        <TableCell className="font-medium">
+                          {leave.requesterName ?? leave.userId}
+                        </TableCell>
+                        <TableCell>{leave.leaveType?.name ?? "N/A"}</TableCell>
+                        <TableCell>{format(start, "MMM dd, yyyy")}</TableCell>
+                        <TableCell>{format(end, "MMM dd, yyyy")}</TableCell>
+                        <TableCell>
+                          {days} day{days !== 1 ? "s" : ""}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate">{leave.reason}</TableCell>
+                        <TableCell>
+                          {format(new Date(leave.createdAt), "MMM dd, yyyy")}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApprove(leave.id)}
+                              disabled={approveLeave.isPending}
+                            >
+                              <CheckCircle2 className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => openRejectDialog(leave)}
+                              disabled={rejectLeave.isPending}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reject Leave Request</DialogTitle>
             <DialogDescription>
-              Please provide a reason for rejecting this leave request (optional).
+              Optionally provide a reason for rejection. The requester will be notified.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Rejection Reason</Label>
-              <Input
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Enter rejection reason (optional)"
-              />
+          {selectedLeave && (
+            <div className="space-y-4 py-2">
+              <p className="text-sm text-gray-600">
+                {selectedLeave.requesterName} – {selectedLeave.leaveType?.name} (
+                {format(new Date(selectedLeave.startDate), "MMM dd")}–
+                {format(new Date(selectedLeave.endDate), "MMM dd, yyyy")})
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="rejectionReason">Reason (optional)</Label>
+                <Textarea
+                  id="rejectionReason"
+                  placeholder="e.g. Insufficient coverage during this period"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  rows={3}
+                  maxLength={500}
+                />
+              </div>
             </div>
-          </div>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleReject} disabled={rejectLeave.isPending}>
-              {rejectLeave.isPending ? "Rejecting..." : "Reject Leave"}
+              {rejectLeave.isPending ? "Rejecting..." : "Reject"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -273,4 +227,3 @@ export default function LeaveApprovalsPage() {
     </div>
   );
 }
-

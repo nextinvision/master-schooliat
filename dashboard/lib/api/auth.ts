@@ -1,10 +1,15 @@
 import { saveToken } from "@/lib/auth/storage";
-import { post } from "./client";
 
 // API Base URL - must be set in environment variables
-// This variable is REQUIRED and must be set at build time
-// API Base URL - use placeholder during build, will be set at runtime
+// This variable is REQUIRED and must be set at build time for Next.js
+// For production, this should be set in .env.production file
+// Next.js embeds NEXT_PUBLIC_* variables at build time
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+
+// Validate API URL is set
+if (typeof window !== "undefined" && !BASE_URL) {
+  console.error("NEXT_PUBLIC_API_URL is not set! API calls will fail.");
+}
 
 export async function loginAndSaveToken(
   email: string,

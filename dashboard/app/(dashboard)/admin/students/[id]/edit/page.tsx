@@ -19,6 +19,7 @@ import { Controller } from "react-hook-form";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { EmergencyContactsSection } from "@/components/students/emergency-contacts-section";
 
 function parseAddress(address: string[]): {
   areaStreet: string;
@@ -578,6 +579,9 @@ export default function EditStudentPage() {
             </FormCard>
           </div>
         </form>
+
+        {/* Emergency Contacts Section */}
+        <EmergencyContactsSection studentId={studentId} />
       </div>
     </FormProvider>
   );

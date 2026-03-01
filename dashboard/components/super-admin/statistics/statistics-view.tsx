@@ -30,7 +30,7 @@ const summaryCards = [
   {
     title: "Total Teachers",
     icon: GraduationCap,
-    color: "#678d3d",
+    color: "var(--primary)",
     bgColor: "#e8f5e9",
   },
   {
@@ -176,7 +176,7 @@ export function StatisticsView() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead>School Name</TableHead>
                 <TableHead className="text-right">Students</TableHead>
                 <TableHead className="text-right">Teachers</TableHead>
@@ -218,7 +218,7 @@ export function StatisticsView() {
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className="bg-green-100 text-green-800 border-green-300"
+                        className="bg-schooliat-tint text-primary border-primary/30"
                       >
                         {stat.status}
                       </Badge>

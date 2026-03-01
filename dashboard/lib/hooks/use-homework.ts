@@ -19,7 +19,7 @@ function fetchHomework(params: {
 
 // Fetch single homework
 function fetchHomeworkById(homeworkId: string) {
-  return get(`/homework/${homeworkId}`);
+  return get("/homework", { homeworkId });
 }
 
 // Create homework
@@ -74,11 +74,17 @@ function submitHomeworkApi(homeworkId: string, data: {
 }
 
 // Grade homework
-function gradeHomeworkApi(homeworkId: string, submissionId: string, data: {
+function gradeHomeworkApi(submissionId: string, data: {
   marksObtained: number;
   feedback?: string;
 }) {
-  return post(`/homework/${homeworkId}/submissions/${submissionId}/grade`, { request: data });
+  return post("/homework/grade", { 
+    request: {
+      submissionId,
+      marksObtained: data.marksObtained,
+      feedback: data.feedback || null,
+    }
+  });
 }
 
 // Hooks
@@ -175,18 +181,15 @@ export function useGradeHomework() {
 
   return useMutation({
     mutationFn: ({
-      homeworkId,
       submissionId,
       ...data
     }: {
-      homeworkId: string;
       submissionId: string;
       marksObtained: number;
       feedback?: string;
-    }) => gradeHomeworkApi(homeworkId, submissionId, data),
-    onSuccess: (_data, { homeworkId }) => {
+    }) => gradeHomeworkApi(submissionId, data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["homework"] });
-      queryClient.invalidateQueries({ queryKey: ["homework", homeworkId] });
     },
   });
 }

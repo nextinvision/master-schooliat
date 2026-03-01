@@ -31,6 +31,11 @@ import {
   LucideIcon,
   BookOpen,
   Image as ImageIcon,
+  FileCheck,
+  Settings,
+  Database,
+  ScrollText,
+  Activity,
 } from "lucide-react";
 import { clearToken } from "@/lib/auth/storage";
 import {
@@ -41,10 +46,12 @@ import {
   LEAVE_SUBMENU,
   LIBRARY_SUBMENU,
   RESULTS_SUBMENU,
+  MASTER_DATA_SUBMENU,
   MenuItem,
   SubMenuItem,
 } from "@/lib/config/menu-items";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "@/lib/context/sidebar-context";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -69,11 +76,17 @@ const iconMap: Record<string, LucideIcon> = {
   MessageSquare,
   BookOpen,
   Image: ImageIcon,
+  FileCheck,
+  Settings,
+  Database,
+  ScrollText,
+  Activity,
 };
 
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
+  const { isOpen } = useSidebar();
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
 
   const isActive = (route: string) => {
@@ -115,6 +128,8 @@ export function Sidebar() {
         return LIBRARY_SUBMENU;
       case "Result Management":
         return RESULTS_SUBMENU;
+      case "Master Data":
+        return MASTER_DATA_SUBMENU;
       default:
         return [];
     }
@@ -129,25 +144,28 @@ export function Sidebar() {
   };
 
   return (
-    <div className="w-[220px] lg:w-[300px] bg-black border-r border-gray-300 rounded-[22px] lg:rounded-[26px] mx-2 lg:mx-3 my-3 lg:my-4 flex flex-col h-[calc(100vh-24px)] lg:h-[calc(100vh-32px)]">
+    <aside
+      className={cn(
+        "fixed left-0 top-0 bottom-0 bg-black border-r border-gray-300 flex flex-col h-screen z-30 transition-all duration-300 ease-in-out",
+        isOpen ? "w-[200px] lg:w-[240px]" : "w-[60px] lg:w-[64px]"
+      )}
+    >
       {/* Logo Container */}
-      <div className="flex items-center px-4 lg:px-6 py-3 lg:py-5 gap-2 lg:gap-3">
-        <div className="w-9 h-9 lg:w-12 lg:h-12 bg-white rounded-lg lg:rounded-xl flex items-center justify-center">
-          <Image
-            src="/logo.png"
-            alt="SchooliAT Logo"
-            width={36}
-            height={36}
-            className="object-contain"
-          />
+      <div className="flex items-center px-3 py-2.5 gap-2 border-b border-gray-800 justify-center lg:justify-start">
+        <div className="w-7 h-7 bg-white rounded-md flex items-center justify-center flex-shrink-0">
+          <div className="w-full h-full bg-gradient-to-br from-green-500 to-green-600 rounded flex items-center justify-center text-white font-bold text-xs">
+            SA
+          </div>
         </div>
-        <span className="text-xl lg:text-2xl font-medium text-white ml-2 lg:ml-3">
-          SchooliAT
-        </span>
+        {isOpen && (
+          <span className="text-base font-medium text-white ml-2 whitespace-nowrap">
+            SchooliAT
+          </span>
+        )}
       </div>
 
       {/* Menu Container */}
-      <div className="flex-1 overflow-y-auto pb-2 lg:pb-4">
+      <div className="flex-1 overflow-y-auto pb-2 lg:pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
         {menuItems.map((item) => {
           const active = isActive(item.route);
           const hasSubmenu = item.hasSubmenu;
@@ -160,39 +178,45 @@ export function Sidebar() {
               <button
                 onClick={() => handleMenuPress(item)}
                 className={cn(
-                  "flex items-center w-full py-1 lg:py-2 px-4 lg:px-6 mx-2.5 lg:mx-4 my-1.5 lg:my-2 rounded-lg lg:rounded-xl transition-colors",
+                  "flex items-center w-full py-1.5 mx-2 my-1 rounded-md transition-colors",
+                  isOpen ? "px-3" : "px-0 justify-center",
                   active && !hasSubmenu && "bg-white",
                   !active && !hasSubmenu && "hover:bg-white/10"
                 )}
+                title={!isOpen ? item.name : undefined}
               >
                 <Icon
                   className={cn(
-                    "w-5 h-5 lg:w-6 lg:h-6",
+                    "w-4 h-4 flex-shrink-0",
                     active && !hasSubmenu ? "text-gray-800" : "text-white"
                   )}
                 />
-                <span
-                  className={cn(
-                    "ml-3 lg:ml-4 text-sm lg:text-base flex-1 text-left font-medium",
-                    active && !hasSubmenu ? "text-gray-800" : "text-white"
-                  )}
-                >
-                  {item.name}
-                </span>
-                {hasSubmenu && (
-                  <div className="text-gray-500">
-                    {isExpanded ? (
-                      <ChevronDown className="w-4 h-4 lg:w-5 lg:h-5" />
-                    ) : (
-                      <ChevronRight className="w-4 h-4 lg:w-5 lg:h-5" />
+                {isOpen && (
+                  <>
+                    <span
+                      className={cn(
+                        "ml-2.5 text-sm flex-1 text-left font-medium",
+                        active && !hasSubmenu ? "text-gray-800" : "text-white"
+                      )}
+                    >
+                      {item.name}
+                    </span>
+                    {hasSubmenu && (
+                      <div className="text-gray-500">
+                        {isExpanded ? (
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </button>
 
               {/* Submenu Items */}
-              {hasSubmenu && isExpanded && (
-                <div className="ml-7 lg:ml-10 mr-2.5 lg:mr-4">
+              {hasSubmenu && isExpanded && isOpen && (
+                <div className="ml-8 mr-2">
                   {submenuItems.map((subItem) => {
                     const subActive = pathname.startsWith(subItem.route);
                     return (
@@ -200,7 +224,7 @@ export function Sidebar() {
                         key={subItem.name}
                         href={subItem.route}
                         className={cn(
-                          "block py-1 lg:py-1.5 px-3 lg:px-4 my-0.5 lg:my-1 rounded-md lg:rounded-lg transition-colors",
+                          "block py-1 px-2.5 my-0.5 rounded transition-colors",
                           subActive
                             ? "bg-white/15"
                             : "hover:bg-white/8 text-white/70"
@@ -208,7 +232,7 @@ export function Sidebar() {
                       >
                         <span
                           className={cn(
-                            "text-xs lg:text-sm font-normal",
+                            "text-xs font-normal",
                             subActive ? "text-white font-medium" : "text-white/70"
                           )}
                         >
@@ -225,18 +249,24 @@ export function Sidebar() {
       </div>
 
       {/* Logout Button */}
-      <div className="px-2 lg:px-4 pb-4 lg:pb-6 mb-3 lg:mb-4">
+      <div className={cn("py-2.5 border-t border-gray-800", isOpen ? "px-3" : "px-2")}>
         <button
           onClick={handleLogout}
-          className="flex items-center w-full py-1.5 lg:py-2.5 px-3 lg:px-5 rounded-[22px] lg:rounded-[26px] bg-white hover:bg-green-50 transition-colors cursor-pointer"
+          className={cn(
+            "flex items-center w-full py-1.5 rounded-md bg-white hover:bg-green-50 transition-colors cursor-pointer",
+            isOpen ? "px-2.5" : "px-2 justify-center"
+          )}
+          title={!isOpen ? "Log Out" : undefined}
         >
-          <span className="ml-2 lg:ml-3 text-sm lg:text-base text-black flex-1 text-left font-semibold">
-            Log Out
-          </span>
-          <LogOut className="w-5 h-5 lg:w-6 lg:h-6 text-black" />
+          <LogOut className="w-4 h-4 text-black flex-shrink-0" />
+          {isOpen && (
+            <span className="ml-2 text-sm text-black flex-1 text-left font-semibold">
+              Log Out
+            </span>
+          )}
         </button>
       </div>
-    </div>
+    </aside>
   );
 }
 

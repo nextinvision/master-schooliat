@@ -1,7 +1,17 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
 import pkg from "../prisma/generated/index.js";
-const { ChatbotIntent } = pkg;
+const { ChatbotIntent } = pkg || {};
+
+// Fallback if ChatbotIntent enum doesn't exist
+const IntentEnum = ChatbotIntent || {
+  GENERAL_QUERY: "GENERAL_QUERY",
+  ATTENDANCE_QUERY: "ATTENDANCE_QUERY",
+  HOMEWORK_QUERY: "HOMEWORK_QUERY",
+  EXAM_QUERY: "EXAM_QUERY",
+  FEE_QUERY: "FEE_QUERY",
+  TIMETABLE_QUERY: "TIMETABLE_QUERY",
+};
 
 /**
  * Create chatbot conversation
@@ -120,17 +130,17 @@ const processQuery = async (userId, query, schoolId = null) => {
   // Detect intent from query
   const lowerQuery = query.toLowerCase();
 
-  let intent = ChatbotIntent.GENERAL_QUERY;
+  let intent = IntentEnum.GENERAL_QUERY;
   if (lowerQuery.includes("attendance")) {
-    intent = ChatbotIntent.ATTENDANCE_QUERY;
+    intent = IntentEnum.ATTENDANCE_QUERY;
   } else if (lowerQuery.includes("homework") || lowerQuery.includes("assignment")) {
-    intent = ChatbotIntent.HOMEWORK_QUERY;
+    intent = IntentEnum.HOMEWORK_QUERY;
   } else if (lowerQuery.includes("exam") || lowerQuery.includes("result")) {
-    intent = ChatbotIntent.EXAM_QUERY;
+    intent = IntentEnum.EXAM_QUERY;
   } else if (lowerQuery.includes("fee") || lowerQuery.includes("payment")) {
-    intent = ChatbotIntent.FEE_QUERY;
+    intent = IntentEnum.FEE_QUERY;
   } else if (lowerQuery.includes("timetable") || lowerQuery.includes("schedule")) {
-    intent = ChatbotIntent.TIMETABLE_QUERY;
+    intent = IntentEnum.TIMETABLE_QUERY;
   }
 
   // Get or create conversation
@@ -165,7 +175,7 @@ const processQuery = async (userId, query, schoolId = null) => {
   let response = "I'm here to help! How can I assist you today?";
   let context = null;
 
-  if (intent === ChatbotIntent.ATTENDANCE_QUERY) {
+  if (intent === IntentEnum.ATTENDANCE_QUERY) {
     // Get user's attendance data
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -189,7 +199,7 @@ const processQuery = async (userId, query, schoolId = null) => {
     } else {
       response = "I couldn't find your attendance records. Please contact your school administrator.";
     }
-  } else if (intent === ChatbotIntent.HOMEWORK_QUERY) {
+  } else if (intent === IntentEnum.HOMEWORK_QUERY) {
     // Get user's homework
     const homework = await prisma.homeworkSubmission.findMany({
       where: {
@@ -212,7 +222,7 @@ const processQuery = async (userId, query, schoolId = null) => {
     } else {
       response = "You have no pending homework assignments. Great job!";
     }
-  } else if (intent === ChatbotIntent.EXAM_QUERY) {
+  } else if (intent === IntentEnum.EXAM_QUERY) {
     // Get user's exam results
     const results = await prisma.result.findMany({
       where: {
@@ -231,7 +241,7 @@ const processQuery = async (userId, query, schoolId = null) => {
     } else {
       response = "No exam results found. Please check back later.";
     }
-  } else if (intent === ChatbotIntent.FEE_QUERY) {
+  } else if (intent === IntentEnum.FEE_QUERY) {
     // Get user's fee status
     const fees = await prisma.feeInstallements.findMany({
       where: {

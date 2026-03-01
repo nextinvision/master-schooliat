@@ -17,6 +17,35 @@ export const feesConfigSchema = z.object({
     }, "Fee amount must be 0 or greater"),
 });
 
+export const schoolProfileSchema = z.object({
+  name: z.string().min(1, "School name is required"),
+  code: z.string().min(1, "School code is required"),
+  email: z.string().email("Invalid email"),
+  phone: z.string().min(1, "Phone is required"),
+  address: z.array(z.string().min(1, "Address line required")).min(1, "At least one address line"),
+  certificateLink: z.string().url("Invalid URL").optional().or(z.literal("")),
+  gstNumber: z.string().optional(),
+  principalName: z.string().optional(),
+  principalEmail: z.string().email("Invalid email").optional().or(z.literal("")),
+  principalPhone: z.string().optional(),
+  establishedYear: z
+    .string()
+    .optional()
+    .refine((v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 1800 && Number(v) <= 2100), "Invalid year"),
+  boardAffiliation: z.string().optional(),
+  studentStrength: z
+    .string()
+    .optional()
+    .refine((v) => !v || (!Number.isNaN(Number(v)) && Number(v) >= 0), "Must be 0 or greater"),
+  bankName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankIfscCode: z.string().optional(),
+  bankBranchName: z.string().optional(),
+  upiId: z.string().optional(),
+});
+
+export type SchoolProfileFormData = z.infer<typeof schoolProfileSchema>;
+
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Current password is required"),
@@ -33,6 +62,14 @@ export const changePasswordSchema = z
     message: "Passwords do not match",
     path: ["confirmPassword"],
   });
+
+export const updateProfileSchema = z.object({
+  firstName: z.string().min(1, "First name is required").max(100),
+  lastName: z.string().max(100).optional(),
+  contact: z.string().min(1, "Contact is required").max(50),
+});
+
+export type UpdateProfileFormData = z.infer<typeof updateProfileSchema>;
 
 export type FeesConfigFormData = z.infer<typeof feesConfigSchema>;
 export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;

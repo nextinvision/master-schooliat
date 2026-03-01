@@ -139,7 +139,7 @@ export default function LetterHeadPage() {
       <div
         className="rounded-2xl p-6 text-white"
         style={{
-          background: "linear-gradient(135deg, #678d3d 0%, #8ab35c 100%)",
+          background: "linear-gradient(135deg, var(--primary) 0%, var(--chart-2) 100%)",
         }}
       >
         <div className="flex items-center justify-between">
@@ -169,7 +169,7 @@ export default function LetterHeadPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="w-5 h-5 text-green-600" />
+              <FileText className="w-5 h-5 text-primary" />
               Letterhead Content
             </CardTitle>
           </CardHeader>
@@ -294,23 +294,23 @@ export default function LetterHeadPage() {
             {/* Formatting Tips */}
             <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-blue-600 font-semibold">
+                <span className="text-primary font-semibold">
                   Formatting Tips
                 </span>
               </div>
               <ul className="space-y-2 text-sm text-gray-700">
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 mt-1">✓</span>
+                  <span className="text-primary mt-1">✓</span>
                   <span>Use line breaks to separate paragraphs</span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 mt-1">✓</span>
+                  <span className="text-primary mt-1">✓</span>
                   <span>
                     The content will be formatted on a professional letterhead
                   </span>
                 </li>
                 <li className="flex items-start gap-2">
-                  <span className="text-green-600 mt-1">✓</span>
+                  <span className="text-primary mt-1">✓</span>
                   <span>
                     Click &quot;Generate & Print&quot; to create and print your letterhead
                   </span>
@@ -349,7 +349,7 @@ export default function LetterHeadPage() {
 
       {/* Info Banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-        <span className="text-blue-600 mt-0.5">ℹ️</span>
+        <span className="text-primary mt-0.5">ℹ️</span>
         <p className="text-sm text-blue-800">
           The letterhead will open in a new window for printing. No data is
           saved - each letterhead is generated fresh when needed.

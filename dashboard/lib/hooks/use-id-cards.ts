@@ -34,6 +34,13 @@ export interface IdCardStatus {
   status: "Generated" | "Not generated";
   generatedOn?: string;
   collectionId?: string;
+  fileUrl?: string;
+  idCardCollection?: {
+    id: string;
+    status: string;
+    fileUrl?: string;
+    generatedAt?: string;
+  } | null;
 }
 
 export interface IdCardsStatusResponse {

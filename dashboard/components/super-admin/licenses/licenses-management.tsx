@@ -15,7 +15,7 @@ import { useLicenses, License } from "@/lib/hooks/use-super-admin";
 const getStatusColor = (status: string) => {
   switch (status) {
     case "ACTIVE":
-      return "bg-green-100 text-green-800 border-green-300";
+      return "bg-schooliat-tint text-primary border-primary/30";
     case "EXPIRING_SOON":
       return "bg-yellow-100 text-yellow-800 border-yellow-300";
     case "EXPIRED":
@@ -103,7 +103,7 @@ export function LicensesManagement() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-[#e5ffc7]">
+              <TableRow className="bg-schooliat-tint">
                 <TableHead>License Name</TableHead>
                 <TableHead>Issuer</TableHead>
                 <TableHead>Issue Date</TableHead>

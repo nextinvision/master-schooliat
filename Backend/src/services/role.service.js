@@ -22,10 +22,10 @@ const getExistingRolesNames = async () => {
   return roles.map((role) => role.name);
 };
 
-const createDefaultRoles = async () => {
-  const defaultRolePermissionsMap = {
-    // App Roles
-    [RoleName.SUPER_ADMIN]: [
+// Define default role permissions map at module level so it can be reused
+const defaultRolePermissionsMap = {
+  // App Roles
+  [RoleName.SUPER_ADMIN]: [
       Permission.CREATE_EMPLOYEE,
       Permission.GET_EMPLOYEES,
       Permission.EDIT_EMPLOYEE,
@@ -130,6 +130,86 @@ const createDefaultRoles = async () => {
       Permission.ADD_GRIEVANCE_COMMENT,
       Permission.GET_DASHBOARD_STATS,
       Permission.VIEW_AUDIT_LOGS,
+      Permission.GET_GALLERIES,
+      Permission.CREATE_GALLERY,
+      Permission.EDIT_GALLERY,
+      Permission.DELETE_GALLERY,
+      Permission.UPLOAD_GALLERY_IMAGE,
+      Permission.DELETE_GALLERY_IMAGE,
+      Permission.GET_MESSAGES,
+      Permission.SEND_MESSAGE,
+      // Attendance permissions
+      Permission.MARK_ATTENDANCE,
+      Permission.GET_ATTENDANCE,
+      Permission.EXPORT_ATTENDANCE,
+      // Homework permissions
+      Permission.CREATE_HOMEWORK,
+      Permission.GET_HOMEWORK,
+      Permission.EDIT_HOMEWORK,
+      Permission.DELETE_HOMEWORK,
+      Permission.SUBMIT_HOMEWORK,
+      Permission.GRADE_HOMEWORK,
+      // Marks & Results permissions
+      Permission.ENTER_MARKS,
+      Permission.GET_MARKS,
+      Permission.EDIT_MARKS,
+      Permission.PUBLISH_RESULTS,
+      Permission.GET_RESULTS,
+      // Leave permissions
+      Permission.CREATE_LEAVE_REQUEST,
+      Permission.GET_LEAVE_REQUESTS,
+      Permission.APPROVE_LEAVE,
+      Permission.REJECT_LEAVE,
+      // Timetable permissions
+      Permission.CREATE_TIMETABLE,
+      Permission.GET_TIMETABLE,
+      Permission.EDIT_TIMETABLE,
+      Permission.DELETE_TIMETABLE,
+      // Notes & Syllabus permissions
+      Permission.CREATE_NOTE,
+      Permission.EDIT_NOTE,
+      Permission.GET_NOTES,
+      Permission.DELETE_NOTE,
+      Permission.CREATE_SYLLABUS,
+      Permission.EDIT_SYLLABUS,
+      Permission.GET_SYLLABUS,
+      Permission.DELETE_SYLLABUS,
+      // Circular permissions
+      Permission.CREATE_CIRCULAR,
+      Permission.EDIT_CIRCULAR,
+      Permission.PUBLISH_CIRCULAR,
+      Permission.GET_CIRCULARS,
+      Permission.DELETE_CIRCULAR,
+      // Library permissions
+      Permission.CREATE_LIBRARY_BOOK,
+      Permission.EDIT_LIBRARY_BOOK,
+      Permission.GET_LIBRARY_BOOKS,
+      Permission.ISSUE_LIBRARY_BOOK,
+      Permission.RETURN_LIBRARY_BOOK,
+      Permission.RESERVE_LIBRARY_BOOK,
+      Permission.GET_LIBRARY_HISTORY,
+      // Reports permissions
+      Permission.GET_ATTENDANCE_REPORTS,
+      Permission.GET_FEE_ANALYTICS,
+      Permission.GET_ACADEMIC_REPORTS,
+      Permission.GET_SALARY_REPORTS,
+      // AI/Chatbot permissions
+      Permission.USE_CHATBOT,
+      Permission.GET_CHATBOT_HISTORY,
+      Permission.MANAGE_FAQ,
+      // Communication permissions
+      Permission.CREATE_ANNOUNCEMENT,
+      Permission.SEND_NOTIFICATION,
+      // Transport Routes permissions
+      Permission.MANAGE_ROUTES,
+      Permission.GET_ROUTES,
+      Permission.ASSIGN_STUDENTS_TO_ROUTE,
+      // Parent features permissions
+      Permission.GET_CHILDREN,
+      Permission.GET_CHILD_DATA,
+      Permission.GET_CONSOLIDATED_DASHBOARD,
+      // Security permissions
+      Permission.REQUEST_DELETION_OTP,
     ],
     [RoleName.STUDENT]: [
       Permission.GET_MY_SCHOOL,
@@ -165,6 +245,7 @@ const createDefaultRoles = async () => {
     ],
   };
 
+const createDefaultRoles = async () => {
   let roleNames = [
     RoleName.SUPER_ADMIN,
     RoleName.EMPLOYEE,
@@ -199,9 +280,60 @@ const createDefaultRoles = async () => {
   });
 };
 
+const updateRolePermissions = async () => {
+  const existingRoles = await prisma.role.findMany({
+    where: { deletedAt: null },
+  });
+
+  const updates = [];
+  for (const role of existingRoles) {
+    const expectedPermissions = defaultRolePermissionsMap[role.name];
+    if (expectedPermissions) {
+      // Check if permissions need updating
+      const currentPermissions = role.permissions || [];
+      const expectedSet = new Set(expectedPermissions);
+      const currentSet = new Set(currentPermissions);
+
+      // Check if permissions are different
+      const needsUpdate =
+        expectedPermissions.length !== currentPermissions.length ||
+        expectedPermissions.some((p) => !currentSet.has(p)) ||
+        currentPermissions.some((p) => !expectedSet.has(p));
+
+      if (needsUpdate) {
+        logger.info(
+          {
+            roleName: role.name,
+            currentPermissions: currentPermissions.length,
+            expectedPermissions: expectedPermissions.length,
+          },
+          "Updating role permissions",
+        );
+        updates.push(
+          prisma.role.update({
+            where: { id: role.id },
+            data: {
+              permissions: expectedPermissions,
+              updatedBy: "system",
+            },
+          }),
+        );
+      }
+    }
+  }
+
+  if (updates.length > 0) {
+    await Promise.all(updates);
+    logger.info(`Updated permissions for ${updates.length} role(s)`);
+  } else {
+    logger.info("All roles have up-to-date permissions");
+  }
+};
+
 const roleService = {
   getRoleByName,
   createDefaultRoles,
+  updateRolePermissions,
 };
 
 export default roleService;

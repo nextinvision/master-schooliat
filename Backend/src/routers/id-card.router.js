@@ -34,23 +34,38 @@ router.get(
       });
     }
 
-    const classesWithCollections =
-      await idCardService.getClassesWithCollectionStatus(schoolId);
+    try {
+      const [classesWithCollections, idCardConfig] = await Promise.all([
+        idCardService.getClassesWithCollectionStatus(schoolId),
+        idCardService.fetchIdCardConfig(schoolId),
+      ]);
 
-    const idCardConfig = await idCardService.fetchIdCardConfig(schoolId);
-
-    return res.json({
-      message: "ID cards overview fetched!",
-      data: {
-        classes: classesWithCollections,
-        config: idCardConfig,
-        endpoints: {
-          status: "/id-cards/status",
-          config: "/id-cards/config",
-          generate: "/id-cards/classes/:classId/generate",
+      return res.json({
+        message: "ID cards overview fetched!",
+        data: {
+          classes: classesWithCollections,
+          config: idCardConfig,
+          endpoints: {
+            status: "/id-cards/status",
+            config: "/id-cards/config",
+            generate: "/id-cards/classes/:classId/generate",
+          },
         },
-      },
-    });
+      });
+    } catch (err) {
+      return res.status(200).json({
+        message: "ID cards overview - config not ready",
+        data: {
+          classes: [],
+          config: null,
+          endpoints: {
+            status: "/id-cards/status",
+            config: "/id-cards/config",
+            generate: "/id-cards/classes/:classId/generate",
+          },
+        },
+      });
+    }
   },
 );
 

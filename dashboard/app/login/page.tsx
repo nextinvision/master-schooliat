@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { loginAndSaveToken } from "@/lib/api/auth";
-import { getUserRoles, getToken } from "@/lib/auth/storage";
+import { getUserRoles, getAuthToken } from "@/lib/auth/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +44,7 @@ export default function LoginPage() {
     // Check if user is already logged in
     const checkAuth = async () => {
       try {
-        const token = await getToken();
+        const token = await getAuthToken();
         if (token) {
           await postLoginRedirect();
         }
@@ -124,18 +124,20 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left Side - Branding Section */}
-      <div className="hidden lg:flex lg:flex-1 bg-[linear-gradient(to_bottom_right,#678d3d,#8ab35c)] relative overflow-hidden items-center justify-center p-12">
+      <div className="hidden lg:flex lg:flex-1 bg-gradient-to-br from-primary to-chart-2 relative overflow-hidden items-center justify-center p-12">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
         <div className="z-10 text-center">
           <div className="mb-8">
-            <div className="w-24 h-24 bg-white rounded-2xl mx-auto mb-6 flex items-center justify-center shadow-lg">
+            <div className="w-28 h-28 rounded-full overflow-hidden mx-auto mb-6 flex items-center justify-center shadow-lg bg-white ring-2 ring-white/30">
               <Image
                 src="/logo.png"
                 alt="SchooliAT Logo"
-                width={60}
-                height={60}
-                className="object-contain"
+                width={112}
+                height={112}
+                className="object-cover w-full h-full"
+                priority
+                unoptimized={false}
               />
             </div>
             <h1 className="text-4xl font-bold text-white mb-2">SchooliAT</h1>
@@ -221,7 +223,7 @@ export default function LoginPage() {
               <div className="flex items-center justify-end">
                 <Link
                   href="/forgot-password"
-                  className="text-sm text-[#678d3d] hover:underline font-medium"
+                  className="text-sm text-primary hover:underline font-medium"
                 >
                   Forgot password?
                 </Link>
@@ -229,7 +231,7 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-[#678d3d] hover:bg-[#5a7a33] text-white"
+                className="w-full bg-primary hover:bg-schooliat-primary-dark text-white"
                 disabled={isLoading}
               >
                 {isLoading ? "Signing in..." : "Sign In"}

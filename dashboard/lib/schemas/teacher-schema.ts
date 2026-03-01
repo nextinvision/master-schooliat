@@ -49,6 +49,7 @@ export const addTeacherSchema = z.object({
     .max(10, "PAN card number must be 10 characters")
     .regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, "Invalid PAN card number format")
     .transform((val) => val.toUpperCase()),
+  basicSalary: z.number().min(0, "Salary cannot be negative").optional(),
 });
 
 // Extended schema for edit (includes subjects)

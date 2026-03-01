@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getToken, getUserRoles } from "@/lib/auth/storage";
+import { getAuthToken, getUserRoles } from "@/lib/auth/storage";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Home() {
@@ -11,12 +11,12 @@ export default function Home() {
   useEffect(() => {
     const checkAuthAndRedirect = async () => {
       try {
-        const token = await getToken();
-        
+        const token = await getAuthToken();
+
         if (token) {
           // User is authenticated, redirect to appropriate dashboard
           const role = await getUserRoles();
-          
+
           if (role === "SCHOOL_ADMIN") {
             router.replace("/admin/dashboard");
           } else if (role === "SUPER_ADMIN") {

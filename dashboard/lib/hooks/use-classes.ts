@@ -85,3 +85,12 @@ export function useDeleteClass() {
     },
   });
 }
+
+// Wrapper hook for simpler API
+export function useClasses(params?: { page?: number; limit?: number }) {
+  return useQuery({
+    queryKey: ["classes", params?.page || 1, params?.limit || 1000],
+    queryFn: () => fetchClasses({ page: params?.page || 1, limit: params?.limit || 1000 }),
+    staleTime: 30 * 1000,
+  });
+}

@@ -116,9 +116,9 @@ export function GrievancesManagement() {
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="p-4 border rounded-lg bg-blue-50">
-          <Clipboard className="w-6 h-6 text-blue-600 mb-2" />
-          <p className="text-2xl font-bold text-blue-600">{stats.total}</p>
-          <p className="text-sm text-blue-600">Total</p>
+          <Clipboard className="w-6 h-6 text-primary mb-2" />
+          <p className="text-2xl font-bold text-primary">{stats.total}</p>
+          <p className="text-sm text-primary">Total</p>
         </div>
         {Object.entries(STATUS_CONFIG).slice(0, 3).map(([status, config]) => {
           const Icon = config.icon;
@@ -251,7 +251,7 @@ export function GrievancesManagement() {
                 <div className="flex items-center justify-between text-sm text-gray-500">
                   <span>{formatDate(grievance.createdAt)}</span>
                   {grievance.comments?.length > 0 && (
-                    <span className="text-green-600">
+                    <span className="text-primary">
                       {grievance.comments.length} replies
                     </span>
                   )}

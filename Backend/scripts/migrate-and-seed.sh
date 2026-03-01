@@ -54,6 +54,9 @@ fi
 # Navigate to backend directory
 cd "$(dirname "$0")/.."
 
+# Ensure Prisma CLI sees DATABASE_URL (config reads env at load time)
+export NODE_OPTIONS="${NODE_OPTIONS:-} -r dotenv/config"
+
 echo ""
 echo "Step 1: Generating Prisma Client..."
 npm run prisma:generate || {
@@ -85,9 +88,9 @@ echo "   - Sample schools, classes, and users"
 echo "   - Other initial data"
 echo ""
 
-# Run seed script
+# Run seed via npm (uses seed-run.js: loads .env / deployment .env, then runs seed.js)
 if [ -f "prisma/seed.js" ]; then
-  node prisma/seed.js || {
+  npm run seed || {
     echo "   ⚠️  Seeding encountered errors, but some data may have been created"
     echo "   Check the logs above for details"
   }

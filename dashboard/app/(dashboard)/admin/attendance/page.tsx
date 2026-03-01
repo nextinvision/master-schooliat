@@ -211,10 +211,10 @@ export default function AttendancePage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-green-600">Present</CardTitle>
+              <CardTitle className="text-sm font-medium text-primary">Present</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-green-600">{presentCount}</div>
+              <div className="text-2xl font-bold text-primary">{presentCount}</div>
             </CardContent>
           </Card>
           <Card>
