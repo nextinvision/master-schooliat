@@ -164,7 +164,7 @@ export function IDCardsManagement() {
     }
 
     // Fallback to the auto-generated template preview image if no custom sample is saved yet
-    const templateId = idCardConfig?.templateId || form.getValues("templateId");
+    const templateId = idCardConfig?.templateId;
     if (templateId) {
       const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
       window.open(`${baseUrl}/images/previews/id-cards/${templateId}.png`, "_blank");
