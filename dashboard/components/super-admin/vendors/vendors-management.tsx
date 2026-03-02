@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Edit, Trash2, Plus } from "lucide-react";
 import { useVendors, useVendorStats, useDeleteVendor, Vendor } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
+import { EditVendorDialog } from "./edit-vendor-dialog";
 
 const LEAD_STATUS_CONFIG = {
   NEW: { label: "New", color: "#3498db", bgColor: "#e8f4fd" },
@@ -36,6 +37,7 @@ export function VendorsManagement() {
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const itemsPerPage = 10;
 
   const { data: statsData } = useVendorStats();
@@ -127,9 +129,8 @@ export function VendorsManagement() {
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <div
-          className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-            !statusFilter ? "border-purple-500 bg-purple-50" : "bg-white"
-          }`}
+          className={`p-4 border rounded-lg cursor-pointer transition-colors ${!statusFilter ? "border-purple-500 bg-purple-50" : "bg-white"
+            }`}
           onClick={() => setStatusFilter(undefined)}
         >
           <p className="text-2xl font-bold">{stats.total}</p>
@@ -138,9 +139,8 @@ export function VendorsManagement() {
         {Object.entries(LEAD_STATUS_CONFIG).map(([key, config]) => (
           <div
             key={key}
-            className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-              statusFilter === key ? "border-purple-500 bg-purple-50" : "bg-white"
-            }`}
+            className={`p-4 border rounded-lg cursor-pointer transition-colors ${statusFilter === key ? "border-purple-500 bg-purple-50" : "bg-white"
+              }`}
             style={{ backgroundColor: statusFilter === key ? config.bgColor : undefined }}
             onClick={() => setStatusFilter(statusFilter === key ? undefined : key)}
           >
@@ -219,7 +219,13 @@ export function VendorsManagement() {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            onClick={() => setEditingVendor(vendor)}
+                            title="Edit Vendor"
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
@@ -266,6 +272,15 @@ export function VendorsManagement() {
           </div>
         </div>
       )}
+
+      {/* Edit Vendor Dialog */}
+      <EditVendorDialog
+        vendor={editingVendor}
+        isOpen={editingVendor !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingVendor(null);
+        }}
+      />
     </div>
   );
 }

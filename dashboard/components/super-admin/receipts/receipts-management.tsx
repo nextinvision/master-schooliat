@@ -86,7 +86,7 @@ export function ReceiptsManagement() {
 
   const handleViewReceipt = async (receiptId: string) => {
     try {
-      const response = await generateReceipt.mutateAsync(receiptId);
+      const response = await generateReceipt.mutateAsync({ receiptId });
       if (response?.data?.html && typeof window !== "undefined") {
         const printWindow = window.open("", "_blank");
         if (printWindow) {
@@ -212,8 +212,8 @@ export function ReceiptsManagement() {
                           receipt.status === "PAID"
                             ? "bg-schooliat-tint text-primary border-primary/30"
                             : receipt.status === "PENDING"
-                            ? "bg-yellow-100 text-yellow-800 border-yellow-300"
-                            : "bg-gray-100 text-gray-800 border-gray-300"
+                              ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                              : "bg-gray-100 text-gray-800 border-gray-300"
                         }
                       >
                         {receipt.status}

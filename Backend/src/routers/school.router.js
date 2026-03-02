@@ -47,6 +47,10 @@ router.post(
           ? parseInt(request.studentStrength)
           : null,
         certificateLink: request.certificateLink,
+        bankName: request.bankName,
+        bankAccountNumber: request.bankAccountNumber,
+        bankIfscCode: request.bankIfscCode,
+        bankBranchName: request.bankBranchName,
         createdBy: currentUser.id,
       },
     });

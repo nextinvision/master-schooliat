@@ -23,6 +23,8 @@ import {
 import { Eye, Receipt, Plus } from "lucide-react";
 import { useSchools, School } from "@/lib/hooks/use-super-admin";
 import { RegisterSchoolFormContent } from "./register-school-form-content";
+import { EditSchoolDialog } from "./edit-school-dialog";
+import { Edit } from "lucide-react";
 
 interface SchoolDisplay {
   id: string;
@@ -33,6 +35,7 @@ interface SchoolDisplay {
   address: any[];
   status: string;
   registeredDate: string;
+  _raw?: School;
 }
 
 export function SchoolsManagement() {
@@ -40,6 +43,7 @@ export function SchoolsManagement() {
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const itemsPerPage = 10;
 
   const { data, isLoading, error, refetch } = useSchools(searchQuery || undefined);
@@ -55,6 +59,7 @@ export function SchoolsManagement() {
       address: school.address || [],
       status: "Active",
       registeredDate: new Date(school.createdAt).toISOString().split("T")[0],
+      _raw: school,
     }));
   }, [data]);
 
@@ -170,7 +175,16 @@ export function SchoolsManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          onClick={() => setEditingSchool(school._raw as School)}
+                          title="Edit School"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-purple-600 hover:text-purple-800 hover:bg-purple-50"
                           onClick={() =>
                             router.push(`/super-admin/schools/${school.id}`)
                           }
@@ -245,6 +259,18 @@ export function SchoolsManagement() {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Edit School Dialog */}
+      <EditSchoolDialog
+        school={editingSchool}
+        isOpen={editingSchool !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingSchool(null);
+            refetch(); // Refresh list after edit
+          }
+        }}
+      />
     </div>
   );
 }

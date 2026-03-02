@@ -29,7 +29,7 @@ router.get(
   "/schools",
   withPermission(Permission.GET_STATISTICS),
   async (req, res) => {
-    const { search } = req.query;
+    const { search, academicYear } = req.query;
 
     // Get all schools
     const where = {
@@ -54,6 +54,9 @@ router.get(
         address: true,
         createdAt: true,
       },
+      orderBy: {
+        createdAt: "desc",
+      },
       ...paginateUtil.getPaginationParams(req),
     });
 
@@ -68,9 +71,28 @@ router.get(
     // Get all school IDs
     const schoolIds = schools.map((school) => school.id);
 
+    // Build date filter for revenue if academicYear is provided (e.g. "2025-26")
+    let receiptDateFilter = {};
+    if (academicYear && typeof academicYear === "string") {
+      const parts = academicYear.split("-");
+      if (parts.length === 2) {
+        const startYear = parseInt(parts[0], 10);
+        const endYearShort = parseInt(parts[1], 10);
+        const endYear = endYearShort < 100 ? 2000 + endYearShort : endYearShort;
+        if (!isNaN(startYear) && !isNaN(endYear)) {
+          receiptDateFilter = {
+            createdAt: {
+              gte: new Date(`${startYear}-04-01T00:00:00.000Z`),
+              lte: new Date(`${endYear}-03-31T23:59:59.999Z`),
+            },
+          };
+        }
+      }
+    }
+
     // Optimized: Use groupBy to get counts for all schools in a single query per role
-    // This eliminates N+1 query problem (was: 4 queries per school, now: 4 total queries)
-    const [studentCounts, teacherCounts, staffCounts, adminCounts] =
+    // Also get revenue totals from receipts
+    const [studentCounts, teacherCounts, staffCounts, adminCounts, revenueCounts] =
       await Promise.all([
         // Students count grouped by schoolId
         prisma.user.groupBy({
@@ -124,6 +146,18 @@ router.get(
             _all: true,
           },
         }),
+        // Revenue grouped by schoolId from receipts
+        prisma.receipt.groupBy({
+          by: ["schoolId"],
+          where: {
+            schoolId: { in: schoolIds },
+            deletedAt: null,
+            ...receiptDateFilter,
+          },
+          _sum: {
+            amount: true,
+          },
+        }),
       ]);
 
     // Create maps for O(1) lookup
@@ -139,6 +173,9 @@ router.get(
     const adminCountMap = new Map(
       adminCounts.map((item) => [item.schoolId, item._count._all]),
     );
+    const revenueMap = new Map(
+      revenueCounts.map((item) => [item.schoolId, parseFloat(item._sum.amount || "0")]),
+    );
 
     // Build statistics for each school using the maps
     const schoolStats = schools.map((school) => {
@@ -147,6 +184,7 @@ router.get(
       const totalStaff = staffCountMap.get(school.id) || 0;
       const totalAdmin = adminCountMap.get(school.id) || 0;
       const totalStaffCount = totalTeachers + totalAdmin;
+      const totalRevenue = revenueMap.get(school.id) || 0;
 
       return {
         ...school,
@@ -154,6 +192,7 @@ router.get(
         totalStaff: totalStaffCount,
         teachers: totalTeachers,
         adminStaff: totalAdmin,
+        totalRevenue,
         status: "Active",
       };
     });
@@ -165,12 +204,14 @@ router.get(
         totalStaff: acc.totalStaff + stat.totalStaff,
         totalTeachers: acc.totalTeachers + stat.teachers,
         totalAdminStaff: acc.totalAdminStaff + stat.adminStaff,
+        totalRevenue: acc.totalRevenue + stat.totalRevenue,
       }),
       {
         totalStudents: 0,
         totalStaff: 0,
         totalTeachers: 0,
         totalAdminStaff: 0,
+        totalRevenue: 0,
       },
     );
 
@@ -184,20 +225,106 @@ router.get(
   },
 );
 
+// School-wise revenue breakdown
+router.get(
+  "/schools/:id/revenue",
+  withPermission(Permission.GET_STATISTICS),
+  async (req, res) => {
+    const { id } = req.params;
+
+    // Verify school exists
+    const school = await prisma.school.findUniqueOrThrow({
+      where: { id },
+      select: { id: true, name: true, code: true },
+    });
+
+    // Get all receipts for this school grouped by year
+    const receipts = await prisma.receipt.findMany({
+      where: {
+        schoolId: id,
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        receiptNumber: true,
+        amount: true,
+        baseAmount: true,
+        totalGst: true,
+        description: true,
+        paymentMethod: true,
+        createdAt: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    // Group receipts by academic year (April-March)
+    const yearlyBreakdown = {};
+    let grandTotal = 0;
+
+    receipts.forEach((receipt) => {
+      const date = new Date(receipt.createdAt);
+      const month = date.getMonth(); // 0-indexed
+      const year = date.getFullYear();
+      // Academic year: if month >= April (3), it's startYear-endYear; else previous year
+      const academicStartYear = month >= 3 ? year : year - 1;
+      const academicEndYear = academicStartYear + 1;
+      const academicYearKey = `${academicStartYear}-${String(academicEndYear).slice(-2)}`;
+
+      if (!yearlyBreakdown[academicYearKey]) {
+        yearlyBreakdown[academicYearKey] = {
+          academicYear: academicYearKey,
+          totalRevenue: 0,
+          totalBase: 0,
+          totalGst: 0,
+          receiptCount: 0,
+        };
+      }
+
+      const amount = parseFloat(receipt.amount || "0");
+      const baseAmount = parseFloat(receipt.baseAmount || "0");
+      const gst = parseFloat(receipt.totalGst || "0");
+
+      yearlyBreakdown[academicYearKey].totalRevenue += amount;
+      yearlyBreakdown[academicYearKey].totalBase += baseAmount;
+      yearlyBreakdown[academicYearKey].totalGst += gst;
+      yearlyBreakdown[academicYearKey].receiptCount += 1;
+      grandTotal += amount;
+    });
+
+    // Convert to sorted array (most recent first)
+    const yearlyData = Object.values(yearlyBreakdown).sort((a, b) =>
+      b.academicYear.localeCompare(a.academicYear)
+    );
+
+    return res.json({
+      message: "School revenue fetched!",
+      data: {
+        school,
+        grandTotal,
+        yearly: yearlyData,
+        receipts,
+      },
+    });
+  },
+);
+
 router.get(
   "/dashboard",
   withPermission(Permission.GET_DASHBOARD_STATS),
   async (req, res) => {
     try {
       const currentUser = req.context.user;
-      
+      const { academicYear } = req.query;
+
       if (!currentUser) {
         return res.status(401).json({
           message: "User not authenticated",
         });
       }
 
-      const data = await dashboardService.getDashboard(currentUser);
+      const data = await dashboardService.getDashboard(currentUser, academicYear);
 
       return res.json({
         message: "Dashboard statistics fetched!",

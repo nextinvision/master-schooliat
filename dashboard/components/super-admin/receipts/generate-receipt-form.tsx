@@ -32,6 +32,7 @@ const receiptSchema = z.object({
   schoolId: z.string().min(1, "Please select a school"),
   amount: z.string().min(1, "Amount is required").refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, "Please enter a valid amount"),
   description: z.string().min(1, "Description is required"),
+  notes: z.string().optional(),
   paymentMethod: z.string().optional(),
   sgstPercent: z.string().optional(),
   cgstPercent: z.string().optional(),
@@ -55,7 +56,7 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
   const { toast } = useToast();
   const isEditMode = !!receiptId;
   const [isGenerating, setIsGenerating] = useState(false);
-  const [gstType, setGstType] = useState<"sgst-ugst" | "cgst-igst" | null>(null);
+  const [gstType, setGstType] = useState<"cgst-sgst" | "igst" | "cgst-ugst" | null>(null);
 
   const { data: schoolsData } = useSchools();
   const { data: receiptData } = useReceipt(receiptId || "");
@@ -84,6 +85,7 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
       schoolId: "",
       amount: "",
       description: "",
+      notes: "",
       paymentMethod: "Bank Transfer",
       sgstPercent: "",
       cgstPercent: "",
@@ -108,14 +110,18 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
     }
   }, [isEditMode, receiptData, form]);
 
-  const handleGstTypeChange = (type: "sgst-ugst" | "cgst-igst") => {
+  const handleGstTypeChange = (type: "cgst-sgst" | "igst" | "cgst-ugst") => {
     setGstType(type);
-    if (type === "sgst-ugst") {
-      form.setValue("cgstPercent", "");
+    if (type === "cgst-sgst") {
       form.setValue("igstPercent", "");
-    } else {
-      form.setValue("sgstPercent", "");
       form.setValue("ugstPercent", "");
+    } else if (type === "igst") {
+      form.setValue("sgstPercent", "");
+      form.setValue("cgstPercent", "");
+      form.setValue("ugstPercent", "");
+    } else if (type === "cgst-ugst") {
+      form.setValue("sgstPercent", "");
+      form.setValue("igstPercent", "");
     }
   };
 
@@ -151,7 +157,10 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
       }
 
       if (currentReceiptId) {
-        const generateResponse = await generateReceipt.mutateAsync(currentReceiptId);
+        const generateResponse = await generateReceipt.mutateAsync({
+          receiptId: currentReceiptId,
+          notes: values.notes?.trim() || undefined,
+        });
         if (generateResponse?.data?.html && typeof window !== "undefined") {
           const printWindow = window.open("", "_blank");
           if (printWindow) {
@@ -257,61 +266,52 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
             </div>
 
             <div>
-              <Label htmlFor="description">Description *</Label>
-              <Textarea
+              <Label htmlFor="description">Item Description *</Label>
+              <Input
                 id="description"
-                placeholder="Receipt description..."
-                rows={4}
+                placeholder="e.g. Schooliat Annual Subscription"
                 {...form.register("description")}
                 error={form.formState.errors.description?.message}
               />
             </div>
 
             <div>
+              <Label htmlFor="notes">Notes (Optional)</Label>
+              <Textarea
+                id="notes"
+                placeholder="Additional notes for the receipt..."
+                rows={3}
+                {...form.register("notes")}
+              />
+            </div>
+
+            <div>
               <Label>GST Type (Optional)</Label>
-              <div className="flex gap-4 mb-4">
+              <div className="flex gap-4 mb-4 flex-wrap">
                 <Button
                   type="button"
-                  variant={gstType === "sgst-ugst" ? "default" : "outline"}
-                  onClick={() => handleGstTypeChange("sgst-ugst")}
+                  variant={gstType === "cgst-sgst" ? "default" : "outline"}
+                  onClick={() => handleGstTypeChange("cgst-sgst")}
                 >
-                  SGST/UGST
+                  CGST + SGST
                 </Button>
                 <Button
                   type="button"
-                  variant={gstType === "cgst-igst" ? "default" : "outline"}
-                  onClick={() => handleGstTypeChange("cgst-igst")}
+                  variant={gstType === "igst" ? "default" : "outline"}
+                  onClick={() => handleGstTypeChange("igst")}
                 >
-                  CGST/IGST
+                  IGST
+                </Button>
+                <Button
+                  type="button"
+                  variant={gstType === "cgst-ugst" ? "default" : "outline"}
+                  onClick={() => handleGstTypeChange("cgst-ugst")}
+                >
+                  CGST + UGST
                 </Button>
               </div>
 
-              {gstType === "sgst-ugst" && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="sgstPercent">SGST %</Label>
-                    <Input
-                      id="sgstPercent"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      {...form.register("sgstPercent")}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="ugstPercent">UGST %</Label>
-                    <Input
-                      id="ugstPercent"
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      {...form.register("ugstPercent")}
-                    />
-                  </div>
-                </div>
-              )}
-
-              {gstType === "cgst-igst" && (
+              {gstType === "cgst-sgst" && (
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="cgstPercent">CGST %</Label>
@@ -324,6 +324,21 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
                     />
                   </div>
                   <div>
+                    <Label htmlFor="sgstPercent">SGST %</Label>
+                    <Input
+                      id="sgstPercent"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...form.register("sgstPercent")}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {gstType === "igst" && (
+                <div className="grid grid-cols-1 gap-4">
+                  <div>
                     <Label htmlFor="igstPercent">IGST %</Label>
                     <Input
                       id="igstPercent"
@@ -331,6 +346,31 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
                       step="0.01"
                       placeholder="0.00"
                       {...form.register("igstPercent")}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {gstType === "cgst-ugst" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="cgstPercent">CGST %</Label>
+                    <Input
+                      id="cgstPercent"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...form.register("cgstPercent")}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="ugstPercent">UGST %</Label>
+                    <Input
+                      id="ugstPercent"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      {...form.register("ugstPercent")}
                     />
                   </div>
                 </div>
@@ -356,8 +396,8 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
             {isGenerating
               ? "Generating..."
               : isEditMode
-              ? "Update & Generate"
-              : "Generate Receipt"}
+                ? "Update & Generate"
+                : "Generate Receipt"}
           </Button>
         </div>
       </form>

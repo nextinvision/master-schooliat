@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -10,7 +10,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { useLicenses, License } from "@/lib/hooks/use-super-admin";
+import { Button } from "@/components/ui/button";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useLicenses, useDeleteLicense, License } from "@/lib/hooks/use-super-admin";
+import { useToast } from "@/hooks/use-toast";
+import { AddLicenseDialog } from "./add-license-dialog";
+import { EditLicenseDialog } from "./edit-license-dialog";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -51,6 +56,12 @@ interface LicenseDisplay {
 
 export function LicensesManagement() {
   const { data, isLoading, error } = useLicenses();
+  const deleteLicense = useDeleteLicense();
+  const { toast } = useToast();
+
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [selectedLicense, setSelectedLicense] = useState<License | null>(null);
 
   const licenses = useMemo<LicenseDisplay[]>(() => {
     if (!data?.data) return [];
@@ -65,6 +76,35 @@ export function LicensesManagement() {
       documentUrl: license.documentUrl,
     }));
   }, [data]);
+
+  const handleEdit = (license: LicenseDisplay) => {
+    // Find the original license data to pass to the edit dialog
+    const original = data?.data?.find((l: License) => l.id === license.id);
+    if (original) {
+      setSelectedLicense(original);
+      setIsEditDialogOpen(true);
+    }
+  };
+
+  const handleDelete = async (licenseId: string, licenseName: string) => {
+    if (!confirm(`Are you sure you want to delete the license "${licenseName}"?`)) {
+      return;
+    }
+
+    try {
+      await deleteLicense.mutateAsync(licenseId);
+      toast({
+        title: "Success",
+        description: "License deleted successfully",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete license",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -92,11 +132,17 @@ export function LicensesManagement() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Licenses Management</h1>
-        <p className="text-gray-600 mt-1">
-          View and manage all licenses and certifications
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">Licenses Management</h1>
+          <p className="text-gray-600 mt-1">
+            View and manage all licenses and certifications
+          </p>
+        </div>
+        <Button onClick={() => setIsAddDialogOpen(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add License
+        </Button>
       </div>
 
       <div className="border rounded-lg overflow-hidden">
@@ -110,12 +156,13 @@ export function LicensesManagement() {
                 <TableHead>Expiry Date</TableHead>
                 <TableHead>Certificate Number</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {licenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     No licenses found
                   </TableCell>
                 </TableRow>
@@ -137,6 +184,28 @@ export function LicensesManagement() {
                         {getStatusLabel(license.status)}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(license)}
+                          title="Edit"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(license.id, license.name)}
+                          disabled={deleteLicense.isPending}
+                          title="Delete"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               )}
@@ -144,7 +213,16 @@ export function LicensesManagement() {
           </Table>
         </div>
       </div>
+
+      <AddLicenseDialog
+        isOpen={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+      />
+      <EditLicenseDialog
+        license={selectedLicense}
+        isOpen={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+      />
     </div>
   );
 }
-

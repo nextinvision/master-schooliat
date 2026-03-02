@@ -34,6 +34,10 @@ const schoolSchema = z.object({
   boardAffiliation: z.string().optional(),
   studentStrength: z.string().optional(),
   certificateLink: z.string().url("Invalid URL").optional().or(z.literal("")),
+  bankName: z.string().optional(),
+  bankAccountNumber: z.string().optional(),
+  bankIfscCode: z.string().optional(),
+  bankBranchName: z.string().optional(),
 });
 
 type SchoolFormData = z.infer<typeof schoolSchema>;
@@ -71,6 +75,10 @@ export function RegisterSchoolFormContent({
       boardAffiliation: "",
       studentStrength: "",
       certificateLink: "",
+      bankName: "",
+      bankAccountNumber: "",
+      bankIfscCode: "",
+      bankBranchName: "",
     },
   });
 
@@ -132,12 +140,16 @@ export function RegisterSchoolFormContent({
         boardAffiliation: values.boardAffiliation?.trim() || undefined,
         studentStrength: values.studentStrength?.trim() || undefined,
         certificateLink: values.certificateLink?.trim() || undefined,
+        bankName: values.bankName?.trim() || undefined,
+        bankAccountNumber: values.bankAccountNumber?.trim() || undefined,
+        bankIfscCode: values.bankIfscCode?.trim() || undefined,
+        bankBranchName: values.bankBranchName?.trim() || undefined,
       });
 
-      if (result?.data?.password) {
+      if (result?.data?.admin?.password) {
         setCredentials({
-          loginId: result.data.email,
-          password: result.data.password,
+          loginId: result.data.admin.email || result.data.email,
+          password: result.data.admin.password,
         });
         setShowSuccessModal(true);
       } else {
@@ -352,6 +364,50 @@ export function RegisterSchoolFormContent({
                 {...form.register("certificateLink")}
                 error={form.formState.errors.certificateLink?.message}
               />
+            </div>
+          </div>
+        </FormCard>
+
+        <FormCard title="Bank Account Details">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="bankName">Bank Name</Label>
+                <Input
+                  id="bankName"
+                  placeholder="e.g. State Bank of India"
+                  {...form.register("bankName")}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="bankAccountNumber">Account Number</Label>
+                <Input
+                  id="bankAccountNumber"
+                  placeholder="Enter account number"
+                  {...form.register("bankAccountNumber")}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="bankIfscCode">IFSC Code</Label>
+                <Input
+                  id="bankIfscCode"
+                  placeholder="e.g. SBIN0001234"
+                  {...form.register("bankIfscCode")}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="bankBranchName">Branch Name</Label>
+                <Input
+                  id="bankBranchName"
+                  placeholder="Enter branch name"
+                  {...form.register("bankBranchName")}
+                />
+              </div>
             </div>
           </div>
         </FormCard>

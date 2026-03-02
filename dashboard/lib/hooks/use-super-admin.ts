@@ -3,22 +3,34 @@ import {
   useQueryClient,
   useMutation,
 } from "@tanstack/react-query";
-import { get, post, patch, del } from "@/lib/api/client";
+import { get, post, patch, put, del } from "@/lib/api/client";
 
 // Statistics
-export function useSchoolStatistics(search?: string) {
+export function useSchoolStatistics(search?: string, academicYear?: string) {
   return useQuery({
-    queryKey: ["schoolStatistics", search],
+    queryKey: ["schoolStatistics", search, academicYear],
     queryFn: () =>
-      get("/statistics/schools", search ? { search } : {}),
+      get("/statistics/schools", {
+        ...(search ? { search } : {}),
+        ...(academicYear ? { academicYear } : {}),
+      }),
     staleTime: 30 * 1000,
   });
 }
 
-export function useDashboardStats() {
+export function useSchoolRevenue(schoolId: string) {
   return useQuery({
-    queryKey: ["dashboardStats"],
-    queryFn: () => get("/statistics/dashboard"),
+    queryKey: ["schoolRevenue", schoolId],
+    queryFn: () => get(`/statistics/schools/${schoolId}/revenue`),
+    enabled: !!schoolId,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useDashboardStats(academicYear?: string) {
+  return useQuery({
+    queryKey: ["dashboardStats", academicYear],
+    queryFn: () => get("/statistics/dashboard", academicYear ? { academicYear } : undefined),
     staleTime: 30 * 1000,
   });
 }
@@ -116,6 +128,19 @@ export function useCreateEmployee() {
   });
 }
 
+export function useUpdateEmployee() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateEmployeeData>) =>
+      patch(`/users/employees/${id}`, { request: formData }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["employee", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
+    },
+  });
+}
+
 // Receipts
 export function useReceipts(schoolId?: string, status?: string) {
   return useQuery({
@@ -138,8 +163,8 @@ export function useCreateReceipt() {
 
 export function useGenerateReceipt() {
   return useMutation({
-    mutationFn: (receiptId: string) =>
-      post(`/receipts/${receiptId}/generate`),
+    mutationFn: ({ receiptId, notes }: { receiptId: string; notes?: string }) =>
+      post(`/receipts/${receiptId}/generate`, { notes }),
   });
 }
 
@@ -178,6 +203,27 @@ export function useCreateLicense() {
   return useMutation({
     mutationFn: (formData: CreateLicenseData) =>
       post("/licenses", { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["licenses"] });
+    },
+  });
+}
+
+export function useUpdateLicense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateLicenseData>) =>
+      put(`/licenses/${id}`, { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["licenses"] });
+    },
+  });
+}
+
+export function useDeleteLicense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/licenses/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["licenses"] });
     },
@@ -300,6 +346,10 @@ export interface CreateSchoolData {
   boardAffiliation?: string;
   studentStrength?: string;
   certificateLink?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankIfscCode?: string;
+  bankBranchName?: string;
 }
 
 export interface Employee {
@@ -418,10 +468,12 @@ export interface SchoolStatistics {
     id: string;
     name: string;
     code: string;
+    createdAt: string;
     totalStudents: number;
     totalStaff: number;
     teachers: number;
     adminStaff: number;
+    totalRevenue: number;
     status: string;
   }>;
   totals: {
@@ -429,7 +481,30 @@ export interface SchoolStatistics {
     totalStaff: number;
     totalTeachers: number;
     totalAdminStaff: number;
+    totalRevenue: number;
   };
+}
+
+export interface SchoolRevenueData {
+  school: { id: string; name: string; code: string };
+  grandTotal: number;
+  yearly: Array<{
+    academicYear: string;
+    totalRevenue: number;
+    totalBase: number;
+    totalGst: number;
+    receiptCount: number;
+  }>;
+  receipts: Array<{
+    id: string;
+    receiptNumber: string;
+    amount: string;
+    baseAmount: string;
+    totalGst: string;
+    description: string;
+    paymentMethod: string;
+    createdAt: string;
+  }>;
 }
 
 export interface GenerateLetterheadData {

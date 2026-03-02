@@ -52,6 +52,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
+import { EditSchoolDialog } from "./edit-school-dialog";
 
 interface SchoolDetailsViewProps {
   schoolId: string;
@@ -68,70 +69,12 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    code: "",
-    email: "",
-    phone: "",
-    address: [] as string[],
-    gstNumber: "",
-    principalName: "",
-    principalEmail: "",
-    principalPhone: "",
-    establishedYear: "",
-    boardAffiliation: "",
-    studentStrength: "",
-    certificateLink: "",
-    regionId: "" as string | null,
-  });
 
   const school = data as School | null;
   const regions = (regionsData?.data || []) as Region[];
   const schoolStats = statisticsData?.data?.schools?.find(
     (s: any) => s.id === schoolId
   );
-
-  // Initialize form data when school loads
-  useEffect(() => {
-    if (school) {
-      setFormData({
-        name: school.name || "",
-        code: school.code || "",
-        email: school.email || "",
-        phone: school.phone || "",
-        address: school.address || [],
-        gstNumber: (school as any).gstNumber || "",
-        principalName: (school as any).principalName || "",
-        principalEmail: (school as any).principalEmail || "",
-        principalPhone: (school as any).principalPhone || "",
-        establishedYear: (school as any).establishedYear?.toString() || "",
-        boardAffiliation: (school as any).boardAffiliation || "",
-        studentStrength: (school as any).studentStrength?.toString() || "",
-        certificateLink: (school as any).certificateLink || "",
-        regionId: (school as any).regionId || "",
-      });
-    }
-  }, [school]);
-
-  const handleUpdate = async () => {
-    try {
-      await updateSchool.mutateAsync({
-        id: schoolId,
-        ...formData,
-      });
-      toast({
-        title: "Success",
-        description: "School updated successfully",
-      });
-      setIsEditOpen(false);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update school",
-        variant: "destructive",
-      });
-    }
-  };
 
   const handleDelete = async () => {
     try {
@@ -192,217 +135,15 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
           </div>
         </div>
         <div className="flex gap-2">
-          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Edit className="w-4 h-4 mr-2" />
-                Edit
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Edit School</DialogTitle>
-                <DialogDescription>
-                  Update school information
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>School Name *</Label>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) =>
-                        setFormData({ ...formData, name: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>School Code *</Label>
-                    <Input
-                      value={formData.code}
-                      onChange={(e) =>
-                        setFormData({ ...formData, code: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Email *</Label>
-                    <Input
-                      type="email"
-                      value={formData.email}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Phone *</Label>
-                    <Input
-                      value={formData.phone}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Address</Label>
-                  <Textarea
-                    value={formData.address.join("\n")}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        address: e.target.value.split("\n").filter(Boolean),
-                      })
-                    }
-                    rows={3}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>GST Number</Label>
-                    <Input
-                      value={formData.gstNumber}
-                      onChange={(e) =>
-                        setFormData({ ...formData, gstNumber: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Region</Label>
-                    <Select
-                      value={formData.regionId || "none"}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, regionId: value === "none" ? (null as any) : value })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select region" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        {regions.map((region) => (
-                          <SelectItem key={region.id} value={region.id}>
-                            {region.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Principal Name</Label>
-                    <Input
-                      value={formData.principalName}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          principalName: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Principal Email</Label>
-                    <Input
-                      type="email"
-                      value={formData.principalEmail}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          principalEmail: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Principal Phone</Label>
-                    <Input
-                      value={formData.principalPhone}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          principalPhone: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Established Year</Label>
-                    <Input
-                      type="number"
-                      value={formData.establishedYear}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          establishedYear: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Board Affiliation</Label>
-                    <Input
-                      value={formData.boardAffiliation}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          boardAffiliation: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Student Strength</Label>
-                    <Input
-                      type="number"
-                      value={formData.studentStrength}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          studentStrength: e.target.value,
-                        })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Certificate Link</Label>
-                  <Input
-                    value={formData.certificateLink}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        certificateLink: e.target.value,
-                      })
-                    }
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsEditOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleUpdate}
-                  disabled={updateSchool.isPending}
-                >
-                  {updateSchool.isPending ? "Updating..." : "Update"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
+            <Edit className="w-4 h-4 mr-2" />
+            Edit
+          </Button>
+          <EditSchoolDialog
+            school={school}
+            isOpen={isEditOpen}
+            onOpenChange={setIsEditOpen}
+          />
 
           <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
             <DialogTrigger asChild>
@@ -559,8 +300,8 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
 
       {/* Additional Information */}
       {(school as any).gstNumber ||
-      (school as any).principalName ||
-      (school as any).establishedYear ? (
+        (school as any).principalName ||
+        (school as any).establishedYear ? (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Additional Information</CardTitle>

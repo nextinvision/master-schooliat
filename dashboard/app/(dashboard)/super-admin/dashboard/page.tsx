@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useDashboardStats } from "@/lib/hooks/use-super-admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,10 +23,46 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+/**
+ * Get the current academic year string (e.g. "2025-26").
+ * Academic year starts in April: if current month >= April, it's currentYear-nextYear.
+ */
+function getCurrentAcademicYear(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-indexed
+  if (month >= 3) {
+    // April (3) onwards
+    return `${year}-${(year + 1) % 100}`;
+  }
+  return `${year - 1}-${year % 100}`;
+}
+
+/** Generate a list of academic year options around the current year. */
+function getAcademicYearOptions(): string[] {
+  const now = new Date();
+  const year = now.getFullYear();
+  const options: string[] = [];
+  for (let y = year - 3; y <= year + 1; y++) {
+    const endYearShort = (y + 1) % 100;
+    options.push(`${y}-${endYearShort.toString().padStart(2, '0')}`);
+  }
+  return options;
+}
 
 export default function SuperAdminDashboardPage() {
   const router = useRouter();
-  const { data, isLoading } = useDashboardStats();
+  const [selectedYear, setSelectedYear] = useState<string>(getCurrentAcademicYear());
+  const academicYearOptions = useMemo(() => getAcademicYearOptions(), []);
+  const { data, isLoading } = useDashboardStats(selectedYear);
 
   const statsCards = useMemo(() => {
     if (!data?.data) return [];
@@ -153,16 +189,35 @@ export default function SuperAdminDashboardPage() {
               Here's what's happening with your schools today
             </p>
           </div>
-          <div className="bg-white/25 backdrop-blur-sm rounded-2xl px-4 lg:px-5 py-3 lg:py-4 text-center min-w-[80px] lg:min-w-[100px]">
-            <p className="text-3xl lg:text-4xl font-extrabold text-black">
-              {new Date().getDate()}
-            </p>
-            <p className="text-xs lg:text-sm text-black font-semibold uppercase tracking-wider">
-              {new Date().toLocaleDateString("en-US", {
-                month: "short",
-                year: "numeric",
-              })}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="bg-white/25 backdrop-blur-sm rounded-2xl px-4 lg:px-5 py-3 lg:py-4 text-center min-w-[80px] lg:min-w-[100px]">
+              <p className="text-3xl lg:text-4xl font-extrabold text-black">
+                {new Date().getDate()}
+              </p>
+              <p className="text-xs lg:text-sm text-black font-semibold uppercase tracking-wider">
+                {new Date().toLocaleDateString("en-US", {
+                  month: "short",
+                  year: "numeric",
+                })}
+              </p>
+            </div>
+            <div className="bg-white/25 backdrop-blur-sm rounded-2xl px-4 lg:px-5 py-3 lg:py-4 min-w-[140px]">
+              <p className="text-xs text-black/70 font-semibold uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Calendar className="w-3 h-3" /> Academic Year
+              </p>
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="bg-white/40 border-white/50 text-black font-bold h-9 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {academicYearOptions.map((yr) => (
+                    <SelectItem key={yr} value={yr}>
+                      {yr}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
       </div>

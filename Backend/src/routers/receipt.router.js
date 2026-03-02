@@ -423,6 +423,7 @@ router.post(
   withPermission(Permission.GET_RECEIPTS),
   async (req, res) => {
     const { id } = req.params;
+    const { notes } = req.body || {};
 
     // Fetch receipt with school details
     const receipt = await prisma.receipt.findUniqueOrThrow({
@@ -478,34 +479,42 @@ router.post(
     const baseAmount = parseFloat(receipt.baseAmount) || 0;
     const totalAmount = parseFloat(receipt.amount) || 0;
 
-    // Determine tax type
-    const hasSgstUgst =
-      (parseFloat(receipt.sgstPercent) || 0) > 0 ||
-      (parseFloat(receipt.ugstPercent) || 0) > 0;
-    const hasCgstIgst =
-      (parseFloat(receipt.cgstPercent) || 0) > 0 ||
-      (parseFloat(receipt.igstPercent) || 0) > 0;
+    // Determine tax type based on which GST values are actually present
+    const sgstVal = parseFloat(receipt.sgstPercent) || 0;
+    const cgstVal = parseFloat(receipt.cgstPercent) || 0;
+    const igstVal = parseFloat(receipt.igstPercent) || 0;
+    const ugstVal = parseFloat(receipt.ugstPercent) || 0;
 
     let tax1Name, tax2Name, tax1Percent, tax2Percent, tax1Amount, tax2Amount;
 
-    if (hasSgstUgst) {
-      tax1Name = "SGST";
-      tax2Name = "UGST";
-      tax1Percent = receipt.sgstPercent || "0";
-      tax2Percent = receipt.ugstPercent || "0";
-      tax1Amount = receipt.sgstAmount || "0";
-      tax2Amount = receipt.ugstAmount || "0";
-    } else if (hasCgstIgst) {
+    if (cgstVal > 0 && sgstVal > 0) {
+      // Intra-state: CGST + SGST
       tax1Name = "CGST";
-      tax2Name = "IGST";
+      tax2Name = "SGST";
       tax1Percent = receipt.cgstPercent || "0";
-      tax2Percent = receipt.igstPercent || "0";
+      tax2Percent = receipt.sgstPercent || "0";
       tax1Amount = receipt.cgstAmount || "0";
-      tax2Amount = receipt.igstAmount || "0";
-    } else {
-      // Default to CGST/IGST with 0%
+      tax2Amount = receipt.sgstAmount || "0";
+    } else if (igstVal > 0) {
+      // Inter-state: IGST only
+      tax1Name = "IGST";
+      tax2Name = "—";
+      tax1Percent = receipt.igstPercent || "0";
+      tax2Percent = "0";
+      tax1Amount = receipt.igstAmount || "0";
+      tax2Amount = "0";
+    } else if (cgstVal > 0 && ugstVal > 0) {
+      // Union Territory: CGST + UGST
       tax1Name = "CGST";
-      tax2Name = "IGST";
+      tax2Name = "UGST";
+      tax1Percent = receipt.cgstPercent || "0";
+      tax2Percent = receipt.ugstPercent || "0";
+      tax1Amount = receipt.cgstAmount || "0";
+      tax2Amount = receipt.ugstAmount || "0";
+    } else {
+      // Default / no GST
+      tax1Name = "CGST";
+      tax2Name = "SGST";
       tax1Percent = "0";
       tax2Percent = "0";
       tax1Amount = "0";
@@ -572,7 +581,19 @@ router.post(
     );
     receiptHTML = receiptHTML.replace(
       /\{\{NOTES\}\}/g,
-      escapeHtml(receipt.description) || "Thank you for your business.",
+      escapeHtml(notes) || "Thank you for your business.",
+    );
+    receiptHTML = receiptHTML.replace(
+      /\{\{DESCRIPTION\}\}/g,
+      escapeHtml(receipt.description) || "Schooliat Annual Subscription",
+    );
+    receiptHTML = receiptHTML.replace(
+      /\{\{COMPANY_ADDRESS\}\}/g,
+      "Flat No. 301, Manikanta Residency, Nagaram, Hyderabad, Telangana - 500083",
+    );
+    receiptHTML = receiptHTML.replace(
+      /\{\{GST_NUMBER\}\}/g,
+      "36AAXCS1415E1ZM",
     );
 
     // Trim the result

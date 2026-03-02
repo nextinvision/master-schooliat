@@ -10,9 +10,24 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Users, Briefcase, GraduationCap, UserCog } from "lucide-react";
+import { Users, Briefcase, GraduationCap, UserCog, IndianRupee } from "lucide-react";
 import { useSchoolStatistics, SchoolStatistics } from "@/lib/hooks/use-super-admin";
+import { SchoolRevenueDialog } from "./school-revenue-dialog";
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(amount);
 
 const summaryCards = [
   {
@@ -39,15 +54,46 @@ const summaryCards = [
     color: "#9b59b6",
     bgColor: "#f3e5f5",
   },
+  {
+    title: "Total Revenue",
+    icon: IndianRupee,
+    color: "#e67e22",
+    bgColor: "#fef3e2",
+  },
 ];
+
+// Generate academic year options (e.g. 2023-24, 2024-25, ...)
+function getAcademicYears(): string[] {
+  const currentDate = new Date();
+  const currentMonth = currentDate.getMonth(); // 0-indexed
+  const currentYear = currentDate.getFullYear();
+  // If we're in Jan-Mar, the current academic year started previous calendar year
+  const currentAcademicStart = currentMonth >= 3 ? currentYear : currentYear - 1;
+
+  const years: string[] = [];
+  for (let y = currentAcademicStart + 1; y >= currentAcademicStart - 4; y--) {
+    const endYear = y + 1;
+    years.push(`${y}-${String(endYear).slice(-2)}`);
+  }
+  return years;
+}
 
 export function StatisticsView() {
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [academicYear, setAcademicYear] = useState<string>("all");
+  const [revenueDialogOpen, setRevenueDialogOpen] = useState(false);
+  const [selectedSchool, setSelectedSchool] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
   const itemsPerPage = 10;
 
+  const academicYears = useMemo(() => getAcademicYears(), []);
+
   const { data, isLoading, error } = useSchoolStatistics(
-    searchQuery || undefined
+    searchQuery || undefined,
+    academicYear !== "all" ? academicYear : undefined
   );
 
   interface SchoolStatDisplay {
@@ -58,12 +104,14 @@ export function StatisticsView() {
     totalStaff: number;
     teachers: number;
     adminStaff: number;
+    totalRevenue: number;
+    createdAt: string;
     status: string;
   }
 
   const schoolStats = useMemo<SchoolStatDisplay[]>(() => {
     if (!data?.data?.schools) return [];
-    return data.data.schools.map((school: SchoolStatistics['schools'][0]) => ({
+    return data.data.schools.map((school: SchoolStatistics["schools"][0]) => ({
       id: school.id,
       schoolName: school.name,
       schoolCode: school.code,
@@ -71,6 +119,8 @@ export function StatisticsView() {
       totalStaff: school.totalStaff || 0,
       teachers: school.teachers || 0,
       adminStaff: school.adminStaff || 0,
+      totalRevenue: school.totalRevenue || 0,
+      createdAt: school.createdAt || "",
       status: school.status || "Active",
     }));
   }, [data]);
@@ -82,6 +132,7 @@ export function StatisticsView() {
         totalStaff: 0,
         totalTeachers: 0,
         totalAdminStaff: 0,
+        totalRevenue: 0,
       };
     }
     return data.data.totals;
@@ -94,7 +145,12 @@ export function StatisticsView() {
 
   useEffect(() => {
     setPage(0);
-  }, [searchQuery]);
+  }, [searchQuery, academicYear]);
+
+  const handleSchoolClick = (school: SchoolStatDisplay) => {
+    setSelectedSchool({ id: school.id, name: school.schoolName });
+    setRevenueDialogOpen(true);
+  };
 
   if (isLoading) {
     return (
@@ -125,22 +181,21 @@ export function StatisticsView() {
       <div>
         <h1 className="text-2xl font-semibold">School Statistics</h1>
         <p className="text-gray-600 mt-1">
-          View student and staff statistics for all registered schools
+          View student, staff, and revenue statistics for all registered schools
         </p>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {summaryCards.map((card, index) => {
           const Icon = card.icon;
-          const value =
-            index === 0
-              ? totals.totalStudents.toLocaleString()
-              : index === 1
-              ? totals.totalStaff.toLocaleString()
-              : index === 2
-              ? totals.totalTeachers.toLocaleString()
-              : totals.totalAdminStaff.toLocaleString();
+          let value: string;
+          if (index === 0) value = totals.totalStudents.toLocaleString();
+          else if (index === 1) value = totals.totalStaff.toLocaleString();
+          else if (index === 2) value = totals.totalTeachers.toLocaleString();
+          else if (index === 3) value = totals.totalAdminStaff.toLocaleString();
+          else value = formatCurrency(totals.totalRevenue || 0);
+
           return (
             <div
               key={card.title}
@@ -161,14 +216,27 @@ export function StatisticsView() {
         })}
       </div>
 
-      {/* Search */}
-      <div className="flex gap-4">
+      {/* Filters */}
+      <div className="flex gap-4 flex-wrap">
         <Input
           placeholder="Search schools..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-sm"
         />
+        <Select value={academicYear} onValueChange={setAcademicYear}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Academic Year" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Years</SelectItem>
+            {academicYears.map((year) => (
+              <SelectItem key={year} value={year}>
+                {year}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* School Statistics Table */}
@@ -182,13 +250,15 @@ export function StatisticsView() {
                 <TableHead className="text-right">Teachers</TableHead>
                 <TableHead className="text-right">Admin Staff</TableHead>
                 <TableHead className="text-right">Total Staff</TableHead>
+                <TableHead className="text-right">Revenue</TableHead>
+                <TableHead>Registered</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedStats.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={8} className="text-center py-8">
                     No schools found
                   </TableCell>
                 </TableRow>
@@ -197,7 +267,13 @@ export function StatisticsView() {
                   <TableRow key={stat.id} className="hover:bg-gray-50">
                     <TableCell>
                       <div>
-                        <div className="font-semibold">{stat.schoolName}</div>
+                        <button
+                          className="font-semibold text-left text-primary hover:underline cursor-pointer"
+                          onClick={() => handleSchoolClick(stat)}
+                          title="View revenue details"
+                        >
+                          {stat.schoolName}
+                        </button>
                         <div className="text-sm text-gray-500">
                           {stat.schoolCode}
                         </div>
@@ -214,6 +290,18 @@ export function StatisticsView() {
                     </TableCell>
                     <TableCell className="text-right font-medium text-green-700">
                       {stat.totalStaff}
+                    </TableCell>
+                    <TableCell className="text-right font-medium">
+                      {formatCurrency(stat.totalRevenue)}
+                    </TableCell>
+                    <TableCell className="text-sm text-gray-600">
+                      {stat.createdAt
+                        ? new Date(stat.createdAt).toLocaleDateString("en-IN", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })
+                        : "—"}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -254,7 +342,16 @@ export function StatisticsView() {
           </div>
         </div>
       )}
+
+      {/* School Revenue Dialog */}
+      {selectedSchool && (
+        <SchoolRevenueDialog
+          schoolId={selectedSchool.id}
+          schoolName={selectedSchool.name}
+          isOpen={revenueDialogOpen}
+          onOpenChange={setRevenueDialogOpen}
+        />
+      )}
     </div>
   );
 }
-

@@ -12,8 +12,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Settings, Store, Plus } from "lucide-react";
+import { Settings, Store, Plus, Edit } from "lucide-react";
 import { useEmployees, Employee } from "@/lib/hooks/use-super-admin";
+import { EditEmployeeDialog } from "./edit-employee-dialog";
 
 export function EmployeesManagement() {
   const router = useRouter();
@@ -32,7 +33,10 @@ export function EmployeesManagement() {
     totalLocations: number;
     totalVendors: number;
     status: string;
+    _raw: Employee;
   }
+
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
 
   const employees = useMemo<EmployeeDisplay[]>(() => {
     if (!data?.data) return [];
@@ -57,6 +61,7 @@ export function EmployeesManagement() {
       totalLocations: emp.totalLocations || 0,
       totalVendors: emp.totalVendors || 0,
       status: emp.status || "Active",
+      _raw: emp,
     }));
   }, [data, searchQuery]);
 
@@ -160,12 +165,22 @@ export function EmployeesManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                          onClick={() => setEditingEmployee(employee._raw)}
+                          title="Edit Employee"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8"
                           onClick={() =>
                             router.push(
                               `/super-admin/employees/${employee.id}/manage`
                             )
                           }
+                          title="Employee Settings"
                         >
                           <Settings className="w-4 h-4" />
                         </Button>
@@ -178,6 +193,7 @@ export function EmployeesManagement() {
                               `/super-admin/employees/${employee.id}/vendors`
                             )
                           }
+                          title="Assigned Vendors"
                         >
                           <Store className="w-4 h-4" />
                         </Button>
@@ -216,6 +232,15 @@ export function EmployeesManagement() {
           </div>
         </div>
       )}
+
+      {/* Edit Employee Dialog */}
+      <EditEmployeeDialog
+        employee={editingEmployee}
+        isOpen={editingEmployee !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingEmployee(null);
+        }}
+      />
     </div>
   );
 }
