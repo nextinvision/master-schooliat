@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormCard } from "@/components/forms/form-card";
-import { useCreateSchool } from "@/lib/hooks/use-super-admin";
+import { useCreateSchool, useRegions } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, X, School } from "lucide-react";
 import {
@@ -19,6 +19,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const schoolSchema = z.object({
   name: z.string().min(1, "School name is required"),
@@ -26,6 +33,7 @@ const schoolSchema = z.object({
   email: z.string().email("Invalid email address"),
   phone: z.string().min(1, "Phone number is required"),
   address: z.array(z.string().min(1, "Address line cannot be empty")),
+  regionId: z.string().min(1, "Region is required"),
   gstNumber: z.string().optional(),
   principalName: z.string().optional(),
   principalEmail: z.string().email("Invalid email").optional().or(z.literal("")),
@@ -56,8 +64,11 @@ export function RegisterSchoolFormContent({
   const router = useRouter();
   const { toast } = useToast();
   const createSchool = useCreateSchool();
+  const { data: regionsData } = useRegions();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [credentials, setCredentials] = useState<{ loginId: string; password: string } | null>(null);
+
+  const regions = regionsData?.data || [];
 
   const form = useForm<SchoolFormData>({
     resolver: zodResolver(schoolSchema),
@@ -67,6 +78,7 @@ export function RegisterSchoolFormContent({
       email: "",
       phone: "",
       address: [""],
+      regionId: "",
       gstNumber: "",
       principalName: "",
       principalEmail: "",
@@ -132,6 +144,7 @@ export function RegisterSchoolFormContent({
         email: values.email.trim(),
         phone: values.phone.trim(),
         address: values.address.filter((a) => a.trim()),
+        regionId: values.regionId,
         gstNumber: values.gstNumber?.trim() || undefined,
         principalName: values.principalName?.trim() || undefined,
         principalEmail: values.principalEmail?.trim() || undefined,
@@ -238,6 +251,30 @@ export function RegisterSchoolFormContent({
                   error={form.formState.errors.phone?.message}
                 />
               </div>
+            </div>
+
+            <div>
+              <Label htmlFor="regionId">Region *</Label>
+              <Select
+                value={form.watch("regionId")}
+                onValueChange={(value) => form.setValue("regionId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a region" />
+                </SelectTrigger>
+                <SelectContent>
+                  {regions.map((region: any) => (
+                    <SelectItem key={region.id} value={region.id}>
+                      {region.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.regionId && (
+                <p className="text-sm text-red-500 mt-1">
+                  {form.formState.errors.regionId.message}
+                </p>
+              )}
             </div>
 
             <div>

@@ -51,6 +51,7 @@ router.post(
         bankAccountNumber: request.bankAccountNumber,
         bankIfscCode: request.bankIfscCode,
         bankBranchName: request.bankBranchName,
+        regionId: request.regionId || null,
         createdBy: currentUser.id,
       },
     });
@@ -110,6 +111,11 @@ router.get(
         email: true,
         phone: true,
         address: true,
+        region: {
+          select: {
+            name: true,
+          }
+        },
         createdAt: true,
       },
     });

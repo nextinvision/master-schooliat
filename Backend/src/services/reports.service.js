@@ -11,9 +11,12 @@ const getAttendanceReports = async (schoolId, filters = {}) => {
   const { classId = null, startDate = null, endDate = null, studentId = null } = filters;
 
   const where = {
-    schoolId,
     deletedAt: null,
   };
+
+  if (schoolId) {
+    where.schoolId = schoolId;
+  }
 
   if (classId) {
     where.classId = classId;
@@ -223,16 +226,15 @@ const getAcademicReports = async (schoolId, filters = {}) => {
  * @returns {Promise<Object>} - Salary reports
  */
 const getSalaryReports = async (schoolId, filters = {}) => {
-  if (!schoolId) {
-    throw new Error("School context is required for salary reports");
-  }
-
   const { startDate = null, endDate = null } = filters;
 
   const where = {
-    schoolId,
     deletedAt: null,
   };
+
+  if (schoolId) {
+    where.schoolId = schoolId;
+  }
 
   const payments = await prisma.salaryPayments.findMany({
     where,
@@ -294,36 +296,35 @@ const getSalaryReports = async (schoolId, filters = {}) => {
  * @returns {Promise<Object>}
  */
 const getDashboardSummary = async (schoolId) => {
-  if (!schoolId) {
-    throw new Error("School context is required");
-  }
   const now = new Date();
   const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
 
+  const baseWhere = { deletedAt: null };
+  if (schoolId) baseWhere.schoolId = schoolId;
+
   const [attendanceRows, feeRows, marksRows, salaryRows, examCount, totalEnrolledStudents] = await Promise.all([
     prisma.attendance.findMany({
-      where: { schoolId, deletedAt: null, date: { gte: startOfThisMonth, lte: endOfThisMonth } },
+      where: { ...baseWhere, date: { gte: startOfThisMonth, lte: endOfThisMonth } },
       select: { status: true, studentId: true },
     }),
     prisma.feeInstallements.findMany({
-      where: { schoolId, deletedAt: null },
+      where: baseWhere,
       select: { amount: true, paidAmount: true, paymentStatus: true },
     }),
     prisma.marks.findMany({
-      where: { schoolId, deletedAt: null },
+      where: baseWhere,
       select: { percentage: true },
     }),
     prisma.salaryPayments.findMany({
-      where: { schoolId, deletedAt: null },
+      where: baseWhere,
       select: { totalAmount: true, userId: true },
     }),
-    prisma.exam.count({ where: { schoolId } }),
+    prisma.exam.count({ where: schoolId ? { schoolId } : {} }),
     // Count actual enrolled students (matching dashboard logic)
     prisma.user.count({
       where: {
-        schoolId,
-        deletedAt: null,
+        ...baseWhere,
         role: { name: "STUDENT" },
         userType: "SCHOOL",
       },

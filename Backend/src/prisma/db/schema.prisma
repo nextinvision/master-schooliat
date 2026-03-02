@@ -531,8 +531,9 @@ model Template {
 }
 
 model Region {
-  id   String @id @default(uuid())
-  name String
+  id         String  @id @default(uuid())
+  name       String
+  zoneHeadId String? @map("zone_head_id")
 
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
@@ -544,6 +545,7 @@ model Region {
   users     User[]
   vendors   Vendor[]
   locations Location[]
+  zoneHead  User?      @relation("RegionZoneHead", fields: [zoneHeadId], references: [id])
 
   @@map("regions")
 }
@@ -711,6 +713,7 @@ model User {
   role           Role    @relation(fields: [roleId], references: [id])
   school         School? @relation(fields: [schoolId], references: [id])
   assignedRegion Region? @relation(fields: [assignedRegionId], references: [id])
+  managedRegions Region[] @relation("RegionZoneHead")
 
   // Profile relations (one-to-one optional)
   studentProfile StudentProfile?

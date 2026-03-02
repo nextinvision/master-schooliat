@@ -141,6 +141,18 @@ export function useUpdateEmployee() {
   });
 }
 
+export function useUpdateEmployeePermissions() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, permissions }: { id: string; permissions: string[] }) =>
+      patch(`/users/employees/${id}/permissions`, { permissions }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["employee", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
+    },
+  });
+}
+
 // Receipts
 export function useReceipts(schoolId?: string, status?: string) {
   return useQuery({
@@ -242,7 +254,7 @@ export function useRegions() {
 export function useCreateRegion() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (formData: { name: string }) =>
+    mutationFn: (formData: { name: string; zoneHeadId?: string }) =>
       post("/regions", { request: formData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["regions"] });
@@ -330,6 +342,9 @@ export interface School {
   studentStrength?: number;
   certificateLink?: string;
   regionId?: string;
+  region?: {
+    name: string;
+  };
 }
 
 export interface CreateSchoolData {
@@ -338,6 +353,7 @@ export interface CreateSchoolData {
   email: string;
   phone: string;
   address: string[];
+  regionId: string;
   gstNumber?: string;
   principalName?: string;
   principalEmail?: string;
@@ -362,6 +378,7 @@ export interface Employee {
   totalLocations?: number;
   totalVendors?: number;
   status: string;
+  permissions?: string[];
 }
 
 export interface CreateEmployeeData {
@@ -422,6 +439,12 @@ export interface CreateLicenseData {
 export interface Region {
   id: string;
   name: string;
+  zoneHeadId?: string;
+  zoneHead?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+  };
 }
 
 export interface Vendor {
@@ -513,6 +536,15 @@ export interface GenerateLetterheadData {
   date: string;
   signatureName?: string | null;
   signatureDesignation?: string | null;
+  companyName?: string | null;
+  companyTagline?: string | null;
+  companyEmail?: string | null;
+  companyPhone?: string | null;
+  companyAddress?: string | null;
+  logoUrl?: string | null;
+  themeColor?: string | null;
+  themeColorDark?: string | null;
+  hideLogo?: boolean | null;
 }
 
 // Locations
@@ -559,7 +591,7 @@ export function useDeleteLocation() {
 export function useUpdateRegion() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...formData }: { id: string } & Partial<{ name: string }>) =>
+    mutationFn: ({ id, ...formData }: { id: string } & Partial<{ name: string; zoneHeadId: string }>) =>
       patch(`/regions/${id}`, { request: formData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["regions"] });
@@ -654,7 +686,7 @@ export interface CreateLocationData {
 
 export interface Template {
   id: string;
-  name: string;
+  title: string;
   type: string;
   description?: string;
   imageId?: string;
@@ -671,6 +703,9 @@ export interface AuditLog {
     email: string;
     firstName?: string;
     lastName?: string;
+    role?: {
+      name: string;
+    };
   };
   action: string;
   entityType: string;

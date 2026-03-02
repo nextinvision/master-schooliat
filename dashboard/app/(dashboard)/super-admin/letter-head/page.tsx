@@ -22,6 +22,15 @@ const letterheadSchema = z.object({
   signatureName: z.string().optional(),
   signatureDesignation: z.string().optional(),
   includeSignature: z.boolean(),
+  companyName: z.string().optional(),
+  companyTagline: z.string().optional(),
+  companyEmail: z.string().optional(),
+  companyPhone: z.string().optional(),
+  companyAddress: z.string().optional(),
+  logoUrl: z.string().optional(),
+  themeColor: z.string().optional(),
+  themeColorDark: z.string().optional(),
+  hideLogo: z.boolean().optional(),
 });
 
 type LetterheadFormData = z.infer<typeof letterheadSchema>;
@@ -40,10 +49,20 @@ export default function LetterHeadPage() {
       signatureName: "",
       signatureDesignation: "",
       includeSignature: false,
+      companyName: "",
+      companyTagline: "",
+      companyEmail: "",
+      companyPhone: "",
+      companyAddress: "",
+      logoUrl: "",
+      themeColor: "#0f172a",
+      themeColorDark: "#1e293b",
+      hideLogo: false,
     },
   });
 
   const includeSignature = form.watch("includeSignature");
+  const hideLogo = form.watch("hideLogo");
 
   const handleFormatText = (format: "bold" | "italic" | "underline") => {
     const textarea = textareaRef.current;
@@ -102,6 +121,15 @@ export default function LetterHeadPage() {
         signatureDesignation: values.includeSignature
           ? values.signatureDesignation?.trim() || null
           : null,
+        companyName: values.companyName?.trim() || null,
+        companyTagline: values.companyTagline?.trim() || null,
+        companyEmail: values.companyEmail?.trim() || null,
+        companyPhone: values.companyPhone?.trim() || null,
+        companyAddress: values.companyAddress?.trim() || null,
+        logoUrl: values.logoUrl?.trim() || null,
+        themeColor: values.themeColor?.trim() || null,
+        themeColorDark: values.themeColorDark?.trim() || null,
+        hideLogo: values.hideLogo,
       });
 
       if (response?.data?.html) {
@@ -130,6 +158,15 @@ export default function LetterHeadPage() {
       signatureName: "",
       signatureDesignation: "",
       includeSignature: false,
+      companyName: "",
+      companyTagline: "",
+      companyEmail: "",
+      companyPhone: "",
+      companyAddress: "",
+      logoUrl: "",
+      themeColor: "#0f172a",
+      themeColorDark: "#1e293b",
+      hideLogo: false,
     });
   };
 
@@ -174,6 +211,61 @@ export default function LetterHeadPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Branding Section */}
+            <div className="space-y-4 pb-6 mb-2 border-b">
+              <h3 className="font-semibold text-lg text-primary">Company Branding & Theme</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="companyName">Company Name</Label>
+                  <Input id="companyName" {...form.register("companyName")} placeholder="Default: SchooliAT" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companyTagline">Tagline</Label>
+                  <Input id="companyTagline" {...form.register("companyTagline")} placeholder="Default: COMPLETE SCHOOL SOLUTION" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companyEmail">Email Address</Label>
+                  <Input id="companyEmail" {...form.register("companyEmail")} placeholder="Default: info@schooliat.com" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="companyPhone">Phone Number</Label>
+                  <Input id="companyPhone" {...form.register("companyPhone")} placeholder="Default: +91 8551919628" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="companyAddress">Full Address</Label>
+                  <Input id="companyAddress" {...form.register("companyAddress")} placeholder="e.g., 123 Education Street, NY" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
+                <div className="space-y-2">
+                  <Label htmlFor="themeColor">Primary Theme Color</Label>
+                  <Input id="themeColor" type="color" {...form.register("themeColor")} className="h-10 cursor-pointer p-1" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="themeColorDark">Secondary Theme Color</Label>
+                  <Input id="themeColorDark" type="color" {...form.register("themeColorDark")} className="h-10 cursor-pointer p-1" />
+                </div>
+                <div className="space-y-3">
+                  <div className="flex flex-row items-center justify-between rounded-lg border p-3 py-2 shadow-sm">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="hideLogo" className="text-sm border-0 font-medium pt-1">Exclude Logo</Label>
+                    </div>
+                    <Switch
+                      id="hideLogo"
+                      checked={hideLogo}
+                      onCheckedChange={(checked) => form.setValue("hideLogo", checked)}
+                    />
+                  </div>
+                  {!hideLogo && (
+                    <div className="pt-1">
+                      <Input id="logoUrl" {...form.register("logoUrl")} placeholder="Custom external Logo URL" />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Date Field */}
             <div className="space-y-2">
               <Label htmlFor="date">Date *</Label>

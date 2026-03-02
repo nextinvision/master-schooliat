@@ -23,6 +23,7 @@ import { Edit, Trash2, Plus } from "lucide-react";
 import { useVendors, useVendorStats, useDeleteVendor, Vendor } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { EditVendorDialog } from "./edit-vendor-dialog";
+import { AddVendorDialog } from "./add-vendor-dialog";
 
 const LEAD_STATUS_CONFIG = {
   NEW: { label: "New", color: "#3498db", bgColor: "#e8f4fd" },
@@ -38,6 +39,7 @@ export function VendorsManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [isAddingVendor, setIsAddingVendor] = useState(false);
   const itemsPerPage = 10;
 
   const { data: statsData } = useVendorStats();
@@ -120,7 +122,7 @@ export function VendorsManagement() {
             Manage leads, track status, and assign to employees
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setIsAddingVendor(true)}>
           <Plus className="w-4 h-4" />
           Add Vendor
         </Button>
@@ -280,6 +282,12 @@ export function VendorsManagement() {
         onOpenChange={(open) => {
           if (!open) setEditingVendor(null);
         }}
+      />
+
+      {/* Add Vendor Dialog */}
+      <AddVendorDialog
+        isOpen={isAddingVendor}
+        onOpenChange={setIsAddingVendor}
       />
     </div>
   );

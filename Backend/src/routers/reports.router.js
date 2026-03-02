@@ -12,7 +12,7 @@ router.get(
   async (req, res) => {
     try {
       const currentUser = req.context.user;
-      const summary = await reportsService.getDashboardSummary(currentUser.schoolId);
+      const summary = await reportsService.getDashboardSummary(currentUser.schoolId || req.query.schoolId);
       return res.status(200).json({
         message: "Dashboard summary fetched successfully",
         data: summary,
@@ -34,7 +34,7 @@ router.get(
       const query = req.query;
       const currentUser = req.context.user;
 
-      const report = await reportsService.getAttendanceReports(currentUser.schoolId, {
+      const report = await reportsService.getAttendanceReports(currentUser.schoolId || query.schoolId, {
         classId: query.classId,
         studentId: query.studentId,
         startDate: query.startDate,
@@ -63,7 +63,7 @@ router.get(
       const query = req.query;
       const currentUser = req.context.user;
 
-      const analytics = await reportsService.getFeeAnalytics(currentUser.schoolId, {
+      const analytics = await reportsService.getFeeAnalytics(currentUser.schoolId || query.schoolId, {
         classId: query.classId,
         startDate: query.startDate,
         endDate: query.endDate,
@@ -91,7 +91,7 @@ router.get(
       const query = req.query;
       const currentUser = req.context.user;
 
-      const report = await reportsService.getAcademicReports(currentUser.schoolId, {
+      const report = await reportsService.getAcademicReports(currentUser.schoolId || query.schoolId, {
         classId: query.classId,
         examId: query.examId,
         subjectId: query.subjectId,
@@ -120,7 +120,7 @@ router.get(
       const query = req.query;
       const currentUser = req.context.user;
 
-      const report = await reportsService.getSalaryReports(currentUser.schoolId, {
+      const report = await reportsService.getSalaryReports(currentUser.schoolId || query.schoolId, {
         startDate: query.startDate,
         endDate: query.endDate,
       });

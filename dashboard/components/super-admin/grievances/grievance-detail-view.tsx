@@ -202,7 +202,7 @@ export function SuperAdminGrievanceDetailView({
                     <div className="flex items-center gap-2 mb-2">
                       <User className="w-4 h-4 text-gray-500" />
                       <span className="font-medium">
-                        {comment.createdBy.firstName} {comment.createdBy.lastName}
+                        {comment.author.firstName} {comment.author.lastName}
                       </span>
                       <span className="text-sm text-gray-500">
                         {formatDate(comment.createdAt)}

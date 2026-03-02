@@ -1506,5 +1506,382 @@ router.get(
   }
 );
 
+// Create employee
+router.post(
+  "/employees",
+  withPermission(Permission.CREATE_EMPLOYEE),
+  async (req, res) => {
+    try {
+      const request = req.body.request;
+      const currentUser = req.context.user;
+
+      const school = await prisma.school.findUnique({
+        where: { id: currentUser.schoolId },
+      });
+
+      const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
+
+      // Generate password
+      const generatedPassword = stringUtil.generateRandomString(15);
+
+      // Generate public user ID (format: SCHOOLCODE + E + 4 digits)
+      const existingEmployees = await prisma.user.count({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: employeeRole.id,
+        },
+      });
+      const publicUserId = `${school.code}E${String(existingEmployees + 1).padStart(4, "0")}`;
+
+      // Create user
+      const user = await prisma.user.create({
+        data: {
+          email: request.email.trim(),
+          password: await bcryptjs.hash(generatedPassword, 10),
+          firstName: request.firstName.trim(),
+          lastName: request.lastName?.trim() || "",
+          contact: request.contact.trim(),
+          gender: request.gender,
+          dateOfBirth: request.dateOfBirth ? new Date(request.dateOfBirth) : null,
+          address: request.address || [],
+          aadhaarId: request.aadhaarId?.trim() || null,
+          userType: UserType.SCHOOL,
+          roleId: employeeRole.id,
+          schoolId: currentUser.schoolId,
+          publicUserId,
+          assignedRegionId: request.assignedRegionId || null,
+          createdBy: currentUser.id,
+        },
+        include: {
+          assignedRegion: {
+            select: { id: true, name: true }
+          }
+        }
+      });
+
+      // Attach file URLs
+      const usersWithUrls = await userService.attachFileURLs([user]);
+
+      return res.status(201).json({
+        message: "Employee created!",
+        data: { ...usersWithUrls[0], password: generatedPassword },
+      });
+    } catch (error) {
+      if (error.code === "P2002") {
+        return res.status(400).json({
+          message: "Email or Aadhaar ID already exists!",
+        });
+      }
+      return res.status(400).json({
+        message: error.message || "Failed to create employee",
+      });
+    }
+  },
+);
+
+// Get all employees
+router.get(
+  "/employees",
+  withPermission(Permission.GET_EMPLOYEES),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const { search } = req.query;
+
+      const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
+
+      const where = {
+        schoolId: currentUser.schoolId,
+        roleId: employeeRole.id,
+        deletedAt: null,
+        deletedBy: null,
+      };
+
+      if (search) {
+        where.OR = [
+          { firstName: { contains: search, mode: "insensitive" } },
+          { lastName: { contains: search, mode: "insensitive" } },
+          { email: { contains: search, mode: "insensitive" } },
+        ];
+      }
+
+      const employees = await prisma.user.findMany({
+        where,
+        include: {
+          assignedRegion: {
+            select: { id: true, name: true }
+          },
+          // Get counts for vendors and locations
+          location: {
+            where: { deletedAt: null }
+          },
+          vendors: {
+            where: { deletedAt: null }
+          }
+        },
+        orderBy: { firstName: "asc" },
+      });
+
+      // Map to include total counts
+      const employeesWithCounts = employees.map(emp => {
+        const { location, vendors, ...rest } = emp;
+        return {
+          ...rest,
+          totalLocations: location.length,
+          totalVendors: vendors.length,
+          status: "Active"
+        };
+      });
+
+      // Attach file URLs
+      const employeesWithUrls = await userService.attachFileURLs(employeesWithCounts);
+
+      return res.json({
+        message: "Employees fetched!",
+        data: employeesWithUrls,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch employees",
+      });
+    }
+  },
+);
+
+// Get employee by ID
+router.get(
+  "/employees/:id",
+  withPermission(Permission.GET_EMPLOYEES),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
+
+      const employee = await prisma.user.findFirst({
+        where: {
+          id,
+          schoolId: currentUser.schoolId,
+          roleId: employeeRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+        include: {
+          assignedRegion: {
+            select: { id: true, name: true }
+          },
+          location: {
+            where: { deletedAt: null }
+          },
+          vendors: {
+            where: { deletedAt: null }
+          }
+        },
+      });
+
+      if (!employee) {
+        return res.status(404).json({ message: "Employee not found!" });
+      }
+
+      const { location, vendors, ...rest } = employee;
+      const employeeWithCounts = {
+        ...rest,
+        totalLocations: location.length,
+        totalVendors: vendors.length,
+        status: "Active"
+      };
+
+      // Attach file URLs
+      const employeesWithUrls = await userService.attachFileURLs([employeeWithCounts]);
+
+      return res.json({
+        message: "Employee fetched!",
+        data: employeesWithUrls[0],
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch employee",
+      });
+    }
+  },
+);
+
+// Update employee
+router.patch(
+  "/employees/:id",
+  withPermission(Permission.EDIT_EMPLOYEE),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const request = req.body.request || {};
+      const currentUser = req.context.user;
+
+      const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
+
+      // Check if employee exists
+      const existingEmployee = await prisma.user.findFirst({
+        where: {
+          id,
+          schoolId: currentUser.schoolId,
+          roleId: employeeRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+      });
+
+      if (!existingEmployee) {
+        return res.status(404).json({ message: "Employee not found!" });
+      }
+
+      // Build update data
+      const userUpdateData = {
+        updatedBy: currentUser.id,
+      };
+
+      if (request.firstName !== undefined)
+        userUpdateData.firstName = request.firstName.trim();
+      if (request.lastName !== undefined)
+        userUpdateData.lastName = request.lastName?.trim() || null;
+      if (request.email !== undefined)
+        userUpdateData.email = request.email.trim();
+      if (request.contact !== undefined)
+        userUpdateData.contact = request.contact.trim();
+      if (request.gender !== undefined) userUpdateData.gender = request.gender;
+      if (request.dateOfBirth !== undefined)
+        userUpdateData.dateOfBirth = request.dateOfBirth ? new Date(request.dateOfBirth) : null;
+      if (request.address !== undefined) userUpdateData.address = request.address;
+      if (request.aadhaarId !== undefined)
+        userUpdateData.aadhaarId = request.aadhaarId?.trim() || null;
+      if (request.assignedRegionId !== undefined)
+        userUpdateData.assignedRegionId = request.assignedRegionId || null;
+
+      // Update user
+      const updatedUser = await prisma.user.update({
+        where: { id },
+        data: userUpdateData,
+        include: {
+          assignedRegion: {
+            select: { id: true, name: true }
+          }
+        },
+      });
+
+      // Attach file URLs
+      const usersWithUrls = await userService.attachFileURLs([updatedUser]);
+
+      return res.json({
+        message: "Employee updated!",
+        data: usersWithUrls[0],
+      });
+    } catch (error) {
+      if (error.code === "P2002") {
+        return res.status(400).json({
+          message: "Email or Aadhaar ID already exists!",
+        });
+      }
+      return res.status(400).json({
+        message: error.message || "Failed to update employee",
+      });
+    }
+  },
+);
+
+// Delete employee
+router.delete(
+  "/employees/:id",
+  withPermission(Permission.DELETE_EMPLOYEE),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
+
+      const existingEmployee = await prisma.user.findFirst({
+        where: {
+          id,
+          schoolId: currentUser.schoolId,
+          roleId: employeeRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+      });
+
+      if (!existingEmployee) {
+        return res.status(404).json({ message: "Employee not found!" });
+      }
+
+      await prisma.user.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.json({ message: "Employee deleted!" });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to delete employee",
+      });
+    }
+  },
+);
+
+// Update employee permissions
+router.patch(
+  "/employees/:id/permissions",
+  withPermission(Permission.EDIT_EMPLOYEE),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { permissions } = req.body;
+      const currentUser = req.context.user;
+
+      if (!Array.isArray(permissions)) {
+        return res.status(400).json({ message: "Permissions must be an array" });
+      }
+
+      const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
+
+      const existingEmployee = await prisma.user.findFirst({
+        where: {
+          id,
+          schoolId: currentUser.schoolId,
+          roleId: employeeRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+      });
+
+      if (!existingEmployee) {
+        return res.status(404).json({ message: "Employee not found!" });
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id },
+        data: {
+          permissions,
+          updatedBy: currentUser.id,
+        },
+        select: {
+          id: true,
+          permissions: true
+        }
+      });
+
+      return res.json({
+        message: "Employee permissions updated!",
+        data: updatedUser,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to update employee permissions",
+      });
+    }
+  }
+);
+
 export default router;
 

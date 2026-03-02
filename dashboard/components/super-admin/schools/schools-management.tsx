@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -21,7 +28,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Eye, Receipt, Plus } from "lucide-react";
-import { useSchools, School } from "@/lib/hooks/use-super-admin";
+import { useSchools, useRegions, School, Region } from "@/lib/hooks/use-super-admin";
 import { RegisterSchoolFormContent } from "./register-school-form-content";
 import { EditSchoolDialog } from "./edit-school-dialog";
 import { Edit } from "lucide-react";
@@ -33,6 +40,7 @@ interface SchoolDisplay {
   email: string;
   phone: string;
   address: any[];
+  region: string;
   status: string;
   registeredDate: string;
   _raw?: School;
@@ -42,11 +50,14 @@ export function SchoolsManagement() {
   const router = useRouter();
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [regionFilter, setRegionFilter] = useState<string>("all");
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const itemsPerPage = 10;
 
   const { data, isLoading, error, refetch } = useSchools(searchQuery || undefined);
+  const { data: regionsData } = useRegions();
+  const regions = (regionsData?.data || []) as Region[];
 
   const schools = useMemo<SchoolDisplay[]>(() => {
     if (!data?.data) return [];
@@ -57,20 +68,29 @@ export function SchoolsManagement() {
       email: school.email,
       phone: school.phone,
       address: school.address || [],
+      region: school.region?.name || "N/A",
       status: "Active",
       registeredDate: new Date(school.createdAt).toISOString().split("T")[0],
       _raw: school,
     }));
   }, [data]);
 
+  const filteredSchools = useMemo(() => {
+    let result = schools;
+    if (regionFilter !== "all") {
+      result = result.filter((s) => s._raw?.regionId === regionFilter);
+    }
+    return result;
+  }, [schools, regionFilter]);
+
   const from = page * itemsPerPage;
-  const to = Math.min((page + 1) * itemsPerPage, schools.length);
-  const numberOfPages = Math.ceil(schools.length / itemsPerPage);
-  const paginatedSchools = schools.slice(from, to);
+  const to = Math.min((page + 1) * itemsPerPage, filteredSchools.length);
+  const numberOfPages = Math.ceil(filteredSchools.length / itemsPerPage);
+  const paginatedSchools = filteredSchools.slice(from, to);
 
   useEffect(() => {
     setPage(0);
-  }, [searchQuery]);
+  }, [searchQuery, regionFilter]);
 
   if (isLoading) {
     return (
@@ -121,6 +141,19 @@ export function SchoolsManagement() {
           onChange={(e) => setSearchQuery(e.target.value)}
           className="max-w-sm"
         />
+        <Select value={regionFilter} onValueChange={setRegionFilter}>
+          <SelectTrigger className="w-[200px]">
+            <SelectValue placeholder="All Regions" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Regions</SelectItem>
+            {regions.map((region) => (
+              <SelectItem key={region.id} value={region.id}>
+                {region.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="border rounded-lg overflow-hidden">
@@ -131,6 +164,7 @@ export function SchoolsManagement() {
                 <TableHead>School Name</TableHead>
                 <TableHead>Code</TableHead>
                 <TableHead>Contact</TableHead>
+                <TableHead>Region</TableHead>
                 <TableHead>Registered</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-32">Actions</TableHead>
@@ -139,7 +173,7 @@ export function SchoolsManagement() {
             <TableBody>
               {paginatedSchools.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     No schools found
                   </TableCell>
                 </TableRow>
@@ -160,6 +194,9 @@ export function SchoolsManagement() {
                         <div className="text-sm">{school.email}</div>
                         <div className="text-sm text-gray-500">{school.phone}</div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{school.region}</Badge>
                     </TableCell>
                     <TableCell>{school.registeredDate}</TableCell>
                     <TableCell>

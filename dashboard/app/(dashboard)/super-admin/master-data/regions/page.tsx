@@ -22,19 +22,29 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, Edit, Trash2, Search } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Edit, Trash2, Search, User as UserIcon } from "lucide-react";
 import {
   useRegions,
   useCreateRegion,
   useUpdateRegion,
   useDeleteRegion,
+  useEmployees,
   type Region,
+  type Employee,
 } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function RegionsPage() {
   const { data, isLoading } = useRegions();
+  const { data: employeesData } = useEmployees();
   const createRegion = useCreateRegion();
   const updateRegion = useUpdateRegion();
   const deleteRegion = useDeleteRegion();
@@ -45,9 +55,10 @@ export default function RegionsPage() {
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState<Region | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [formData, setFormData] = useState({ name: "" });
+  const [formData, setFormData] = useState({ name: "", zoneHeadId: "none" });
 
   const regions = (data?.data || []) as Region[];
+  const employees = (employeesData?.data || []) as Employee[];
   const filteredRegions = regions.filter((region: Region) =>
     region.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -63,13 +74,16 @@ export default function RegionsPage() {
     }
 
     try {
-      await createRegion.mutateAsync(formData);
+      await createRegion.mutateAsync({
+        name: formData.name,
+        zoneHeadId: formData.zoneHeadId === "none" ? undefined : formData.zoneHeadId,
+      });
       toast({
         title: "Success",
         description: "Region created successfully",
       });
       setIsCreateOpen(false);
-      setFormData({ name: "" });
+      setFormData({ name: "", zoneHeadId: "none" });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -90,14 +104,18 @@ export default function RegionsPage() {
     }
 
     try {
-      await updateRegion.mutateAsync({ id: selectedRegion.id, name: formData.name });
+      await updateRegion.mutateAsync({
+        id: selectedRegion.id,
+        name: formData.name,
+        zoneHeadId: formData.zoneHeadId === "none" ? undefined : formData.zoneHeadId,
+      });
       toast({
         title: "Success",
         description: "Region updated successfully",
       });
       setIsEditOpen(false);
       setSelectedRegion(null);
-      setFormData({ name: "" });
+      setFormData({ name: "", zoneHeadId: "none" });
     } catch (error: any) {
       toast({
         title: "Error",
@@ -129,7 +147,10 @@ export default function RegionsPage() {
 
   const openEditDialog = (region: Region) => {
     setSelectedRegion(region);
-    setFormData({ name: region.name });
+    setFormData({
+      name: region.name,
+      zoneHeadId: region.zoneHeadId || "none"
+    });
     setIsEditOpen(true);
   };
 
@@ -161,15 +182,34 @@ export default function RegionsPage() {
                 Add a new region to organize schools and vendors geographically.
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+            <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Region Name</Label>
                 <Input
                   id="name"
                   placeholder="e.g., North Region"
                   value={formData.name}
-                  onChange={(e) => setFormData({ name: e.target.value })}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="zoneHead">Zone Head (Optional)</Label>
+                <Select
+                  value={formData.zoneHeadId}
+                  onValueChange={(value) => setFormData({ ...formData, zoneHeadId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Zone Head" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {employees.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.id}>
+                        {emp.firstName} {emp.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             <DialogFooter>
@@ -215,6 +255,7 @@ export default function RegionsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Region Name</TableHead>
+                  <TableHead>Zone Head</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -222,6 +263,16 @@ export default function RegionsPage() {
                 {filteredRegions.map((region) => (
                   <TableRow key={region.id}>
                     <TableCell className="font-medium">{region.name}</TableCell>
+                    <TableCell>
+                      {region.zoneHead ? (
+                        <div className="flex items-center gap-2">
+                          <UserIcon className="w-4 h-4 text-gray-500" />
+                          <span>{region.zoneHead.firstName} {region.zoneHead.lastName}</span>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400 italic">Unassigned</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button
@@ -263,8 +314,27 @@ export default function RegionsPage() {
               <Input
                 id="edit-name"
                 value={formData.name}
-                onChange={(e) => setFormData({ name: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-zoneHead">Zone Head (Optional)</Label>
+              <Select
+                value={formData.zoneHeadId}
+                onValueChange={(value) => setFormData({ ...formData, zoneHeadId: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Zone Head" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Unassigned</SelectItem>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.firstName} {emp.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

@@ -102,7 +102,7 @@ export interface CreateGrievanceData {
 export interface GrievanceComment {
   id: string;
   content: string;
-  createdBy: {
+  author: {
     id: string;
     firstName: string;
     lastName: string;

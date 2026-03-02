@@ -18,9 +18,20 @@ router.post(
     const request = req.body.request;
     const currentUser = req.context.user;
 
+    // Validate zone head if provided
+    if (request.zoneHeadId) {
+      const zoneHead = await prisma.user.findUnique({
+        where: { id: request.zoneHeadId, deletedAt: null },
+      });
+      if (!zoneHead) {
+        return res.status(404).json({ message: "Zone Head not found or deleted" });
+      }
+    }
+
     const newRegion = await prisma.region.create({
       data: {
         name: request.name,
+        zoneHeadId: request.zoneHeadId || null,
         createdBy: currentUser.id,
       },
     });
@@ -40,6 +51,14 @@ router.get(
       select: {
         id: true,
         name: true,
+        zoneHeadId: true,
+        zoneHead: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          }
+        }
       },
       where: {
         deletedAt: null,
@@ -70,10 +89,21 @@ router.patch(
       return res.status(404).json({ message: "Region not found!" });
     }
 
+    // Validate zone head if provided
+    if (updateData.zoneHeadId !== undefined && updateData.zoneHeadId !== null) {
+      const zoneHead = await prisma.user.findUnique({
+        where: { id: updateData.zoneHeadId, deletedAt: null },
+      });
+      if (!zoneHead) {
+        return res.status(404).json({ message: "Zone Head not found or deleted" });
+      }
+    }
+
     // Build update data object with only provided fields
     const regionUpdateData = {};
 
     if (updateData.name !== undefined) regionUpdateData.name = updateData.name;
+    if (updateData.zoneHeadId !== undefined) regionUpdateData.zoneHeadId = updateData.zoneHeadId;
 
     regionUpdateData.updatedBy = currentUser.id;
 

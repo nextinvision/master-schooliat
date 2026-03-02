@@ -140,15 +140,39 @@ router.post(
       day: "numeric",
     });
 
+    const companyName = request.companyName ? escapeHtml(request.companyName) : "SchooliAT";
+    const companyTagline = request.companyTagline ? escapeHtml(request.companyTagline) : "COMPLETE SCHOOL SOLUTION";
+    const companyAddress = request.companyAddress ? escapeHtml(request.companyAddress) : "Vasai West, Mumbai, MH";
+    const companyPhone = request.companyPhone ? escapeHtml(request.companyPhone) : "+91 8551919628";
+    const companyEmail = request.companyEmail ? escapeHtml(request.companyEmail) : "info@schooliat.com";
+
+    // Theme colors
+    const themeColor = request.themeColor || "#0f172a";
+    const themeColorDark = request.themeColorDark || "#1e293b";
+
+    // Logo styling
+    const logoUrl = request.logoUrl || "https://schooliat.com/_next/static/media/logo.b01f5b08.png";
+    const logoHtml = request.hideLogo ? "" : `<img class="logo" src="${escapeHtml(logoUrl)}" alt="Logo" />`;
+
     // Load template and replace placeholders
     let letterheadHTML = getLetterheadTemplate();
+
+    // Replace brand variables
+    letterheadHTML = letterheadHTML.replace(/\{\{COMPANY_NAME\}\}/g, companyName);
+    letterheadHTML = letterheadHTML.replace(/\{\{COMPANY_TAGLINE\}\}/g, `<p>${companyTagline}</p>`);
+    letterheadHTML = letterheadHTML.replace(/\{\{COMPANY_ADDRESS\}\}/g, companyAddress);
+    letterheadHTML = letterheadHTML.replace(/\{\{COMPANY_PHONE\}\}/g, companyPhone);
+    letterheadHTML = letterheadHTML.replace(/\{\{COMPANY_EMAIL\}\}/g, companyEmail);
+    letterheadHTML = letterheadHTML.replace(/\{\{THEME_COLOR\}\}/g, themeColor);
+    letterheadHTML = letterheadHTML.replace(/\{\{THEME_COLOR_DARK\}\}/g, themeColorDark);
+    letterheadHTML = letterheadHTML.replace(/\{\{LOGO_HTML\}\}/g, logoHtml);
 
     // Replace template variables
     letterheadHTML = letterheadHTML.replace("{{DATE}}", formattedDate);
 
     // Replace subject section
     const subjectSection = escapedSubject
-      ? `<div class="subject-section"><strong>Subject:</strong> ${escapedSubject}</div>`
+      ? `<div class="subject-box"><strong>Subject:</strong> ${escapedSubject}</div>`
       : "";
     letterheadHTML = letterheadHTML.replace(
       "{{SUBJECT_SECTION}}",

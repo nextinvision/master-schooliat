@@ -91,6 +91,9 @@ const getAuditLogs = async (filters = {}, options = {}) => {
             email: true,
             firstName: true,
             lastName: true,
+            role: {
+              select: { name: true }
+            }
           },
         },
       },
@@ -129,6 +132,9 @@ const getAuditLogById = async (logId) => {
           email: true,
           firstName: true,
           lastName: true,
+          role: {
+            select: { name: true }
+          }
         },
       },
     },

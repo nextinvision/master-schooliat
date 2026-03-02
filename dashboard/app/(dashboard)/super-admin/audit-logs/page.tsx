@@ -21,7 +21,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Filter, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Filter, ChevronLeft, ChevronRight, Eye } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuditLogs, type AuditLog } from "@/lib/hooks/use-super-admin";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
@@ -35,6 +42,8 @@ export default function AuditLogsPage() {
     startDate: "",
     endDate: "",
   });
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data, isLoading, error } = useAuditLogs({
     action: filters.action && filters.action !== "all" ? filters.action : undefined,
@@ -183,6 +192,7 @@ export default function AuditLogsPage() {
                     <TableHead>Entity</TableHead>
                     <TableHead>Result</TableHead>
                     <TableHead>IP Address</TableHead>
+                    <TableHead>Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -196,10 +206,19 @@ export default function AuditLogsPage() {
                               : "N/A"}
                           </TableCell>
                           <TableCell>
-                            {log.user
-                              ? `${log.user.firstName || ""} ${log.user.lastName || ""}`.trim() ||
-                                log.user.email
-                              : "System"}
+                            <div className="flex flex-col gap-1">
+                              <span>
+                                {log.user
+                                  ? `${log.user.firstName || ""} ${log.user.lastName || ""}`.trim() ||
+                                  log.user.email
+                                  : "System"}
+                              </span>
+                              {log.user?.role && (
+                                <Badge variant="secondary" className="w-fit text-[10px] px-1 py-0 h-4">
+                                  {log.user.role.name.replace("_", " ")}
+                                </Badge>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant="outline">{log.action || "N/A"}</Badge>
@@ -214,6 +233,19 @@ export default function AuditLogsPage() {
                           </TableCell>
                           <TableCell>{getResultBadge(log.result || "SUCCESS")}</TableCell>
                           <TableCell className="text-xs">{log.ipAddress || "-"}</TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                              onClick={() => {
+                                setSelectedLog(log);
+                                setIsDialogOpen(true);
+                              }}
+                            >
+                              <Eye className="w-4 h-4 text-blue-500" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       );
                     } catch (error) {
@@ -254,6 +286,59 @@ export default function AuditLogsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Audit Log Details</DialogTitle>
+            <DialogDescription>
+              Detailed view of the action performed and the payload changes.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedLog && (
+            <div className="space-y-4 pt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-gray-500 block mb-1">Action</Label>
+                  <Badge variant="outline">{selectedLog.action}</Badge>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500 block mb-1">Entity Type</Label>
+                  <div className="font-medium text-sm">{selectedLog.entityType}</div>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500 block mb-1">Entity ID</Label>
+                  <div className="text-sm font-mono bg-gray-50 p-1 rounded max-w-full overflow-hidden text-ellipsis">
+                    {selectedLog.entityId || "N/A"}
+                  </div>
+                </div>
+                <div>
+                  <Label className="text-xs text-gray-500 block mb-1">Status</Label>
+                  {getResultBadge(selectedLog.result)}
+                </div>
+              </div>
+
+              {selectedLog.errorMessage && (
+                <div className="mt-4">
+                  <Label className="text-xs text-red-500 block mb-1">Error Message</Label>
+                  <div className="text-sm bg-red-50 text-red-700 p-2 rounded">
+                    {selectedLog.errorMessage}
+                  </div>
+                </div>
+              )}
+
+              {selectedLog.changes && Object.keys(selectedLog.changes).length > 0 && (
+                <div className="mt-4">
+                  <Label className="text-xs text-gray-500 block mb-2">Payload / Changes</Label>
+                  <pre className="text-xs bg-gray-950 text-gray-50 p-4 rounded-lg overflow-x-auto">
+                    {JSON.stringify(selectedLog.changes, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

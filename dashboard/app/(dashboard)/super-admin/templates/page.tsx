@@ -41,7 +41,7 @@ export default function TemplatesPage() {
 
   const templates = (data?.data || []) as Template[];
   const filteredTemplates = templates.filter((template: Template) =>
-    template.name.toLowerCase().includes(searchQuery.toLowerCase())
+    template.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const templateTypes = Array.from(new Set(templates.map((t: Template) => t.type)));
@@ -111,7 +111,7 @@ export default function TemplatesPage() {
                     {template.imageUrl ? (
                       <Image
                         src={template.imageUrl}
-                        alt={template.name}
+                        alt={template.title || "Template Preview"}
                         fill
                         className="object-cover"
                       />
@@ -123,7 +123,7 @@ export default function TemplatesPage() {
                   </div>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-semibold text-sm">{template.name}</h3>
+                      <h3 className="font-semibold text-sm">{template.title}</h3>
                       <Badge variant="outline" className="text-xs">
                         {template.type}
                       </Badge>
@@ -165,7 +165,7 @@ export default function TemplatesPage() {
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{selectedTemplate?.name}</DialogTitle>
+            <DialogTitle>{selectedTemplate?.title}</DialogTitle>
             <DialogDescription>
               Template Type: {selectedTemplate?.type}
             </DialogDescription>
@@ -175,7 +175,7 @@ export default function TemplatesPage() {
               <div className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
                 <Image
                   src={selectedTemplate.imageUrl}
-                  alt={selectedTemplate.name}
+                  alt={selectedTemplate.title || "Selected Template"}
                   fill
                   className="object-contain"
                 />
