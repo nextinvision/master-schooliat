@@ -11,9 +11,10 @@ export interface DashboardStats {
   data?: {
     school?: any;
     userCounts?: {
-      students?: { total: number; boys: number; girls: number };
+      students?: { total: number; boys: number; girls: number; present?: number };
       teachers?: number;
       staff?: number;
+      presentStaffAndTeachers?: number;
     };
     notices?: any[];
     installments?: any;

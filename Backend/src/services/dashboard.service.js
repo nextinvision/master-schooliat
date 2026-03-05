@@ -4,6 +4,7 @@ import {
   UserType,
   Gender,
   FeePaymentStatus,
+  AttendanceStatus,
 } from "../prisma/generated/index.js";
 import roleService from "./role.service.js";
 import dateUtil from "../utils/date.util.js";
@@ -328,6 +329,12 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
       ]
     };
 
+    // Calculate today's date for attendance queries
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
     // Get school settings to fetch current installment number (resilient to missing columns e.g. platform_config)
     let schoolSettings = null;
     try {
@@ -391,6 +398,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
       calendarEvents,
       totalFeeIncomePrevYear,
       totalSalaryPrevYear,
+      presentStudentsCount,
+      presentStaffCount,
     ] = await Promise.all([
       prisma.user.count({
         where: {
@@ -572,6 +581,23 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
           totalAmount: true,
         },
       }),
+      // new attendance queries for today
+      prisma.attendance.count({
+        where: {
+          schoolId,
+          date: { gte: today, lt: tomorrow },
+          status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY] },
+          user: { role: { name: "STUDENT" }, deletedAt: null }
+        }
+      }),
+      prisma.attendance.count({
+        where: {
+          schoolId,
+          date: { gte: today, lt: tomorrow },
+          status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY] },
+          user: { role: { name: { in: ["STAFF", "TEACHER"] } }, deletedAt: null }
+        }
+      }),
     ]);
 
     const totalIncome = Number(totalFeeIncome._sum?.paidAmount || 0);
@@ -655,9 +681,11 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
           total: totalStudents || 0,
           boys: totalStudentsBoys || 0,
           girls: totalStudentsGirls || 0,
+          present: presentStudentsCount || 0,
         },
         teachers: totalTeachers || 0,
         staff: totalStaff || 0,
+        presentStaffAndTeachers: presentStaffCount || 0,
       },
       installments: {
         currentYear,

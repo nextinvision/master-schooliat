@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCw, MoreHorizontal, User } from "lucide-react";
+import { AlertCircle, RefreshCw, MoreHorizontal, User, Users } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 import { NoticeBoardWidget } from "@/components/dashboard/notice-board-widget";
@@ -83,8 +83,12 @@ export default function AdminDashboardPage() {
   const totalStudents = students.total || 0;
   const boysCount = students.boys || 0;
   const girlsCount = students.girls || 0;
+  const presentStudents = students.present || 0;
+
   const teachersCount = userCounts.teachers || 0;
   const totalStaff = userCounts.staff || 0;
+  const presentStaffAndTeachers = userCounts.presentStaffAndTeachers || 0;
+  const totalStaffAndTeachers = totalStaff + teachersCount;
 
   const boysPercentage = totalStudents > 0 ? Math.round((boysCount / totalStudents) * 100) : 53;
   const girlsPercentage = totalStudents > 0 ? Math.round((girlsCount / totalStudents) * 100) : 47;
@@ -145,9 +149,35 @@ export default function AdminDashboardPage() {
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
                     Welcome, {school.name || "St. Patrick School"} Team!
                   </h1>
-                  <p className="text-gray-500 text-sm md:text-base leading-relaxed">
+                  <p className="text-gray-500 text-sm md:text-base leading-relaxed mb-6">
                     Manage your school operations with ease. Stay updated on academics, attendance, finances, and more, all in one place. Let's keep shaping a brighter future together!
                   </p>
+
+                  <div className="flex flex-wrap gap-4 mt-6">
+                    <div className="bg-blue-50/80 px-4 py-3 rounded-xl border border-blue-100 flex items-center gap-3">
+                      <div className="bg-blue-100 p-2 rounded-lg">
+                        <Users className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-600 font-medium">Students</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {presentStudents.toLocaleString()} <span className="text-gray-500 font-normal">/ {totalStudents.toLocaleString()} Present</span>
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-purple-50/80 px-4 py-3 rounded-xl border border-purple-100 flex items-center gap-3">
+                      <div className="bg-purple-100 p-2 rounded-lg">
+                        <Users className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-purple-600 font-medium">Staff & Teachers</p>
+                        <p className="text-sm font-semibold text-gray-900">
+                          {presentStaffAndTeachers.toLocaleString()} <span className="text-gray-500 font-normal">/ {totalStaffAndTeachers.toLocaleString()} Present</span>
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div className="hidden md:block w-48 h-48 lg:w-72 lg:h-56 relative z-10 shrink-0">
                   <div className="w-full h-full bg-gray-50 rounded-2xl flex items-center justify-center border border-gray-100 border-dashed overflow-hidden">
@@ -194,13 +224,13 @@ export default function AdminDashboardPage() {
                 percentage={boysPercentage}
                 color="#4b830d"
                 label={boysCount.toLocaleString()}
-                subLabel="( boys )"
+                subLabel="( Male )"
               />
               <RadialProgress
                 percentage={girlsPercentage}
                 color="#f59e0b"
                 label={girlsCount.toLocaleString()}
-                subLabel="( Girls )"
+                subLabel="( Female )"
               />
             </CardContent>
           </Card>

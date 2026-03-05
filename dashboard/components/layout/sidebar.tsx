@@ -146,7 +146,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "fixed left-0 top-0 bottom-0 bg-black border-r border-gray-300 flex flex-col h-screen z-30 transition-all duration-300 ease-in-out",
+        "fixed left-0 top-0 bottom-0 bg-black border-r border-gray-300 flex flex-col h-screen z-30 transition-all duration-300 ease-in-out mt-2",
         isOpen ? "w-[200px] lg:w-[240px]" : "w-[60px] lg:w-[64px]"
       )}
     >
@@ -169,7 +169,7 @@ export function Sidebar() {
       </div>
 
       {/* Menu Container */}
-      <div className="flex-1 overflow-y-auto pb-2 lg:pb-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto pb-2 lg:pb-4 scrollbar-none scrollbar-thumb-gray-700 scrollbar-track-transparent">
         {menuItems.map((item) => {
           const active = isActive(item.route);
           const hasSubmenu = item.hasSubmenu;
