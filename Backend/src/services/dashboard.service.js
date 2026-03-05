@@ -587,7 +587,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
           schoolId,
           date: { gte: today, lt: tomorrow },
           status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY] },
-          user: { role: { name: "STUDENT" }, deletedAt: null }
+          student: { role: { name: "STUDENT" }, deletedAt: null }
         }
       }),
       prisma.attendance.count({
@@ -595,7 +595,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
           schoolId,
           date: { gte: today, lt: tomorrow },
           status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY] },
-          user: { role: { name: { in: ["STAFF", "TEACHER"] } }, deletedAt: null }
+          student: { role: { name: { in: ["STAFF", "TEACHER"] } }, deletedAt: null }
         }
       }),
     ]);
