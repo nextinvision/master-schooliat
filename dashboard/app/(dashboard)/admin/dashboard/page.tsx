@@ -28,15 +28,15 @@ const SimpleStatCard = ({ title, value, variant }: { title: string, value: numbe
 }
 
 const RadialProgress = ({ percentage, color, label, subLabel }: { percentage: number, color: string, label: string, subLabel: string }) => {
-  const radius = 55;
-  const stroke = 12;
+  const radius = 70;
+  const stroke = 14;
   const normalizedRadius = radius - stroke * 2;
   const circumference = normalizedRadius * 2 * Math.PI;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
 
   return (
     <div className="flex flex-col items-center justify-center">
-      <div className="relative flex items-center justify-center w-36 h-36">
+      <div className="relative flex items-center justify-center w-40 h-40">
         <svg height={radius * 2} width={radius * 2} className="transform -rotate-90">
           <circle stroke="#f3f4f6" fill="transparent" strokeWidth={stroke} r={normalizedRadius} cx={radius} cy={radius} />
           <circle
@@ -137,7 +137,7 @@ export default function AdminDashboardPage() {
       {/* Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Welcome */}
-        <div className="lg:col-span-7 xl:col-span-8 h-full">
+        <div className="lg:col-span-7 xl:col-span-7 h-full">
           <Card className="bg-white border-none shadow-sm h-full rounded-2xl overflow-hidden relative">
             <CardContent className="p-6 md:p-10 h-full flex flex-col justify-center">
               <div className="flex items-center justify-between gap-6">
@@ -163,7 +163,7 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Stats */}
-        <div className="lg:col-span-2 xl:col-span-1 flex flex-col gap-4">
+        <div className="lg:col-span-2 xl:col-span-2 flex flex-col gap-4">
           <SimpleStatCard title="Students" value={totalStudents} variant="dark" />
           <SimpleStatCard title="Teachers" value={teachersCount} variant="light" />
           <SimpleStatCard title="Staff" value={totalStaff} variant="dark" />
