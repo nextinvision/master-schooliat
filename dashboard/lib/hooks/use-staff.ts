@@ -4,8 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
-function fetchStaffMembers({ page = 1, limit = 15 }: { page?: number; limit?: number } = {}) {
-    return get("/users/staff", { pageNumber: page, pageSize: limit });
+function fetchStaffMembers({ page = 1, limit = 15, academicYear }: { page?: number; limit?: number; academicYear?: string } = {}) {
+    return get("/users/staff", { pageNumber: page, pageSize: limit, academicYear });
 }
 
 function fetchStaffMember(staffId: string) {
@@ -58,12 +58,12 @@ function deleteStaffApi(staffId: string) {
     return del(`/users/staff/${staffId}`);
 }
 
-export function useStaffPage(page: number, limit = 15) {
+export function useStaffPage(page: number, limit = 15, academicYear?: string) {
     const queryClient = useQueryClient();
 
     const query = useQuery({
-        queryKey: ["staff", page, limit],
-        queryFn: () => fetchStaffMembers({ page, limit }),
+        queryKey: ["staff", page, limit, academicYear],
+        queryFn: () => fetchStaffMembers({ page, limit, academicYear }),
         placeholderData: keepPreviousData,
         staleTime: 30 * 1000,
     });
@@ -72,8 +72,8 @@ export function useStaffPage(page: number, limit = 15) {
     if (!query.isPlaceholderData && query.data?.hasNext) {
         const nextPage = page + 1;
         queryClient.prefetchQuery({
-            queryKey: ["staff", nextPage, limit],
-            queryFn: () => fetchStaffMembers({ page: nextPage, limit }),
+            queryKey: ["staff", nextPage, limit, academicYear],
+            queryFn: () => fetchStaffMembers({ page: nextPage, limit, academicYear }),
         });
     }
 

@@ -161,38 +161,49 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
-    font-size: 14px; /* Base font size - compact and professional */
+    font-size: 14px;
+    /* Base font size - compact and professional */
     line-height: 1.5;
   }
+
   html {
-    font-size: 14px; /* Base rem size */
+    font-size: 14px;
+    /* Base rem size */
   }
+
   /* Compact typography scale */
   h1 {
     @apply text-xl font-semibold;
   }
+
   h2 {
     @apply text-lg font-semibold;
   }
+
   h3 {
     @apply text-base font-semibold;
   }
+
   h4 {
     @apply text-sm font-semibold;
   }
+
   p {
     @apply text-sm;
   }
 }
 
 @layer utilities {
+
   /* Premium Shimmer Animation */
   @keyframes shimmer {
     0% {
       background-position: -200% 0;
     }
+
     100% {
       background-position: 200% 0;
     }
@@ -207,6 +218,7 @@
     from {
       opacity: 0;
     }
+
     to {
       opacity: 1;
     }
@@ -222,6 +234,7 @@
       opacity: 0;
       transform: translateY(20px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -234,9 +247,12 @@
 
   /* Pulse Animation for Numbers */
   @keyframes pulse-glow {
-    0%, 100% {
+
+    0%,
+    100% {
       box-shadow: 0 0 0 0 rgba(103, 141, 61, 0.4);
     }
+
     50% {
       box-shadow: 0 0 0 8px rgba(103, 141, 61, 0);
     }
@@ -252,6 +268,7 @@
       opacity: 0;
       transform: scale(0.8);
     }
+
     to {
       opacity: 1;
       transform: scale(1);
@@ -277,9 +294,12 @@
 
   /* Gradient Text Animation */
   @keyframes gradient-shift {
-    0%, 100% {
+
+    0%,
+    100% {
       background-position: 0% 50%;
     }
+
     50% {
       background-position: 100% 50%;
     }
@@ -303,6 +323,7 @@
       opacity: 0;
       transform: scale(0.9);
     }
+
     to {
       opacity: 1;
       transform: scale(1);

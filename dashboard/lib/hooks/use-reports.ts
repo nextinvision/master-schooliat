@@ -8,10 +8,11 @@ function fetchDashboardSummary() {
   return get("/reports/dashboard-summary");
 }
 
-export function useDashboardSummary() {
+export function useDashboardSummary(params: { academicYear?: string } = {}) {
+  const { academicYear } = params;
   return useQuery({
-    queryKey: ["reports", "dashboard-summary"],
-    queryFn: fetchDashboardSummary,
+    queryKey: ["reports", "summary", academicYear],
+    queryFn: () => get("/statistics/dashboard", { academicYear }),
     staleTime: 2 * 60 * 1000,
   });
 }

@@ -1,18 +1,19 @@
 "use client";
 
 import { useDashboard } from "@/lib/hooks/use-dashboard";
+import { useAcademicYear } from "@/lib/context/academic-year-context";
 import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
 import { PremiumStatCard } from "@/components/dashboard/premium-stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  GraduationCap, 
-  BookOpen, 
-  FileCheck, 
-  Calendar, 
-  Clock, 
-  Users, 
-  AlertCircle, 
+import {
+  GraduationCap,
+  BookOpen,
+  FileCheck,
+  Calendar,
+  Clock,
+  Users,
+  AlertCircle,
   RefreshCw,
   CheckCircle2,
   ClipboardList,
@@ -27,7 +28,8 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
 export default function TeacherDashboardPage() {
-  const { data, isLoading, isError, refetch } = useDashboard();
+  const { selectedYear } = useAcademicYear();
+  const { data, isLoading, isError, refetch } = useDashboard({ academicYear: selectedYear });
   const router = useRouter();
   const stats = data?.data || {};
 
@@ -85,7 +87,7 @@ export default function TeacherDashboardPage() {
   return (
     <div className="space-y-4 animate-fade-in">
       {/* Welcome Card */}
-      <Card 
+      <Card
         className={cn(
           "bg-gradient-to-r from-blue-600 via-blue-500 to-blue-400 text-white",
           "relative overflow-hidden shadow-lg",
@@ -94,7 +96,7 @@ export default function TeacherDashboardPage() {
       >
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 animate-pulse" />
         <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDelay: "1s" }} />
-        
+
         <CardContent className="p-4 relative z-10">
           <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
             <div className="flex-1 animate-slide-in-left">

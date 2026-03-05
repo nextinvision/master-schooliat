@@ -2,8 +2,12 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Briefcase } from "lucide-react";
+import { useAcademicYear } from "@/lib/context/academic-year-context";
+import { useDashboard } from "@/lib/hooks/use-dashboard";
 
 export default function StaffDashboardPage() {
+  const { selectedYear } = useAcademicYear();
+  const { data } = useDashboard({ academicYear: selectedYear });
   return (
     <div className="space-y-6">
       <div>

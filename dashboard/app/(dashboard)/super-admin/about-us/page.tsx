@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useDashboardStats } from "@/lib/hooks/use-super-admin";
+import { useAcademicYear } from "@/lib/context/academic-year-context";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   School,
@@ -59,7 +60,8 @@ const features = [
 ];
 
 export default function AboutUsPage() {
-  const { data, isLoading, isError, error } = useDashboardStats();
+  const { selectedYear } = useAcademicYear();
+  const { data, isLoading, isError, error } = useDashboardStats(selectedYear);
 
   const stats = useMemo(() => {
     // Default stats if no data or error

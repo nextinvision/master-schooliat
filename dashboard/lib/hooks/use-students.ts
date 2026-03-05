@@ -4,8 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
-function fetchStudents({ page = 1, limit = 15 }: { page?: number; limit?: number } = {}) {
-  return get("/users/students", { page, limit });
+function fetchStudents({ page = 1, limit = 15, academicYear }: { page?: number; limit?: number; academicYear?: string } = {}) {
+  return get("/users/students", { page, limit, academicYear });
 }
 
 function fetchStudent(studentId: string) {
@@ -83,12 +83,12 @@ function deleteStudentApi(studentId: string) {
   return del(`/users/students/${studentId}`);
 }
 
-export function useStudentsPage(page: number, limit = 15) {
+export function useStudentsPage(page: number, limit = 15, academicYear?: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["students", page, limit],
-    queryFn: () => fetchStudents({ page, limit }),
+    queryKey: ["students", page, limit, academicYear],
+    queryFn: () => fetchStudents({ page, limit, academicYear }),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
   });
@@ -97,8 +97,8 @@ export function useStudentsPage(page: number, limit = 15) {
   if (!query.isPlaceholderData && query.data?.hasNext) {
     const nextPage = page + 1;
     queryClient.prefetchQuery({
-      queryKey: ["students", nextPage, limit],
-      queryFn: () => fetchStudents({ page: nextPage, limit }),
+      queryKey: ["students", nextPage, limit, academicYear],
+      queryFn: () => fetchStudents({ page: nextPage, limit, academicYear }),
     });
   }
 
@@ -150,10 +150,14 @@ export function useDeleteStudent() {
 }
 
 // Wrapper hook for simpler API
-export function useStudents(params?: { page?: number; limit?: number }) {
+export function useStudents(params?: { page?: number; limit?: number; academicYear?: string }) {
   return useQuery({
-    queryKey: ["students", params?.page || 1, params?.limit || 1000],
-    queryFn: () => fetchStudents({ page: params?.page || 1, limit: params?.limit || 1000 }),
+    queryKey: ["students", params?.page || 1, params?.limit || 1000, params?.academicYear],
+    queryFn: () => fetchStudents({
+      page: params?.page || 1,
+      limit: params?.limit || 1000,
+      academicYear: params?.academicYear
+    }),
     staleTime: 30 * 1000,
   });
 }

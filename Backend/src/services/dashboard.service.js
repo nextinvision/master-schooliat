@@ -18,22 +18,22 @@ const getDashboard = async (currentUser, academicYear) => {
       return await getSuperAdminDashboard(academicYear);
     }
     if (roleName === RoleName.SCHOOL_ADMIN) {
-      return await getSchoolAdminDashboard(currentUser);
+      return await getSchoolAdminDashboard(currentUser, academicYear);
     }
     if (roleName === RoleName.TEACHER) {
-      return await getTeacherDashboard(currentUser);
+      return await getTeacherDashboard(currentUser, academicYear);
     }
     if (roleName === RoleName.STAFF) {
-      return await getStaffDashboard(currentUser);
+      return await getStaffDashboard(currentUser, academicYear);
     }
     if (roleName === RoleName.STUDENT) {
-      return await getStudentDashboard(currentUser);
+      return await getStudentDashboard(currentUser, academicYear);
     }
     if (roleName === RoleName.PARENT) {
-      return await getParentDashboard(currentUser);
+      return await getParentDashboard(currentUser, academicYear);
     }
     if (roleName === RoleName.EMPLOYEE) {
-      return await getEmployeeDashboard(currentUser);
+      return await getEmployeeDashboard(currentUser, academicYear);
     }
 
     // Unknown role or missing role - return fallback for school admin if we have schoolId
@@ -182,29 +182,29 @@ const getSuperAdminDashboardData = async (academicYear) => {
   };
 };
 
-const getSchoolAdminDashboard = async (currentUser) => {
+const getSchoolAdminDashboard = async (currentUser, academicYear) => {
   const schoolId = currentUser?.schoolId;
 
   if (!schoolId) {
     return {};
   }
 
-  // Cache dashboard per school for 5 minutes
-  const cacheKey = `dashboard:school_admin:${schoolId}`;
+  // Cache dashboard per school and academic year for 5 minutes
+  const cacheKey = `dashboard:school_admin:${schoolId}:${academicYear || 'all'}`;
   try {
     return await cacheService.getOrSet(
       cacheKey,
       async () => {
-        return await getSchoolAdminDashboardData(currentUser, schoolId);
+        return await getSchoolAdminDashboardData(currentUser, schoolId, academicYear);
       },
       5 * 60 * 1000, // 5 minutes TTL
     );
   } catch (err) {
     logger.error(
-      { err: err.message, stack: err.stack, schoolId, userId: currentUser?.id },
+      { err: err.message, stack: err.stack, schoolId, userId: currentUser?.id, academicYear },
       "Dashboard cache/get failed, returning safe fallback",
     );
-    return getSchoolAdminDashboardFallback(schoolId);
+    return getSchoolAdminDashboardFallback(schoolId, academicYear);
   }
 };
 
@@ -212,7 +212,7 @@ const getSchoolAdminDashboard = async (currentUser) => {
  * Return a safe fallback dashboard when getSchoolAdminDashboardData fails (e.g. 500).
  * Fetches only school name/code so the UI can still render.
  */
-const getSchoolAdminDashboardFallback = async (schoolId) => {
+const getSchoolAdminDashboardFallback = async (schoolId, academicYear) => {
   let school = { id: schoolId, name: "School", code: "", address: [] };
   try {
     const s = await prisma.school.findUnique({
@@ -230,9 +230,12 @@ const getSchoolAdminDashboardFallback = async (schoolId) => {
   } catch (e) {
     logger.warn({ schoolId, err: e.message }, "Fallback: could not load school");
   }
+
+  const yearRange = parseAcademicYearRange(academicYear);
   const currentDate = new Date();
-  const currentMonth = currentDate.getMonth() + 1;
-  const currentYear = currentDate.getFullYear();
+  const currentMonth = yearRange ? 4 : currentDate.getMonth() + 1; // April if year range provided, else real month
+  const currentYear = yearRange ? yearRange.start.getFullYear() : currentDate.getFullYear();
+
   return {
     school,
     userCounts: {
@@ -254,17 +257,18 @@ const getSchoolAdminDashboardFallback = async (schoolId) => {
       incomeChangePercent: "+0",
       salaryChangePercent: "+0",
       monthlyEarnings: Array.from({ length: 12 }, (_, i) => ({
-        month: new Date(currentYear, i, 1).toLocaleString("default", { month: "short" }),
+        month: new Date(currentYear, (yearRange ? 3 : 0) + i, 1).toLocaleString("default", { month: "short" }),
         income: 0,
         expense: 0,
       })),
     },
     calendar: { events: [], currentMonth, currentYear },
     notices: [],
+    academicYear: academicYear || null,
   };
 };
 
-const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
+const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) => {
   // Get role IDs with null checks
   const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
   const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
@@ -273,19 +277,56 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
   // Validate roles exist - return fallback instead of throwing so admin still sees a page
   if (!studentRole || !teacherRole || !staffRole) {
     logger.warn({ schoolId }, "Dashboard: required roles not found, returning fallback");
-    return getSchoolAdminDashboardFallback(schoolId);
+    return getSchoolAdminDashboardFallback(schoolId, academicYear);
   }
 
   try {
-    // Get current month date range
+    // Get academic year date range
+    const yearRange = parseAcademicYearRange(academicYear);
     const currentDate = new Date();
-    const currentMonth = currentDate.getMonth() + 1; // JavaScript months are 0-indexed
-    const currentYear = currentDate.getFullYear();
+
+    // Academic year runs April-March
+    const academicStart = yearRange ? yearRange.start : (currentDate.getMonth() >= 3 ? new Date(currentDate.getFullYear(), 3, 1) : new Date(currentDate.getFullYear() - 1, 3, 1));
+    const academicEnd = yearRange ? yearRange.end : (currentDate.getMonth() >= 3 ? new Date(currentDate.getFullYear() + 1, 2, 31, 23, 59, 59, 999) : new Date(currentDate.getFullYear(), 2, 31, 23, 59, 59, 999));
+
+    // Use academic start year as the 'currentYear' for labeling
+    const currentYear = academicStart.getFullYear();
+    const currentMonth = currentDate.getMonth() + 1;
+
     const firstDayOfMonth = dateUtil.getFirstDayOfMonth(
       currentMonth,
       currentYear,
     );
     const lastDayOfMonth = dateUtil.getLastDayOfMonth(currentMonth, currentYear);
+
+    // Date filter for users (all created up to end of academic year)
+    const activeUserFilter = {
+      createdAt: { lte: academicEnd },
+      OR: [
+        { deletedAt: null },
+        { deletedAt: { gte: academicStart } }
+      ]
+    };
+
+    // Date filter for new additions this year (for growth calculation)
+    const newThisYearFilter = {
+      createdAt: { gte: academicStart, lte: academicEnd },
+      deletedAt: null
+    };
+
+    // Previous year range for growth calculation
+    const prevYearStart = new Date(academicStart);
+    prevYearStart.setFullYear(prevYearStart.getFullYear() - 1);
+    const prevYearEnd = new Date(academicEnd);
+    prevYearEnd.setFullYear(prevYearEnd.getFullYear() - 1);
+
+    const prevActiveUserFilter = {
+      createdAt: { lte: prevYearEnd },
+      OR: [
+        { deletedAt: null },
+        { deletedAt: { gte: prevYearStart } }
+      ]
+    };
 
     // Get school settings to fetch current installment number (resilient to missing columns e.g. platform_config)
     let schoolSettings = null;
@@ -303,7 +344,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
     const currentInstallmentNumber =
       schoolSettings?.currentInstallmentNumber ?? 1;
 
-    // Get fee IDs for the current year
+    // Get fee IDs for the selected academic year
     const currentYearFees = await prisma.fee.findMany({
       where: {
         schoolId,
@@ -336,6 +377,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
       totalStudentsGirls,
       totalTeachers,
       totalStaff,
+      totalStudentsPrevYear,
       school,
       notices,
       paidInstallments,
@@ -347,13 +389,15 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
       monthlyEarnings,
       // Calendar events for current month
       calendarEvents,
+      totalFeeIncomePrevYear,
+      totalSalaryPrevYear,
     ] = await Promise.all([
       prisma.user.count({
         where: {
           schoolId,
           roleId: studentRole?.id,
           userType: UserType.SCHOOL,
-          deletedAt: null,
+          ...activeUserFilter,
         },
       }),
       prisma.user.count({
@@ -362,7 +406,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
           roleId: studentRole?.id,
           userType: UserType.SCHOOL,
           gender: Gender.MALE,
-          deletedAt: null,
+          ...activeUserFilter,
         },
       }),
       prisma.user.count({
@@ -371,7 +415,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
           roleId: studentRole?.id,
           userType: UserType.SCHOOL,
           gender: Gender.FEMALE,
-          deletedAt: null,
+          ...activeUserFilter,
         },
       }),
       prisma.user.count({
@@ -379,7 +423,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
           schoolId,
           roleId: teacherRole?.id,
           userType: UserType.SCHOOL,
-          deletedAt: null,
+          ...activeUserFilter,
         },
       }),
       prisma.user.count({
@@ -387,7 +431,16 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
           schoolId,
           roleId: staffRole?.id,
           userType: UserType.SCHOOL,
-          deletedAt: null,
+          ...activeUserFilter,
+        },
+      }),
+      // Previous year counts for growth
+      prisma.user.count({
+        where: {
+          schoolId,
+          roleId: studentRole?.id,
+          userType: UserType.SCHOOL,
+          ...prevActiveUserFilter,
         },
       }),
       prisma.school.findUnique({
@@ -403,9 +456,9 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
         where: {
           schoolId,
           deletedAt: null,
-          // Filter notices that are visible during the current month
-          visibleFrom: { lte: lastDayOfMonth },
-          visibleTill: { gte: firstDayOfMonth },
+          // Filter notices that are visible during the selected academic year
+          visibleFrom: { lte: academicEnd },
+          visibleTill: { gte: academicStart },
         },
         select: {
           id: true,
@@ -460,8 +513,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
         where: {
           schoolId,
           createdAt: {
-            gte: firstDayOfYear,
-            lte: lastDayOfYear,
+            gte: academicStart,
+            lte: academicEnd,
           },
           deletedAt: null,
         },
@@ -476,8 +529,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
         where: {
           schoolId,
           deletedAt: null,
-          from: { lte: lastDayOfMonth },
-          till: { gte: firstDayOfMonth },
+          from: { lte: academicEnd },
+          till: { gte: academicStart },
         },
         select: {
           id: true,
@@ -491,15 +544,43 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
         },
         take: 10,
       }),
+      // Previous year financial data for growth
+      prisma.feeInstallements.aggregate({
+        where: buildFeeFilter({
+          schoolId,
+          paymentStatus: { in: [FeePaymentStatus.PAID, FeePaymentStatus.PARTIALLY_PAID] },
+          deletedAt: null,
+          updatedAt: {
+            gte: prevYearStart,
+            lte: prevYearEnd,
+          },
+        }),
+        _sum: {
+          paidAmount: true,
+        },
+      }),
+      prisma.salaryPayments.aggregate({
+        where: {
+          schoolId,
+          createdAt: {
+            gte: prevYearStart,
+            lte: prevYearEnd,
+          },
+          deletedAt: null,
+        },
+        _sum: {
+          totalAmount: true,
+        },
+      }),
     ]);
 
     const totalIncome = Number(totalFeeIncome._sum?.paidAmount || 0);
     const totalSalary = Number(totalSalaryDistributed._sum?.totalAmount || 0);
 
-    // Calculate monthly earnings separately (to avoid complex async in Promise.all)
+    // Calculate monthly earnings for the selected academic year (April to March)
     const monthlyEarningsData = [];
-    for (let i = 11; i >= 0; i--) {
-      const monthDate = new Date(currentYear, currentMonth - 1 - i, 1);
+    for (let i = 0; i < 12; i++) {
+      const monthDate = new Date(academicStart.getFullYear(), academicStart.getMonth() + i, 1);
       const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
       const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
 
@@ -542,20 +623,21 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
       });
     }
 
-    // Calculate percentage change (comparing with previous year for now, simplified)
-    const previousYearIncome = totalIncome * 0.88; // Simplified: assume 12% growth
-    const previousYearSalary = totalSalary * 0.995; // Simplified: assume 0.5% growth
-    const incomeChangePercent = previousYearIncome > 0
-      ? ((totalIncome - previousYearIncome) / previousYearIncome * 100).toFixed(1)
-      : "0";
-    const salaryChangePercent = previousYearSalary > 0
-      ? ((totalSalary - previousYearSalary) / previousYearSalary * 100).toFixed(1)
-      : "0";
+    // Calculate growth percentages
+    const calculateGrowth = (current, previous) => {
+      if (!previous || previous === 0) return current > 0 ? "+100" : "0";
+      const diff = ((current - previous) / previous) * 100;
+      return (diff >= 0 ? "+" : "") + diff.toFixed(1);
+    };
+
+    const studentGrowth = calculateGrowth(totalStudents, totalStudentsPrevYear);
+    const incomeGrowth = calculateGrowth(totalIncome, Number(totalFeeIncomePrevYear._sum?.paidAmount || 0));
+    const salaryGrowth = calculateGrowth(totalSalary, Number(totalSalaryPrevYear._sum?.totalAmount || 0));
 
     // Validate school exists - return fallback instead of throwing so UI still loads
     if (!school) {
       logger.warn({ schoolId }, "Dashboard: school not found, returning fallback");
-      return getSchoolAdminDashboardFallback(schoolId);
+      return getSchoolAdminDashboardFallback(schoolId, academicYear);
     }
 
     const schoolAddress = school.address;
@@ -588,8 +670,9 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
       financial: {
         totalIncome: totalIncome || 0,
         totalSalary: totalSalary || 0,
-        incomeChangePercent: `+${incomeChangePercent}`,
-        salaryChangePercent: `+${salaryChangePercent}`,
+        incomeChangePercent: incomeGrowth,
+        salaryChangePercent: salaryGrowth,
+        studentChangePercent: studentGrowth,
         monthlyEarnings: monthlyEarningsData || [],
       },
       calendar: {
@@ -609,7 +692,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId) => {
 };
 
 // Teacher Dashboard
-const getTeacherDashboard = async (currentUser) => {
+const getTeacherDashboard = async (currentUser, academicYear) => {
   const schoolId = currentUser?.schoolId;
   const teacherId = currentUser?.id;
 
@@ -617,18 +700,21 @@ const getTeacherDashboard = async (currentUser) => {
     return {};
   }
 
-  const cacheKey = `dashboard:teacher:${teacherId}`;
+  const cacheKey = `dashboard:teacher:${teacherId}:${academicYear || 'all'}`;
   return await cacheService.getOrSet(
     cacheKey,
     async () => {
-      return await getTeacherDashboardData(schoolId, teacherId);
+      return await getTeacherDashboardData(schoolId, teacherId, academicYear);
     },
     5 * 60 * 1000, // 5 minutes TTL
   );
 };
 
-const getTeacherDashboardData = async (schoolId, teacherId) => {
+const getTeacherDashboardData = async (schoolId, teacherId, academicYear) => {
+  const yearRange = parseAcademicYearRange(academicYear);
   const currentDate = new Date();
+  const academicStart = yearRange ? yearRange.start : new Date(currentDate.getFullYear() - (currentDate.getMonth() < 3 ? 1 : 0), 3, 1);
+  const academicEnd = yearRange ? yearRange.end : new Date(academicStart.getFullYear() + 1, 2, 31, 23, 59, 59, 999);
   const startOfWeek = new Date(currentDate);
   startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
@@ -781,8 +867,8 @@ const getTeacherDashboardData = async (schoolId, teacherId) => {
       where: {
         schoolId,
         deletedAt: null,
-        visibleFrom: { lte: currentDate },
-        visibleTill: { gte: currentDate },
+        visibleFrom: { lte: academicEnd },
+        visibleTill: { gte: academicStart },
       },
       take: 5,
       orderBy: {
@@ -801,7 +887,7 @@ const getTeacherDashboardData = async (schoolId, teacherId) => {
 };
 
 // Staff Dashboard
-const getStaffDashboard = async (currentUser) => {
+const getStaffDashboard = async (currentUser, academicYear) => {
   const schoolId = currentUser?.schoolId;
   const staffId = currentUser?.id;
 
@@ -809,18 +895,21 @@ const getStaffDashboard = async (currentUser) => {
     return {};
   }
 
-  const cacheKey = `dashboard:staff:${staffId}`;
+  const cacheKey = `dashboard:staff:${staffId}:${academicYear || 'all'}`;
   return await cacheService.getOrSet(
     cacheKey,
     async () => {
-      return await getStaffDashboardData(schoolId, staffId);
+      return await getStaffDashboardData(schoolId, staffId, academicYear);
     },
     5 * 60 * 1000, // 5 minutes TTL
   );
 };
 
-const getStaffDashboardData = async (schoolId, staffId) => {
+const getStaffDashboardData = async (schoolId, staffId, academicYear) => {
+  const yearRange = parseAcademicYearRange(academicYear);
   const currentDate = new Date();
+  const academicStart = yearRange ? yearRange.start : new Date(currentDate.getFullYear() - (currentDate.getMonth() < 3 ? 1 : 0), 3, 1);
+  const academicEnd = yearRange ? yearRange.end : new Date(academicStart.getFullYear() + 1, 2, 31, 23, 59, 59, 999);
 
   const [
     recentNotices,
@@ -831,8 +920,8 @@ const getStaffDashboardData = async (schoolId, staffId) => {
       where: {
         schoolId,
         deletedAt: null,
-        visibleFrom: { lte: currentDate },
-        visibleTill: { gte: currentDate },
+        visibleFrom: { lte: academicEnd },
+        visibleTill: { gte: academicStart },
       },
       take: 5,
       orderBy: {
@@ -871,7 +960,7 @@ const getStaffDashboardData = async (schoolId, staffId) => {
 };
 
 // Student Dashboard
-const getStudentDashboard = async (currentUser) => {
+const getStudentDashboard = async (currentUser, academicYear) => {
   const schoolId = currentUser?.schoolId;
   const studentId = currentUser?.id;
 
@@ -879,18 +968,21 @@ const getStudentDashboard = async (currentUser) => {
     return {};
   }
 
-  const cacheKey = `dashboard:student:${studentId}`;
+  const cacheKey = `dashboard:student:${studentId}:${academicYear || 'all'}`;
   return await cacheService.getOrSet(
     cacheKey,
     async () => {
-      return await getStudentDashboardData(schoolId, studentId);
+      return await getStudentDashboardData(schoolId, studentId, academicYear);
     },
     5 * 60 * 1000, // 5 minutes TTL
   );
 };
 
-const getStudentDashboardData = async (schoolId, studentId) => {
+const getStudentDashboardData = async (schoolId, studentId, academicYear) => {
+  const yearRange = parseAcademicYearRange(academicYear);
   const currentDate = new Date();
+  const academicStart = yearRange ? yearRange.start : new Date(currentDate.getFullYear() - (currentDate.getMonth() < 3 ? 1 : 0), 3, 1);
+  const academicEnd = yearRange ? yearRange.end : new Date(academicStart.getFullYear() + 1, 2, 31, 23, 59, 59, 999);
   const startOfWeek = new Date(currentDate);
   startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
   startOfWeek.setHours(0, 0, 0, 0);
@@ -1048,8 +1140,8 @@ const getStudentDashboardData = async (schoolId, studentId) => {
       where: {
         schoolId,
         deletedAt: null,
-        visibleFrom: { lte: currentDate },
-        visibleTill: { gte: currentDate },
+        visibleFrom: { lte: academicEnd },
+        visibleTill: { gte: academicStart },
       },
       take: 5,
       orderBy: {
@@ -1102,27 +1194,31 @@ const getParentDashboard = async (currentUser) => {
 };
 
 // Employee Dashboard
-const getEmployeeDashboard = async (currentUser) => {
+const getEmployeeDashboard = async (currentUser, academicYear) => {
   const employeeId = currentUser?.id;
 
   if (!employeeId) {
     return {};
   }
 
-  const cacheKey = `dashboard:employee:${employeeId}`;
+  const cacheKey = `dashboard:employee:${employeeId}:${academicYear || 'all'}`;
   return await cacheService.getOrSet(
     cacheKey,
     async () => {
-      return await getEmployeeDashboardData();
+      return await getEmployeeDashboardData(academicYear);
     },
     5 * 60 * 1000, // 5 minutes TTL
   );
 };
 
-const getEmployeeDashboardData = async () => {
+const getEmployeeDashboardData = async (academicYear) => {
+  const yearRange = parseAcademicYearRange(academicYear);
   const currentDate = new Date();
+  const academicStart = yearRange ? yearRange.start : new Date(currentDate.getFullYear() - (currentDate.getMonth() < 3 ? 1 : 0), 3, 1);
+  const academicEnd = yearRange ? yearRange.end : new Date(academicStart.getFullYear() + 1, 2, 31, 23, 59, 59, 999);
+
   const currentMonth = currentDate.getMonth() + 1;
-  const currentYear = currentDate.getFullYear();
+  const currentYear = academicStart.getFullYear();
   const firstDayOfMonth = dateUtil.getFirstDayOfMonth(currentMonth, currentYear);
   const lastDayOfMonth = dateUtil.getLastDayOfMonth(currentMonth, currentYear);
 
@@ -1236,8 +1332,8 @@ const getEmployeeDashboardData = async () => {
     prisma.receipt.aggregate({
       where: {
         createdAt: {
-          gte: firstDayOfMonth,
-          lte: lastDayOfMonth,
+          gte: academicStart,
+          lte: academicEnd,
         },
         deletedAt: null,
       },
@@ -1375,14 +1471,18 @@ const getEmployeeDashboardData = async () => {
 
 // Invalidate dashboard cache when data changes
 const invalidateDashboardCache = async (schoolId = null, userId = null, roleName = null) => {
+  // Clearing cache with academicYear suffix is harder without knowing all keys.
+  // We'll use a flush or prefix matching if supported, but for now we'll just clear the exact key if known.
+  // In a real system, we'd use a pattern-based invalidation (e.g., dashboard:school_admin:ID:*)
+  // For now, let's at least clear the default 'all' keys.
   if (schoolId) {
-    await cacheService.delete(`dashboard:school_admin:${schoolId}`);
+    await cacheService.delete(`dashboard:school_admin:${schoolId}:all`);
   }
   if (userId && roleName) {
-    await cacheService.delete(`dashboard:${roleName.toLowerCase()}:${userId}`);
+    await cacheService.delete(`dashboard:${roleName.toLowerCase()}:${userId}:all`);
   }
   if (!schoolId && !userId) {
-    await cacheService.delete("dashboard:super_admin");
+    await cacheService.delete("dashboard:super_admin:all");
   }
 };
 

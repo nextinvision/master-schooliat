@@ -1,19 +1,14 @@
-"use client";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Bell, Plus, Edit, Trash2, ExternalLink } from "lucide-react";
-import { format } from "date-fns";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
+import { format } from "date-fns";
+import { Bell, Edit, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface Notice {
   id: string;
   title: string;
   content: string;
-  visibleFrom: string;
-  visibleTill: string;
   createdAt: string;
 }
 
@@ -32,57 +27,47 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
     router.push("/admin/circulars");
   };
 
+  const handleEdit = () => {
+    // Open edit logic or page
+  }
+
+  const handleDelete = () => {
+    // Open delete modal
+  }
+
   return (
-    <Card className="relative isolate transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Bell className="h-5 w-5 text-primary" />
-            Notice Board
-          </CardTitle>
-          <Link
-            href="/admin/circulars"
-            className="text-sm text-primary hover:text-primary/90 font-medium transition-colors duration-200 hover:underline"
-          >
-            View all →
-          </Link>
-        </div>
+    <Card className="relative isolate border-none shadow-sm h-full rounded-2xl flex flex-col">
+      <CardHeader className="flex flex-row items-center justify-between pb-2 shrink-0">
+        <CardTitle className="text-xl font-bold">Notice Board</CardTitle>
+        <button
+          onClick={handleViewAll}
+          className="text-xs text-gray-400 hover:text-gray-600 font-medium transition-colors underline decoration-gray-300 underline-offset-4"
+        >
+          view all
+        </button>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-3">
+      <CardContent className="flex flex-col flex-1 overflow-hidden pt-2">
+        <div className="space-y-4 flex-1 overflow-y-auto pr-2 custom-scrollbar">
           {notices.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <Bell className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+            <div className="text-center py-8 text-gray-500 h-full flex flex-col justify-center">
+              <Bell className="h-8 w-8 mx-auto mb-2 text-gray-300" />
               <p className="text-sm">No notices available</p>
             </div>
           ) : (
             notices.slice(0, 2).map((notice, index) => (
               <div
                 key={notice.id}
-                className={cn(
-                  "flex items-start gap-3 p-3 border rounded-lg",
-                  "hover:bg-gray-50 hover:shadow-md hover:-translate-y-0.5",
-                  "transition-all duration-300 cursor-pointer",
-                  "animate-slide-up"
-                )}
-                style={{ 
-                  animationDelay: `${index * 0.1}s`,
-                  opacity: 0,
-                  animationFillMode: "forwards"
-                }}
+                className="flex items-start gap-4 p-4 border rounded-2xl bg-white shadow-sm transition-all hover:shadow-md"
               >
-                <div className="flex-shrink-0 mt-0.5">
-                  <Bell className="h-5 w-5 text-primary" />
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-[#f0f9eb] flex items-center justify-center text-[#699849]">
+                  <Bell className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="font-medium text-sm text-gray-900 mb-1">
+                  <h4 className="font-bold text-base text-gray-900 mb-1">
                     {notice.title}
                   </h4>
-                  <p className="text-xs text-gray-600 line-clamp-2">
+                  <p className="text-sm text-gray-400 line-clamp-2 leading-relaxed">
                     {notice.content}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {format(new Date(notice.createdAt), "MMM dd, yyyy")}
                   </p>
                 </div>
               </div>
@@ -91,27 +76,33 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t">
+        <div className="flex items-center gap-3 mt-4 pt-4 shrink-0">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 transition-all duration-300 hover:bg-primary hover:text-white hover:shadow-md hover:-translate-y-0.5"
+            className="rounded-full text-gray-500 border-gray-200 hover:bg-gray-50 text-xs px-4"
             onClick={handleAddNew}
           >
-            <Plus className="h-4 w-4 mr-2" />
             Add New
           </Button>
           <Button
-            variant="outline"
-            size="sm"
-            className="transition-all duration-300 hover:bg-primary hover:text-white hover:shadow-md hover:scale-110"
-            onClick={handleViewAll}
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50"
+            onClick={handleEdit}
           >
-            <ExternalLink className="h-4 w-4" />
+            <Edit className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-gray-50"
+            onClick={handleDelete}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </CardContent>
     </Card>
   );
 }
-

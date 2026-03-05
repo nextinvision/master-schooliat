@@ -3,9 +3,10 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, patch } from "@/lib/api/client";
 
-function fetchInstallments(installmentNumber: number, endInstallmentNumber?: number) {
+function fetchInstallments(installmentNumber: number, endInstallmentNumber?: number, academicYear?: string) {
   const query = endInstallmentNumber ? `?end=${endInstallmentNumber}` : "";
-  return get(`/fees/installments/${installmentNumber}${query}`);
+  const academicQuery = academicYear ? `${query ? "&" : "?"}academicYear=${academicYear}` : "";
+  return get(`/fees/installments/${installmentNumber}${query}${academicQuery}`);
 }
 
 function fetchStudentFees(studentId: string) {
@@ -18,13 +19,13 @@ function recordPaymentApi(installmentId: string, amount?: number, paymentMethod?
   });
 }
 
-export function useInstallments(installmentNumber: number, endInstallmentNumber?: number, options: { enabled?: boolean } = {}) {
-  const { enabled = true } = options;
+export function useInstallments(installmentNumber: number, endInstallmentNumber?: number, options: { enabled?: boolean; academicYear?: string } = {}) {
+  const { enabled = true, academicYear } = options;
   const shouldFetch = typeof installmentNumber === "number" && installmentNumber >= 1;
 
   return useQuery({
-    queryKey: ["fees", "installments", installmentNumber, endInstallmentNumber],
-    queryFn: () => fetchInstallments(installmentNumber, endInstallmentNumber),
+    queryKey: ["fees", "installments", installmentNumber, endInstallmentNumber, academicYear],
+    queryFn: () => fetchInstallments(installmentNumber, endInstallmentNumber, academicYear),
     enabled: shouldFetch && enabled,
     staleTime: 60 * 1000,
   });

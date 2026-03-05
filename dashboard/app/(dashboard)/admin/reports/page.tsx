@@ -12,6 +12,7 @@ import {
 import { useClasses } from "@/lib/hooks/use-classes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDateRangeForPreset } from "@/lib/utils/analytics";
+import { useAcademicYear } from "@/lib/context/academic-year-context";
 import type { ReportFilters as ReportFiltersType } from "@/lib/types/reports";
 import { ReportFilters } from "@/components/reports/ReportFilters";
 import { ExportReportMenu } from "@/components/reports/ExportReportMenu";
@@ -32,9 +33,12 @@ export default function ReportsPage() {
     compareWithPrevious: false,
   });
 
+  const { selectedYear } = useAcademicYear();
   const { data: classesData } = useClasses({ page: 1, limit: 1000 });
   const { data: examsData } = useExamsForReports({ limit: 500 });
-  const { data: summaryData, isLoading: summaryLoading } = useDashboardSummary();
+  const { data: summaryData, isLoading: summaryLoading } = useDashboardSummary({
+    academicYear: selectedYear
+  });
 
   const classes = useMemo(() => classesData?.data ?? [], [classesData]);
   const exams = useMemo(() => examsData?.data ?? [], [examsData]);

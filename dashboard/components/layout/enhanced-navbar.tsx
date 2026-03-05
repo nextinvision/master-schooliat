@@ -38,6 +38,8 @@ import { getAdminSearchItems, getSuperAdminSearchItems } from "@/lib/config/menu
 import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { AcademicYearSelector } from "./academic-year-selector";
+
 export function EnhancedNavbar() {
   const router = useRouter();
   const pathname = usePathname();
@@ -201,6 +203,9 @@ export function EnhancedNavbar() {
 
       {/* Right Section */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
+        {/* Academic Year Selector */}
+        <AcademicYearSelector variant="navbar" className="mr-1" />
+
         {/* Notifications */}
         <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>
           <DropdownMenuTrigger asChild>

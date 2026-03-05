@@ -46,9 +46,9 @@ export function EmployeesManagement() {
       const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (emp: Employee) =>
-          emp.firstName.toLowerCase().includes(searchLower) ||
-          emp.lastName.toLowerCase().includes(searchLower) ||
-          emp.email.toLowerCase().includes(searchLower)
+          (emp.firstName || "").toLowerCase().includes(searchLower) ||
+          (emp.lastName || "").toLowerCase().includes(searchLower) ||
+          (emp.email || "").toLowerCase().includes(searchLower)
       );
     }
 

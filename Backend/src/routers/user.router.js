@@ -116,6 +116,7 @@ router.get(
       const pageNumber = parseInt(req.query.pageNumber) || 1;
       const pageSize = parseInt(req.query.pageSize) || 15;
 
+      const { academicYear } = req.query;
       const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
 
       const where = {
@@ -124,6 +125,22 @@ router.get(
         deletedAt: null,
         deletedBy: null,
       };
+
+      // Apply academic year filter if provided
+      if (academicYear && typeof academicYear === "string") {
+        const parts = academicYear.split("-");
+        if (parts.length === 2) {
+          const startYear = parseInt(parts[0], 10);
+          const endYearShort = parseInt(parts[1], 10);
+          const endYear = endYearShort < 100 ? 2000 + endYearShort : endYearShort;
+          if (!isNaN(startYear) && !isNaN(endYear)) {
+            where.createdAt = {
+              gte: new Date(`${startYear}-04-01T00:00:00.000Z`),
+              lte: new Date(`${endYear}-03-31T23:59:59.999Z`),
+            };
+          }
+        }
+      }
 
       const teachers = await prisma.user.findMany({
         where,
@@ -445,6 +462,7 @@ router.get(
       const pageNumber = parseInt(req.query.pageNumber) || 1;
       const pageSize = parseInt(req.query.pageSize) || 15;
 
+      const { academicYear } = req.query;
       const staffRole = await roleService.getRoleByName(RoleName.STAFF);
 
       const where = {
@@ -453,6 +471,22 @@ router.get(
         deletedAt: null,
         deletedBy: null,
       };
+
+      // Apply academic year filter if provided
+      if (academicYear && typeof academicYear === "string") {
+        const parts = academicYear.split("-");
+        if (parts.length === 2) {
+          const startYear = parseInt(parts[0], 10);
+          const endYearShort = parseInt(parts[1], 10);
+          const endYear = endYearShort < 100 ? 2000 + endYearShort : endYearShort;
+          if (!isNaN(startYear) && !isNaN(endYear)) {
+            where.createdAt = {
+              gte: new Date(`${startYear}-04-01T00:00:00.000Z`),
+              lte: new Date(`${endYear}-03-31T23:59:59.999Z`),
+            };
+          }
+        }
+      }
 
       const staff = await prisma.user.findMany({
         where,
@@ -805,6 +839,7 @@ router.get(
       const page = parseInt(req.query.page) || 1;
       const limit = parseInt(req.query.limit) || 15;
 
+      const { academicYear } = req.query;
       const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
 
       const where = {
@@ -813,6 +848,22 @@ router.get(
         deletedAt: null,
         deletedBy: null,
       };
+
+      // Apply academic year filter if provided
+      if (academicYear && typeof academicYear === "string") {
+        const parts = academicYear.split("-");
+        if (parts.length === 2) {
+          const startYear = parseInt(parts[0], 10);
+          const endYearShort = parseInt(parts[1], 10);
+          const endYear = endYearShort < 100 ? 2000 + endYearShort : endYearShort;
+          if (!isNaN(startYear) && !isNaN(endYear)) {
+            where.createdAt = {
+              gte: new Date(`${startYear}-04-01T00:00:00.000Z`),
+              lte: new Date(`${endYear}-03-31T23:59:59.999Z`),
+            };
+          }
+        }
+      }
 
       const students = await prisma.user.findMany({
         where,
@@ -1612,7 +1663,7 @@ router.get(
             select: { id: true, name: true }
           },
           // Get counts for vendors and locations
-          location: {
+          assignedLocations: {
             where: { deletedAt: null }
           },
           vendors: {
@@ -1624,10 +1675,10 @@ router.get(
 
       // Map to include total counts
       const employeesWithCounts = employees.map(emp => {
-        const { location, vendors, ...rest } = emp;
+        const { assignedLocations, vendors, ...rest } = emp;
         return {
           ...rest,
-          totalLocations: location.length,
+          totalLocations: assignedLocations.length,
           totalVendors: vendors.length,
           status: "Active"
         };
@@ -1671,7 +1722,7 @@ router.get(
           assignedRegion: {
             select: { id: true, name: true }
           },
-          location: {
+          assignedLocations: {
             where: { deletedAt: null }
           },
           vendors: {
@@ -1684,10 +1735,10 @@ router.get(
         return res.status(404).json({ message: "Employee not found!" });
       }
 
-      const { location, vendors, ...rest } = employee;
+      const { assignedLocations, vendors, ...rest } = employee;
       const employeeWithCounts = {
         ...rest,
-        totalLocations: location.length,
+        totalLocations: assignedLocations.length,
         totalVendors: vendors.length,
         status: "Active"
       };

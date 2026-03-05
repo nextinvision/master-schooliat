@@ -151,8 +151,8 @@ export function Sidebar() {
       )}
     >
       {/* Logo Container */}
-      <div className="flex items-center px-3 py-2.5 gap-2 border-b border-gray-800 justify-center lg:justify-start">
-        <div className="w-8 h-8 flex-shrink-0">
+      <div className="flex items-center px-4 py-6 gap-3 border-b border-gray-800/50 justify-center lg:justify-start">
+        <div className="w-10 h-10 flex-shrink-0 bg-white rounded-xl flex items-center justify-center p-1">
           <Image
             src="/logo.png"
             alt="Schooliat Logo"
@@ -162,8 +162,8 @@ export function Sidebar() {
           />
         </div>
         {isOpen && (
-          <span className="text-base font-semibold text-white ml-1 whitespace-nowrap">
-            Schooliat
+          <span className="text-xl font-bold text-white ml-1 tracking-wide whitespace-nowrap">
+            SchooliAT
           </span>
         )}
       </div>
@@ -182,25 +182,24 @@ export function Sidebar() {
               <button
                 onClick={() => handleMenuPress(item)}
                 className={cn(
-                  "flex items-center w-full py-1.5 mx-2 my-1 rounded-md transition-colors",
-                  isOpen ? "px-3" : "px-0 justify-center",
-                  active && !hasSubmenu && "bg-white",
-                  !active && !hasSubmenu && "hover:bg-white/10"
+                  "flex items-center py-3 mx-4 my-1.5 rounded-2xl transition-all duration-200",
+                  isOpen ? "px-4 w-[calc(100%-32px)]" : "px-0 w-[calc(100%-32px)] justify-center",
+                  active && !hasSubmenu ? "bg-white shadow-sm" : "hover:bg-white/10"
                 )}
                 title={!isOpen ? item.name : undefined}
               >
                 <Icon
                   className={cn(
-                    "w-4 h-4 flex-shrink-0",
-                    active && !hasSubmenu ? "text-gray-800" : "text-white"
+                    "w-[18px] h-[18px] flex-shrink-0",
+                    active && !hasSubmenu ? "text-black" : "text-gray-300"
                   )}
                 />
                 {isOpen && (
                   <>
                     <span
                       className={cn(
-                        "ml-2.5 text-sm flex-1 text-left font-medium",
-                        active && !hasSubmenu ? "text-gray-800" : "text-white"
+                        "ml-3.5 text-[15px] flex-1 text-left font-medium",
+                        active && !hasSubmenu ? "text-black font-semibold" : "text-gray-300 transition-colors"
                       )}
                     >
                       {item.name}
@@ -257,8 +256,8 @@ export function Sidebar() {
         <button
           onClick={handleLogout}
           className={cn(
-            "flex items-center w-full py-1.5 rounded-md bg-white hover:bg-green-50 transition-colors cursor-pointer",
-            isOpen ? "px-2.5" : "px-2 justify-center"
+            "flex items-center w-full py-3 rounded-2xl bg-white hover:bg-gray-100 transition-colors cursor-pointer",
+            isOpen ? "px-4" : "px-2 justify-center"
           )}
           title={!isOpen ? "Log Out" : undefined}
         >

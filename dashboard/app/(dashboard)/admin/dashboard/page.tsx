@@ -1,24 +1,75 @@
 "use client";
 
 import { useDashboard } from "@/lib/hooks/use-dashboard";
+import { useAcademicYear } from "@/lib/context/academic-year-context";
 import { useHolidays } from "@/lib/hooks/use-calendar";
 import { format } from "date-fns";
 import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
-import { PremiumStatCard } from "@/components/dashboard/premium-stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GraduationCap, UserCheck, Briefcase, Bell, AlertCircle, RefreshCw } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { AlertCircle, RefreshCw, MoreHorizontal, User } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 import { NoticeBoardWidget } from "@/components/dashboard/notice-board-widget";
 import { FinancialOverviewWidget } from "@/components/dashboard/financial-overview-widget";
 import { FeeStatusWidget } from "@/components/dashboard/fee-status-widget";
-import { cn } from "@/lib/utils";
 
-const CHART_HEIGHT = 300;
+const CHART_HEIGHT = 280;
+
+const SimpleStatCard = ({ title, value, variant }: { title: string, value: number, variant: "dark" | "light" }) => {
+  const bg = variant === "dark" ? "bg-[#71954f]" : "bg-[#dcfce7]";
+  const textColor = "text-gray-900";
+  return (
+    <Card className={`border-none ${bg} ${textColor} flex-1 flex flex-col justify-between p-5 rounded-2xl shadow-sm hover:shadow-md transition-all`}>
+      <h3 className="text-base font-medium">{title}</h3>
+      <div className="text-4xl font-bold mt-3">{typeof value === 'number' ? value.toLocaleString() : value}</div>
+    </Card>
+  )
+}
+
+const RadialProgress = ({ percentage, color, label, subLabel }: { percentage: number, color: string, label: string, subLabel: string }) => {
+  const radius = 55;
+  const stroke = 12;
+  const normalizedRadius = radius - stroke * 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (percentage / 100) * circumference;
+
+  return (
+    <div className="flex flex-col items-center justify-center">
+      <div className="relative flex items-center justify-center w-36 h-36">
+        <svg height={radius * 2} width={radius * 2} className="transform -rotate-90">
+          <circle stroke="#f3f4f6" fill="transparent" strokeWidth={stroke} r={normalizedRadius} cx={radius} cy={radius} />
+          <circle
+            stroke={color}
+            fill="transparent"
+            strokeWidth={stroke}
+            strokeDasharray={circumference + ' ' + circumference}
+            style={{ strokeDashoffset, transition: "stroke-dashoffset 1s ease-in-out" }}
+            strokeLinecap="round"
+            r={normalizedRadius}
+            cx={radius}
+            cy={radius}
+          />
+        </svg>
+        <div className="absolute flex flex-col items-center justify-center">
+          <div className="flex items-center text-2xl font-bold" style={{ color }}>
+            <User className="w-5 h-5 mr-1" fill={color} />
+            {percentage}%
+          </div>
+        </div>
+      </div>
+      <div className="mt-3 text-sm flex items-center gap-1.5">
+        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+        <span className="font-bold text-gray-800 text-base">{label}</span>
+        <span className="text-gray-500">{subLabel}</span>
+      </div>
+    </div>
+  );
+};
 
 export default function AdminDashboardPage() {
-  const { data, isLoading, isError, refetch } = useDashboard();
+  const { selectedYear } = useAcademicYear();
+  const { data, isLoading, isError, refetch } = useDashboard({ academicYear: selectedYear });
   const stats = data?.data || {};
 
   const school = stats.school || {};
@@ -35,10 +86,8 @@ export default function AdminDashboardPage() {
   const teachersCount = userCounts.teachers || 0;
   const totalStaff = userCounts.staff || 0;
 
-  const pieData = [
-    { name: "Boys", value: boysCount, color: "#4b830d" },
-    { name: "Girls", value: girlsCount, color: "#f59e0b" },
-  ];
+  const boysPercentage = totalStudents > 0 ? Math.round((boysCount / totalStudents) * 100) : 53;
+  const girlsPercentage = totalStudents > 0 ? Math.round((girlsCount / totalStudents) * 100) : 47;
 
   const displayMonthDate = (calendar.currentYear && calendar.currentMonth)
     ? new Date(calendar.currentYear, calendar.currentMonth - 1, 1)
@@ -47,7 +96,6 @@ export default function AdminDashboardPage() {
   const { data: holidaysData } = useHolidays(format(displayMonthDate, "yyyy-MM"));
   const holidays = holidaysData?.data || [];
 
-  // Use real earnings data from API
   const earningsData = financial.monthlyEarnings || [
     { month: "Jan", income: 0, expense: 0 },
     { month: "Feb", income: 0, expense: 0 },
@@ -85,88 +133,44 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
-      {/* Welcome Card with Premium Styling */}
-      <Card
-        className={cn(
-          "bg-gradient-to-r from-primary via-chart-2 to-chart-4 text-white",
-          "relative overflow-hidden shadow-lg",
-          "animate-slide-up"
-        )}
-      >
-        {/* Animated Background Elements */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 animate-pulse" />
-        <div className="absolute bottom-0 left-0 w-36 h-36 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2 animate-pulse" style={{ animationDelay: "1s" }} />
-
-        <CardContent className="p-4 relative z-10">
-          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-3">
-            <div className="flex-1 animate-slide-in-left">
-              <h1 className="text-lg font-bold mb-1.5 animate-fade-in">
-                Welcome, {school.name || "School Team"}! 👋
-              </h1>
-              <p className="text-white/90 text-xs leading-relaxed">
-                Manage your school operations with ease. Stay updated on
-                academics, attendance and finances, and more, all at one place.
-                Let's keep shaping a brighter future together.
-              </p>
-            </div>
-            <div className="hidden lg:block animate-scale-in" style={{ animationDelay: "0.2s" }}>
-              <div className="w-36 h-24 bg-white/20 backdrop-blur-sm rounded-md flex items-center justify-center border border-white/30 glass-effect">
-                <span className="text-white/70 text-xs">Illustration</span>
+    <div className="space-y-4 md:space-y-6 max-w-[1600px] mx-auto pb-8 animate-fade-in bg-gray-50 min-h-screen p-4 rounded-3xl">
+      {/* Row 1 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+        {/* Welcome */}
+        <div className="lg:col-span-7 xl:col-span-8 h-full">
+          <Card className="bg-white border-none shadow-sm h-full rounded-2xl overflow-hidden relative">
+            <CardContent className="p-6 md:p-10 h-full flex flex-col justify-center">
+              <div className="flex items-center justify-between gap-6">
+                <div className="max-w-xl z-10">
+                  <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+                    Welcome, {school.name || "St. Patrick School"} Team!
+                  </h1>
+                  <p className="text-gray-500 text-sm md:text-base leading-relaxed">
+                    Manage your school operations with ease. Stay updated on academics, attendance, finances, and more, all in one place. Let's keep shaping a brighter future together!
+                  </p>
+                </div>
+                <div className="hidden md:block w-48 h-48 lg:w-72 lg:h-56 relative z-10 shrink-0">
+                  <div className="w-full h-full bg-gray-50 rounded-2xl flex items-center justify-center border border-gray-100 border-dashed overflow-hidden">
+                    {/* Placeholder for illustration since we don't have the real asset */}
+                    <div className="w-32 h-32 bg-gray-200 rounded-full opacity-50 relative">
+                      <div className="absolute top-4 left-4 right-4 bottom-4 bg-gray-300 rounded-full"></div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Stats Grid with Premium Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <PremiumStatCard
-          title="Students"
-          value={totalStudents}
-          icon={UserCheck}
-          gradient="from-schooliat-primary-dark to-primary"
-          href="/admin/students"
-          delay={0.1}
-          animateCount={true}
-        />
-        <PremiumStatCard
-          title="Teachers"
-          value={teachersCount}
-          icon={GraduationCap}
-          gradient="from-[#B7F08A] to-[#9ae06a]"
-          textColor="text-gray-900"
-          href="/admin/teachers"
-          delay={0.2}
-          animateCount={true}
-        />
-        <PremiumStatCard
-          title="Staff"
-          value={totalStaff}
-          icon={Briefcase}
-          gradient="from-schooliat-primary-dark to-primary"
-          href="/admin/staff"
-          delay={0.3}
-          animateCount={true}
-        />
-        <PremiumStatCard
-          title="Notices"
-          value={notices.length}
-          icon={Bell}
-          gradient="from-gray-50 to-gray-100"
-          textColor="text-gray-900"
-          href="/admin/circulars"
-          delay={0.4}
-          animateCount={true}
-        />
-      </div>
+        {/* Stats */}
+        <div className="lg:col-span-2 xl:col-span-1 flex flex-col gap-4">
+          <SimpleStatCard title="Students" value={totalStudents} variant="dark" />
+          <SimpleStatCard title="Teachers" value={teachersCount} variant="light" />
+          <SimpleStatCard title="Staff" value={totalStaff} variant="dark" />
+        </div>
 
-      {/* Second Row: Calendar and Notice Board with Animations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div
-          className="animate-slide-up"
-          style={{ animationDelay: "0.5s", opacity: 0, animationFillMode: "forwards" }}
-        >
+        {/* Calendar */}
+        <div className="lg:col-span-3 xl:col-span-3">
           <CalendarWidget
             events={calendar.events || []}
             holidays={holidays}
@@ -174,20 +178,41 @@ export default function AdminDashboardPage() {
             currentYear={calendar.currentYear}
           />
         </div>
-        <div
-          className="animate-slide-up"
-          style={{ animationDelay: "0.6s", opacity: 0, animationFillMode: "forwards" }}
-        >
-          <NoticeBoardWidget notices={notices} />
-        </div>
       </div>
 
-      {/* Third Row: Financial Overview and Fee Status with Animations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div
-          className="animate-slide-up"
-          style={{ animationDelay: "0.7s", opacity: 0, animationFillMode: "forwards" }}
-        >
+      {/* Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+        {/* Students Radial */}
+        <div className="lg:col-span-4">
+          <Card className="border-none shadow-sm h-full rounded-2xl">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-xl font-bold">Students</CardTitle>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
+            </CardHeader>
+            <CardContent className="flex flex-row items-center justify-around pt-6 pb-8">
+              <RadialProgress
+                percentage={boysPercentage}
+                color="#4b830d"
+                label={boysCount.toLocaleString()}
+                subLabel="( boys )"
+              />
+              <RadialProgress
+                percentage={girlsPercentage}
+                color="#f59e0b"
+                label={girlsCount.toLocaleString()}
+                subLabel="( Girls )"
+              />
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Notice Board */}
+        <div className="lg:col-span-4 h-[350px]">
+          <NoticeBoardWidget notices={notices} />
+        </div>
+
+        {/* Financial */}
+        <div className="lg:col-span-4 h-[350px]">
           <FinancialOverviewWidget
             totalIncome={financial.totalIncome}
             totalSalary={financial.totalSalary}
@@ -196,10 +221,83 @@ export default function AdminDashboardPage() {
             currentYear={installments.currentYear}
           />
         </div>
-        <div
-          className="animate-slide-up"
-          style={{ animationDelay: "0.8s", opacity: 0, animationFillMode: "forwards" }}
-        >
+      </div>
+
+      {/* Row 3 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+        {/* Earnings */}
+        <div className="lg:col-span-8">
+          <Card className="border-none shadow-sm rounded-2xl h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-0">
+              <CardTitle className="text-xl font-bold">Earnings</CardTitle>
+              <div className="flex items-center gap-6 absolute left-1/2 -translate-x-1/2">
+                <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
+                  <div className="w-3 h-3 rounded-full bg-[#84cc16]" /> Income
+                </div>
+                <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
+                  <div className="w-3 h-3 rounded-full bg-[#bbf7d0]" /> Expense
+                </div>
+              </div>
+              <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-500 rounded-full"><MoreHorizontal className="h-5 w-5" /></Button>
+            </CardHeader>
+            <CardContent className="pt-8">
+              <div style={{ width: "100%", height: CHART_HEIGHT }} role="img" aria-label="Earnings chart">
+                <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
+                  <LineChart
+                    data={earningsData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.6} />
+                    <XAxis
+                      dataKey="month"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#6b7280', fontSize: 13 }}
+                      dy={10}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: '#6b7280', fontSize: 13 }}
+                      ticks={[0, 250000, 500000, 750000, 1000000]}
+                      tickFormatter={(val) => val === 0 ? '0' : (val / 1000) + 'K'}
+                      dx={-10}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: "white",
+                        border: "none",
+                        borderRadius: "12px",
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
+                      }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="income"
+                      stroke="#84cc16"
+                      strokeWidth={4}
+                      dot={false}
+                      activeDot={{ r: 8, strokeWidth: 0, fill: '#84cc16' }}
+                      animationDuration={1500}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="expense"
+                      stroke="#bbf7d0"
+                      strokeWidth={4}
+                      dot={false}
+                      activeDot={{ r: 8, strokeWidth: 0, fill: '#bbf7d0' }}
+                      animationDuration={1500}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Fee Status */}
+        <div className="lg:col-span-4">
           <FeeStatusWidget
             paid={installments.paid}
             pending={installments.pending}
@@ -209,143 +307,6 @@ export default function AdminDashboardPage() {
           />
         </div>
       </div>
-
-      {/* Charts Row with Premium Animations */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Earnings Chart */}
-        <Card
-          className={cn(
-            "animate-scale-in relative isolate",
-            "transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-          )}
-          style={{ animationDelay: "0.9s", opacity: 0, animationFillMode: "forwards" }}
-        >
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Earnings
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div style={{ width: "100%", height: CHART_HEIGHT }} role="img" aria-label="Earnings chart">
-              <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-                <LineChart
-                  data={earningsData}
-                  margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} />
-                  <XAxis
-                    dataKey="month"
-                    stroke="#6b7280"
-                    style={{ fontSize: "12px" }}
-                  />
-                  <YAxis
-                    stroke="#6b7280"
-                    style={{ fontSize: "12px" }}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                    }}
-                  />
-                  <Legend />
-                  <Line
-                    type="monotone"
-                    dataKey="income"
-                    stroke="#84cc16"
-                    strokeWidth={3}
-                    name="Income"
-                    dot={{ fill: "#84cc16", r: 5, strokeWidth: 2, stroke: "#fff" }}
-                    activeDot={{ r: 7 }}
-                    animationDuration={1000}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="expense"
-                    stroke="#bbf7d0"
-                    strokeWidth={3}
-                    name="Expense"
-                    dot={{ fill: "#bbf7d0", r: 5, strokeWidth: 2, stroke: "#fff" }}
-                    activeDot={{ r: 7 }}
-                    animationDuration={1000}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Students Distribution */}
-        <Card
-          className={cn(
-            "card-hover-lift animate-scale-in",
-            "transition-all duration-300 hover:shadow-xl"
-          )}
-          style={{ animationDelay: "1s", opacity: 0, animationFillMode: "forwards" }}
-        >
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-[#4b830d] animate-pulse" />
-              Students Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center" style={{ width: "100%", height: CHART_HEIGHT }} role="img" aria-label="Students distribution chart">
-              <ResponsiveContainer width="100%" height={CHART_HEIGHT}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) =>
-                      `${name} ${percent ? (percent * 100).toFixed(0) : 0}%`
-                    }
-                    outerRadius={90}
-                    fill="#8884d8"
-                    dataKey="value"
-                    animationDuration={1000}
-                    animationBegin={0}
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                        style={{
-                          filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.1))",
-                          transition: "all 0.3s ease"
-                        }}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "white",
-                      border: "1px solid #e5e7eb",
-                      borderRadius: "8px",
-                      boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="flex justify-center gap-6 mt-4">
-              <div className="flex items-center gap-2 animate-fade-in">
-                <div className="w-4 h-4 rounded-full bg-[#4b830d] shadow-sm" />
-                <span className="text-sm font-medium">Boys: {boysCount}</span>
-              </div>
-              <div className="flex items-center gap-2 animate-fade-in" style={{ animationDelay: "0.2s" }}>
-                <div className="w-4 h-4 rounded-full bg-[#f59e0b] shadow-sm" />
-                <span className="text-sm font-medium">Girls: {girlsCount}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }
-

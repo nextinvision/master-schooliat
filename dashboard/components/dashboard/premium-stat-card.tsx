@@ -15,6 +15,8 @@ interface PremiumStatCardProps {
   animateCount?: boolean;
   className?: string;
   href?: string;
+  change?: string | number;
+  showTrend?: boolean;
 }
 
 export function PremiumStatCard({
@@ -27,6 +29,8 @@ export function PremiumStatCard({
   animateCount = true,
   className,
   href,
+  change,
+  showTrend = false,
 }: PremiumStatCardProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [displayValue, setDisplayValue] = useState(0);
@@ -144,9 +148,20 @@ export function PremiumStatCard({
             >
               {formattedValue}
             </p>
-            <p className={cn("text-xs font-semibold opacity-90")}>
+            <p className={cn("text-xs font-semibold opacity-90 mb-1")}>
               {title}
             </p>
+            {change && (
+              <div className="flex items-center gap-1 mt-1">
+                <span className={cn(
+                  "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                  "bg-white/20 backdrop-blur-sm"
+                )}>
+                  {change}% {showTrend ? (Number(change) >= 0 ? "↑" : "↓") : ""}
+                </span>
+                <span className="text-[10px] opacity-70">vs last year</span>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

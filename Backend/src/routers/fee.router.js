@@ -293,26 +293,50 @@ router.get(
       });
     }
 
+    const { academicYear } = req.query;
+    const where = {
+      schoolId: currentUser.schoolId,
+      deletedAt: null,
+    };
+
+    const installmentsWhere = {
+      schoolId: currentUser.schoolId,
+      deletedAt: null,
+    };
+
+    // Apply academic year filter if provided
+    if (academicYear && typeof academicYear === "string") {
+      const parts = academicYear.split("-");
+      if (parts.length === 2) {
+        const startYear = parseInt(parts[0], 10);
+        if (!isNaN(startYear)) {
+          where.year = startYear;
+
+          const endYearShort = parseInt(parts[1], 10);
+          const endYear = endYearShort < 100 ? 2000 + endYearShort : endYearShort;
+          if (!isNaN(endYear)) {
+            installmentsWhere.createdAt = {
+              gte: new Date(`${startYear}-04-01T00:00:00.000Z`),
+              lte: new Date(`${endYear}-03-31T23:59:59.999Z`),
+            };
+          }
+        }
+      }
+    }
+
     // Get total fee statistics for the school
     const totalFees = await prisma.fee.count({
-      where: {
-        schoolId: currentUser.schoolId,
-        deletedAt: null,
-      },
+      where,
     });
 
     const totalInstallments = await prisma.feeInstallements.count({
-      where: {
-        schoolId: currentUser.schoolId,
-        deletedAt: null,
-      },
+      where: installmentsWhere,
     });
 
     const paidInstallments = await prisma.feeInstallements.count({
       where: {
-        schoolId: currentUser.schoolId,
+        ...installmentsWhere,
         paymentStatus: FeePaymentStatus.PAID,
-        deletedAt: null,
       },
     });
 
@@ -354,16 +378,36 @@ router.get(
       return res.status(400).json({ message: "Invalid installment number!" });
     }
 
+    const { academicYear } = req.query;
+
+    const where = {
+      schoolId: currentUser.schoolId,
+      installementNumber: {
+        gte: installmentNum,
+        lte: isNaN(endInstallmentNum) ? installmentNum : endInstallmentNum,
+      },
+      deletedAt: null,
+    };
+
+    // Apply academic year filter if provided
+    if (academicYear && typeof academicYear === "string") {
+      const parts = academicYear.split("-");
+      if (parts.length === 2) {
+        const startYear = parseInt(parts[0], 10);
+        const endYearShort = parseInt(parts[1], 10);
+        const endYear = endYearShort < 100 ? 2000 + endYearShort : endYearShort;
+        if (!isNaN(startYear) && !isNaN(endYear)) {
+          where.createdAt = {
+            gte: new Date(`${startYear}-04-01T00:00:00.000Z`),
+            lte: new Date(`${endYear}-03-31T23:59:59.999Z`),
+          };
+        }
+      }
+    }
+
     // Get all fee installments for the specified installment number range
     const installments = await prisma.feeInstallements.findMany({
-      where: {
-        schoolId: currentUser.schoolId,
-        installementNumber: {
-          gte: installmentNum,
-          lte: isNaN(endInstallmentNum) ? installmentNum : endInstallmentNum,
-        },
-        deletedAt: null,
-      },
+      where,
       orderBy: { createdAt: "desc" },
     });
 

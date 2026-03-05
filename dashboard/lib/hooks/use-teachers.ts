@@ -4,8 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
-function fetchTeachers({ page = 1, limit = 15 }: { page?: number; limit?: number } = {}) {
-  return get("/users/teachers", { page, limit });
+function fetchTeachers({ page = 1, limit = 15, academicYear }: { page?: number; limit?: number; academicYear?: string } = {}) {
+  return get("/users/teachers", { page, limit, academicYear });
 }
 
 function fetchTeacher(teacherId: string) {
@@ -76,12 +76,12 @@ function deleteTeacherApi(teacherId: string) {
   return del(`/users/teachers/${teacherId}`);
 }
 
-export function useTeachersPage(page: number, limit = 15) {
+export function useTeachersPage(page: number, limit = 15, academicYear?: string) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["teachers", page, limit],
-    queryFn: () => fetchTeachers({ page, limit }),
+    queryKey: ["teachers", page, limit, academicYear],
+    queryFn: () => fetchTeachers({ page, limit, academicYear }),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
   });
@@ -90,8 +90,8 @@ export function useTeachersPage(page: number, limit = 15) {
   if (!query.isPlaceholderData && query.data?.hasNext) {
     const nextPage = page + 1;
     queryClient.prefetchQuery({
-      queryKey: ["teachers", nextPage, limit],
-      queryFn: () => fetchTeachers({ page: nextPage, limit }),
+      queryKey: ["teachers", nextPage, limit, academicYear],
+      queryFn: () => fetchTeachers({ page: nextPage, limit, academicYear }),
     });
   }
 
