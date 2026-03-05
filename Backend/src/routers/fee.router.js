@@ -13,6 +13,8 @@ import recordPaymentSchema from "../schemas/fee/record-payment.schema.js";
 import fileService from "../services/file.service.js";
 import { uploadFile } from "../config/storage/index.js";
 import logger from "../config/logger.js";
+import feeService from "../services/fee.service.js";
+import otpService from "../services/otp.service.js";
 
 // Get current directory for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -537,14 +539,35 @@ router.get(
 );
 
 // PATCH - Record payment for a fee installment
+router.post(
+  "/request-otp",
+  withPermission(Permission.RECORD_FEE_PAYMENT),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    try {
+      await otpService.createAndSendOTP(currentUser.email, "fee-payment");
+      return res.json({ message: "OTP sent to your registered email." });
+    } catch (error) {
+      logger.error({ error, userId: currentUser.id }, "Failed to send fee payment OTP");
+      return res.status(500).json({ message: "Failed to send OTP. Please try again." });
+    }
+  }
+);
+
 router.patch(
   "/installments/:id/payment",
   withPermission(Permission.RECORD_FEE_PAYMENT),
   validateRequest(recordPaymentSchema),
   async (req, res) => {
     const { id } = req.params;
-    const { amount, paymentMethod, isWaiver } = req.body.request;
+    const { amount, paymentMethod, isWaiver, transactionId, remarks, otp } = req.body.request;
     const currentUser = req.context.user;
+
+    // Verify OTP
+    const otpVerification = await otpService.verifyOTP(currentUser.email, otp, "fee-payment");
+    if (!otpVerification.valid) {
+      return res.status(400).json({ message: otpVerification.message });
+    }
 
     if (!currentUser.schoolId) {
       return res
@@ -634,50 +657,112 @@ router.patch(
       // Continue with payment recording even if receipt generation fails
     }
 
-    // Update installment and fee in a transaction
-    const result = await prisma.$transaction(async (tx) => {
-      // Update the installment
-      const updatedInstallment = await tx.feeInstallements.update({
-        where: { id },
-        data: {
-          paidAmount: newPaidAmount,
-          remainingAmount: newRemainingAmount,
-          paymentStatus: newPaymentStatus,
-          paidAt: new Date(),
-          receiptFileId: receiptFileId,
-          updatedBy: currentUser.id,
-        },
-      });
-
-      // Update the parent Fee record totals
-      if (installment.feeId) {
-        const fee = await tx.fee.findUnique({
-          where: { id: installment.feeId },
-        });
-
-        if (fee) {
-          await tx.fee.update({
-            where: { id: installment.feeId },
-            data: {
-              totalPaidAmount: fee.totalPaidAmount + appliedAmount,
-              totalRemainingAmount: fee.totalRemainingAmount - appliedAmount,
-              updatedBy: currentUser.id,
-            },
-          });
-        }
-      }
-
-      return updatedInstallment;
-    });
+    // Record payment using service
+    const result = await feeService.recordPayment(
+      id,
+      appliedAmount,
+      paymentMethod,
+      receiptFileId,
+      currentUser.id,
+      transactionId,
+      remarks
+    );
 
     // Attach receipt URL to response
-    const responseData = attachReceiptUrl({ ...result });
+    const responseData = attachReceiptUrl({ ...result.installment });
 
     return res.json({
       message: "Payment recorded successfully!",
-      data: responseData,
+      data: {
+        installment: responseData,
+        fee: result.fee,
+      },
     });
   },
+);
+
+// GET all fees export as CSV
+router.get(
+  "/export",
+  withPermission(Permission.GET_FEES),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const { academicYear } = req.query;
+
+      const where = {
+        schoolId: currentUser.schoolId,
+        deletedAt: null,
+      };
+
+      // Apply academic year filter if provided
+      if (academicYear && typeof academicYear === "string") {
+        const parts = academicYear.split("-");
+        if (parts.length === 2) {
+          const startYear = parseInt(parts[0], 10);
+          const endYearShort = parseInt(parts[1], 10);
+          const endYear = endYearShort < 100 ? 2000 + endYearShort : endYearShort;
+          if (!isNaN(startYear) && !isNaN(endYear)) {
+            where.createdAt = {
+              gte: new Date(`${startYear}-04-01T00:00:00.000Z`),
+              lte: new Date(`${endYear}-03-31T23:59:59.999Z`),
+            };
+          }
+        }
+      }
+
+      const installments = await prisma.feeInstallements.findMany({
+        where,
+        include: {
+          student: {
+            select: {
+              firstName: true,
+              lastName: true,
+              publicUserId: true,
+              studentProfile: {
+                select: {
+                  rollNumber: true,
+                  class: { select: { grade: true, division: true } }
+                }
+              }
+            }
+          }
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      const headers = [
+        "Receipt No", "Installment No", "Student ID", "Roll No", "Name",
+        "Class", "Amount", "Paid At", "Status", "Payment Method"
+      ];
+
+      const rows = installments.map((i) => [
+        i.id.slice(0, 8),
+        i.installementNumber,
+        i.student?.publicUserId || "N/A",
+        i.student?.studentProfile?.rollNumber || "N/A",
+        `${i.student?.firstName || ""} ${i.student?.lastName || ""}`.trim(),
+        i.student?.studentProfile?.class ? `${i.student.studentProfile.class.grade}${i.student.studentProfile.class.division ? `-${i.student.studentProfile.class.division}` : ""}` : "N/A",
+        i.paidAmount,
+        i.paidAt ? new Date(i.paidAt).toLocaleDateString("en-IN") : "N/A",
+        i.paymentStatus,
+        i.paymentMethod || "N/A"
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", "attachment; filename=fees_report.csv");
+      return res.send(csvContent);
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to export fees",
+      });
+    }
+  }
 );
 
 export default router;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, patch } from "@/lib/api/client";
+import { get, patch, post } from "@/lib/api/client";
 
 function fetchInstallments(installmentNumber: number, endInstallmentNumber?: number, academicYear?: string) {
   const query = endInstallmentNumber ? `?end=${endInstallmentNumber}` : "";
@@ -13,10 +13,22 @@ function fetchStudentFees(studentId: string) {
   return get(`/fees/student/${studentId}`);
 }
 
-function recordPaymentApi(installmentId: string, amount?: number, paymentMethod?: string, isWaiver?: boolean) {
+function recordPaymentApi(
+  installmentId: string,
+  amount?: number,
+  paymentMethod?: string,
+  isWaiver?: boolean,
+  transactionId?: string,
+  remarks?: string,
+  otp?: string
+) {
   return patch(`/fees/installments/${installmentId}/payment`, {
-    request: { amount, paymentMethod, isWaiver },
+    request: { amount, paymentMethod, isWaiver, transactionId, remarks, otp },
   });
+}
+
+function requestFeeOTPApi() {
+  return post("/fees/request-otp", {});
 }
 
 export function useInstallments(installmentNumber: number, endInstallmentNumber?: number, options: { enabled?: boolean; academicYear?: string } = {}) {
@@ -46,12 +58,33 @@ export function useRecordPayment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ installmentId, amount, paymentMethod, isWaiver }: { installmentId: string; amount?: number; paymentMethod?: string; isWaiver?: boolean }) =>
-      recordPaymentApi(installmentId, amount, paymentMethod, isWaiver),
+    mutationFn: ({
+      installmentId,
+      amount,
+      paymentMethod,
+      isWaiver,
+      transactionId,
+      remarks,
+      otp,
+    }: {
+      installmentId: string;
+      amount?: number;
+      paymentMethod?: string;
+      isWaiver?: boolean;
+      transactionId?: string;
+      remarks?: string;
+      otp?: string;
+    }) => recordPaymentApi(installmentId, amount, paymentMethod, isWaiver, transactionId, remarks, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fees", "installments"] });
       queryClient.invalidateQueries({ queryKey: ["fees", "student"] });
     },
+  });
+}
+
+export function useRequestOTP() {
+  return useMutation({
+    mutationFn: requestFeeOTPApi,
   });
 }
 

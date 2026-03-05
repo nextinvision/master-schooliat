@@ -9,8 +9,9 @@ import { Calendar, User, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 export function AdminLeaveTracker() {
-    // Fetch all leaves globally (passing no userId)
+    // Fetch all leaves globally
     const { data: historyData, isLoading } = useLeaveHistory({
+        userId: "all",
         page: 1,
         limit: 100, // Fetch a reasonable chunk
     });

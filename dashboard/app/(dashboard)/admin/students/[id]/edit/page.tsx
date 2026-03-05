@@ -43,7 +43,7 @@ export default function EditStudentPage() {
   const { mutateAsync: updateStudent, isPending: isSaving } = useUpdateStudent();
 
   const methods = useForm<StudentFormData>({
-    resolver: zodResolver(editStudentSchema),
+    resolver: zodResolver(editStudentSchema) as any,
     defaultValues: {
       firstName: "",
       lastName: "",

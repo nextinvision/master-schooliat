@@ -60,6 +60,11 @@ export const MENU_ITEMS: MenuItem[] = [
     route: "/admin/classes",
   },
   {
+    name: "Subjects",
+    icon: "Book",
+    route: "/admin/subjects",
+  },
+  {
     name: "Teachers",
     icon: "Users",
     route: "/admin/teachers",

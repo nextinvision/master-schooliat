@@ -12,6 +12,7 @@ interface FormTopBarProps {
   cancelLabel?: string;
   resetLabel?: string;
   isSaving?: boolean;
+  extraActions?: React.ReactNode;
 }
 
 export function FormTopBar({
@@ -23,11 +24,13 @@ export function FormTopBar({
   cancelLabel = "Cancel",
   resetLabel = "Reset",
   isSaving = false,
+  extraActions,
 }: FormTopBarProps) {
   return (
     <div className="flex items-center justify-between mb-4">
       <h1 className="text-2xl font-semibold">{title}</h1>
       <div className="flex items-center gap-3">
+        {extraActions}
         {onCancel && (
           <Button variant="outline" onClick={onCancel} size="sm">
             <X className="h-4 w-4 mr-2" />

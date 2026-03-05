@@ -117,6 +117,8 @@ router.get(
   },
 );
 
+import tcPdfService from "../services/tc-pdf.service.js";
+
 // Get TC by ID
 router.get(
   "/:id",
@@ -141,6 +143,39 @@ router.get(
     } catch (error) {
       return res.status(400).json({
         message: error.message || "Failed to fetch Transfer Certificate",
+      });
+    }
+  },
+);
+
+// Download TC PDF
+router.get(
+  "/:id/download",
+  withPermission(Permission.GET_STUDENTS),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+
+      const tc = await tcService.getTCById(id, currentUser.schoolId);
+
+      if (!tc) {
+        return res.status(404).json({
+          message: "Transfer Certificate not found",
+        });
+      }
+
+      const pdfBuffer = await tcPdfService.generateTCPdf(tc);
+
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename=TC_${tc.tcNumber.replace(/\//g, "_")}.pdf`,
+      );
+      return res.send(pdfBuffer);
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to download Transfer Certificate",
       });
     }
   },

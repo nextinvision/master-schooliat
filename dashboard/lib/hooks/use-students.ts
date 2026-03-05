@@ -4,8 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
-function fetchStudents({ page = 1, limit = 15, academicYear }: { page?: number; limit?: number; academicYear?: string } = {}) {
-  return get("/users/students", { page, limit, academicYear });
+function fetchStudents({ page = 1, limit = 15, academicYear, classId, gender }: { page?: number; limit?: number; academicYear?: string; classId?: string; gender?: string } = {}) {
+  return get("/users/students", { page, limit, academicYear, classId, gender });
 }
 
 function fetchStudent(studentId: string) {
@@ -150,13 +150,15 @@ export function useDeleteStudent() {
 }
 
 // Wrapper hook for simpler API
-export function useStudents(params?: { page?: number; limit?: number; academicYear?: string }) {
+export function useStudents(params?: { page?: number; limit?: number; academicYear?: string; classId?: string; gender?: string }) {
   return useQuery({
-    queryKey: ["students", params?.page || 1, params?.limit || 1000, params?.academicYear],
+    queryKey: ["students", params?.page || 1, params?.limit || 1000, params?.academicYear, params?.classId, params?.gender],
     queryFn: () => fetchStudents({
       page: params?.page || 1,
       limit: params?.limit || 1000,
-      academicYear: params?.academicYear
+      academicYear: params?.academicYear,
+      classId: params?.classId,
+      gender: params?.gender
     }),
     staleTime: 30 * 1000,
   });

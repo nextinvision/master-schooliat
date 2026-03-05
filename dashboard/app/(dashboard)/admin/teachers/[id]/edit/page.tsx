@@ -47,7 +47,7 @@ export default function EditTeacherPage() {
   const { mutateAsync: updateTeacher, isPending: isSaving } = useUpdateTeacher();
 
   const methods = useForm<EditTeacherFormData>({
-    resolver: zodResolver(editTeacherSchemaWithRefinement),
+    resolver: zodResolver(editTeacherSchemaWithRefinement) as any,
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -173,12 +173,18 @@ export default function EditTeacherPage() {
 
   return (
     <FormProvider {...methods}>
-      <div className="space-y-6 pb-8">
+      <div className="space-y-6 pb-8 overflow-y-auto max-h-[calc(100vh-120px)]">
         <FormTopBar
           title="Edit Teacher"
           onCancel={() => router.push("/admin/teachers")}
           onReset={() => reset()}
-          onSave={handleSubmit(onSubmit)}
+          onSave={handleSubmit(onSubmit, (err) => {
+            const keys = Object.keys(err);
+            if (keys.length > 0) {
+              const first = (err as any)[keys[0]];
+              toast.error(`Please fix: ${first?.message || "Validation error"}`);
+            }
+          })}
           saveLabel="Update"
           isSaving={isSaving}
         />

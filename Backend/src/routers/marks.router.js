@@ -359,5 +359,89 @@ router.get(
   },
 );
 
+// Export results as CSV
+router.get(
+  "/results/export",
+  withPermission([Permission.GET_RESULTS]),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const { examId, classId } = req.query;
+
+      if (!examId) {
+        return res.status(400).json({ message: "examId is required" });
+      }
+
+      const where = {
+        examId,
+        schoolId: currentUser.schoolId,
+        deletedAt: null,
+      };
+
+      if (classId) {
+        where.classId = classId;
+      }
+
+      const results = await prisma.result.findMany({
+        where,
+        include: {
+          student: {
+            select: {
+              firstName: true,
+              lastName: true,
+              publicUserId: true,
+              studentProfile: {
+                select: {
+                  rollNumber: true,
+                }
+              }
+            }
+          },
+          class: {
+            select: { grade: true, division: true }
+          },
+          exam: {
+            select: { name: true }
+          }
+        },
+        orderBy: [
+          { class: { grade: "asc" } },
+          { student: { firstName: "asc" } }
+        ]
+      });
+
+      const headers = [
+        "Exam", "Class", "Student ID", "Roll No", "Name",
+        "Total Marks", "Percentage", "Grade", "Status"
+      ];
+
+      const rows = results.map((r) => [
+        r.exam?.name || "N/A",
+        r.class ? `${r.class.grade}${r.class.division ? `-${r.class.division}` : ""}` : "N/A",
+        r.student?.publicUserId || "N/A",
+        r.student?.studentProfile?.rollNumber || "N/A",
+        `${r.student?.firstName || ""} ${r.student?.lastName || ""}`.trim(),
+        r.totalMarks,
+        r.percentage,
+        r.grade || "N/A",
+        r.status || "N/A"
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", `attachment; filename=results_${examId}.csv`);
+      return res.send(csvContent);
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to export results",
+      });
+    }
+  }
+);
+
 export default router;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 
 import { useDashboard } from "@/lib/hooks/use-dashboard";
 import { useAcademicYear } from "@/lib/context/academic-year-context";
@@ -84,6 +85,10 @@ export default function AdminDashboardPage() {
   const [filterType, setFilterType] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
 
+  // States for the Calendar persistence
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [displayMonth, setDisplayMonth] = useState<Date>(new Date());
+
   const { data, isLoading, isError, refetch } = useDashboard({
     academicYear: selectedYear,
     filterType: filterType || undefined,
@@ -112,11 +117,7 @@ export default function AdminDashboardPage() {
   const boysPercentage = totalStudents > 0 ? Math.round((boysCount / totalStudents) * 100) : 53;
   const girlsPercentage = totalStudents > 0 ? Math.round((girlsCount / totalStudents) * 100) : 47;
 
-  const displayMonthDate = (calendar.currentYear && calendar.currentMonth)
-    ? new Date(calendar.currentYear, calendar.currentMonth - 1, 1)
-    : new Date();
-
-  const { data: holidaysData } = useHolidays(format(displayMonthDate, "yyyy-MM"));
+  const { data: holidaysData } = useHolidays(format(displayMonth, "yyyy-MM"));
   const holidays = holidaysData?.data || [];
 
   const earningsData = financial.monthlyEarnings || [
@@ -266,11 +267,14 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
                 <div className="hidden md:block w-48 h-48 lg:w-72 lg:h-56 relative z-10 shrink-0">
-                  <div className="w-full h-full bg-gray-50 rounded-2xl flex items-center justify-center border border-gray-100 border-dashed overflow-hidden">
-                    {/* Placeholder for illustration since we don't have the real asset */}
-                    <div className="w-32 h-32 bg-gray-200 rounded-full opacity-50 relative">
-                      <div className="absolute top-4 left-4 right-4 bottom-4 bg-gray-300 rounded-full"></div>
-                    </div>
+                  <div className="w-full h-full rounded-2xl flex items-center justify-center overflow-hidden relative">
+                    <Image
+                      src="/dashboard-illustration.jpg"
+                      alt="Student and Teacher illustration"
+                      fill
+                      className="object-contain p-2"
+                      priority
+                    />
                   </div>
                 </div>
               </div>
@@ -290,8 +294,10 @@ export default function AdminDashboardPage() {
           <CalendarWidget
             events={calendar.events || []}
             holidays={holidays}
-            currentMonth={calendar.currentMonth}
-            currentYear={calendar.currentYear}
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+            displayMonth={displayMonth}
+            onMonthChange={setDisplayMonth}
           />
         </div>
       </div>
@@ -332,9 +338,13 @@ export default function AdminDashboardPage() {
           <FinancialOverviewWidget
             totalIncome={financial.totalIncome}
             totalSalary={financial.totalSalary}
+            todayCollection={financial.todayCollection}
+            pendingAmount={financial.pendingAmount}
             incomeChangePercent={financial.incomeChangePercent}
             salaryChangePercent={financial.salaryChangePercent}
             currentYear={installments.currentYear}
+            filterType={filterType}
+            filterValue={filterValue}
           />
         </div>
       </div>

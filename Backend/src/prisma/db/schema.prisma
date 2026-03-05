@@ -1164,6 +1164,10 @@ model FeeInstallements {
   paidAt          DateTime? @map("paid_at") // auto populated when record payment api is called
   receiptFileId   String?   @map("receipt_file_id")
 
+  transactionId String? @map("transaction_id")
+  remarks       String? @db.Text
+  receivedBy    String? @map("received_by") // user id of the person who received the payment
+
   createdBy String    @map("created_by")
   updatedBy String?   @map("updated_by")
   deletedBy String?   @map("deleted_by")

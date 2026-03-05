@@ -432,6 +432,9 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
       totalSalaryPrevYear,
       presentStudentsCount,
       presentStaffCount,
+      // New financial data
+      todayFeeCollection,
+      pendingFeeAmount,
     ] = await Promise.all([
       prisma.user.count({
         where: {
@@ -630,14 +633,39 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
           student: { role: { name: { in: ["STAFF", "TEACHER"] } }, deletedAt: null }
         }
       }),
+      // Dynamic Collection (Today or Filtered Date)
+      prisma.feeInstallements.aggregate({
+        where: buildFeeFilter({
+          schoolId,
+          paymentStatus: { in: [FeePaymentStatus.PAID, FeePaymentStatus.PARTIALLY_PAID] },
+          deletedAt: null,
+          updatedAt: {
+            gte: (filterType === 'date' && attendanceStart) ? attendanceStart : new Date(new Date().setHours(0, 0, 0, 0)),
+            lte: (filterType === 'date' && attendanceEnd) ? attendanceEnd : new Date(new Date().setHours(23, 59, 59, 999)),
+          },
+        }),
+        _sum: {
+          paidAmount: true,
+        },
+      }),
+      // Pending fee amount
+      prisma.feeInstallements.aggregate({
+        where: buildFeeFilter({
+          schoolId,
+          paymentStatus: FeePaymentStatus.PENDING,
+          deletedAt: null,
+        }),
+        _sum: {
+          amount: true,
+        },
+      }),
     ]);
 
     const totalIncome = Number(totalFeeIncome._sum?.paidAmount || 0);
     const totalSalary = Number(totalSalaryDistributed._sum?.totalAmount || 0);
 
-    // Calculate monthly earnings for the selected academic year (April to March)
-    const monthlyEarningsData = [];
-    for (let i = 0; i < 12; i++) {
+    // Calculate monthly earnings for the selected academic year (April to March) in parallel
+    const monthPromises = Array.from({ length: 12 }).map(async (_, i) => {
       const monthDate = new Date(academicStart.getFullYear(), academicStart.getMonth() + i, 1);
       const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
       const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -674,12 +702,14 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
         }),
       ]);
 
-      monthlyEarningsData.push({
+      return {
         month: monthDate.toLocaleString('default', { month: 'short' }),
         income: Number(income._sum?.paidAmount || 0),
         expense: Number(expense._sum?.totalAmount || 0),
-      });
-    }
+      };
+    });
+
+    const monthlyEarningsData = await Promise.all(monthPromises);
 
     // Calculate growth percentages
     const calculateGrowth = (current, previous) => {
@@ -730,6 +760,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
       financial: {
         totalIncome: totalIncome || 0,
         totalSalary: totalSalary || 0,
+        todayCollection: Number(todayFeeCollection?._sum?.paidAmount || 0),
+        pendingAmount: Number(pendingFeeAmount?._sum?.amount || 0),
         incomeChangePercent: incomeGrowth,
         salaryChangePercent: salaryGrowth,
         studentChangePercent: studentGrowth,

@@ -19,13 +19,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Eye, IndianRupee, DownloadCloud } from "lucide-react";
+import { Search, Plus, Filter, Calendar as CalendarIcon, FileDown, Loader2, DownloadCloud, Eye, IndianRupee } from "lucide-react";
 import { useInstallments, useRecordPayment } from "@/lib/hooks/use-fees";
 import { FeeDetailsModal } from "./fee-details-modal";
 import { PaymentModal } from "./payment-modal";
 import { PaymentFormData } from "@/lib/schemas/fees-schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PaymentInfoCard } from "./payment-info-card";
+import { toast } from "sonner";
 
 const STATUS_OPTIONS = ["All Status", "Paid", "Pending"];
 const YEAR_OPTIONS = ["2023-2024", "2024-2025", "2025-2026"];
@@ -88,6 +89,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [yearFilter, setYearFilter] = useState("2023-2024");
@@ -131,12 +133,42 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
         amount: data.amount,
         paymentMethod: data.paymentMethod,
         isWaiver: data.isWaiver,
+        transactionId: data.transactionId,
+        remarks: data.remarks,
+        otp: data.otp,
       });
       handleClosePaymentModal();
       refetch();
     } catch (error: any) {
       console.error("Payment failed:", error);
       throw error;
+    }
+  };
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      const token = window.sessionStorage.getItem("accessToken");
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      const resp = await fetch(`${baseUrl}/fees/export?academicYear=${yearFilter}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-platform": "web",
+        },
+      });
+      if (!resp.ok) throw new Error("Export failed");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fees_report_${yearFilter}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Fees report exported successfully!");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export fees");
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -200,7 +232,18 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Fees Management</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">Fees Management</h1>
+        <Button
+          variant="outline"
+          onClick={handleExport}
+          disabled={isExporting}
+          className="gap-2"
+        >
+          {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
+          Download Report
+        </Button>
+      </div>
 
       {/* Payment Info Card */}
       <PaymentInfoCard />

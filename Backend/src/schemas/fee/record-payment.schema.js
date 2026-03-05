@@ -9,6 +9,9 @@ const recordPaymentSchema = z
         amount: z.number().int().min(1, "Payment amount must be at least 1").optional(),
         paymentMethod: z.nativeEnum(PaymentMethod).optional(),
         isWaiver: z.boolean().optional(),
+        transactionId: z.string().optional(),
+        remarks: z.string().optional(),
+        otp: z.string().length(6, "OTP must be 6 digits"),
       })
       .refine(
         (data) => {

@@ -129,7 +129,7 @@ export default function StudentsPage() {
 
   // Student form
   const studentForm = useForm<StudentFormData>({
-    resolver: zodResolver(addStudentSchema),
+    resolver: zodResolver(addStudentSchema) as any,
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -686,6 +686,15 @@ export default function StudentsPage() {
                         />
                       </div>
 
+                      <div className="space-y-2">
+                        <Label htmlFor="rollNumber">Roll Number</Label>
+                        <Input
+                          id="rollNumber"
+                          {...studentForm.register("rollNumber")}
+                          placeholder="Roll Number"
+                        />
+                      </div>
+
                       <div className="space-y-2 col-span-2">
                         <Label htmlFor="bloodGroup">Blood Group</Label>
                         <Controller
@@ -712,13 +721,10 @@ export default function StudentsPage() {
                       </div>
                     </div>
 
-                    <div className="mt-4">
-                      <PhotoUpload
-                        name="registrationPhotoId"
-                        label="Student Photo *"
-                        rules={{ required: "Student photo is required" }}
-                      />
-                    </div>
+                    <PhotoUpload
+                      name="registrationPhotoId"
+                      label="Student Photo"
+                    />
                   </FormCard>
 
                   {/* Contact Information */}
@@ -938,7 +944,13 @@ export default function StudentsPage() {
             </Button>
             <Button
               type="button"
-              onClick={studentForm.handleSubmit(handleCreateStudent)}
+              onClick={studentForm.handleSubmit(handleCreateStudent, (err) => {
+                const keys = Object.keys(err);
+                if (keys.length > 0) {
+                  const first = (err as any)[keys[0]];
+                  toast.error(`Please fix: ${first?.message || "Validation error"}`);
+                }
+              })}
               disabled={createStudent.isPending}
             >
               {createStudent.isPending ? "Creating..." : "Create Student"}

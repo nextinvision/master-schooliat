@@ -195,8 +195,15 @@ router.get(
 
     // Role-based access
     let targetUserId = currentUser.id;
-    if (userId && (currentUser.role.name === "SCHOOL_ADMIN" || currentUser.role.name === "SUPER_ADMIN")) {
-      targetUserId = userId;
+    let targetSchoolId = null;
+
+    if (currentUser.role.name === "SCHOOL_ADMIN" || currentUser.role.name === "SUPER_ADMIN") {
+      if (userId === "all") {
+        targetUserId = null;
+        targetSchoolId = currentUser.schoolId;
+      } else if (userId) {
+        targetUserId = userId;
+      }
     } else if (userId && currentUser.role.name === "PARENT") {
       // Verify parent-child relationship
       const link = await prisma.parentChildLink.findFirst({
@@ -224,11 +231,18 @@ router.get(
         endDate: endDate ? new Date(endDate) : null,
         page: parseInt(page, 10) || 1,
         limit: parseInt(limit, 10) || 20,
+        schoolId: targetSchoolId,
       });
+
+      // Map requesterName for convenience if user relation exists
+      const mappedLeaves = result.leaves.map(leave => ({
+        ...leave,
+        requesterName: leave.user ? `${leave.user.firstName} ${leave.user.lastName || ""}`.trim() : leave.userId,
+      }));
 
       res.json({
         message: "Leave history retrieved successfully",
-        data: result.leaves,
+        data: mappedLeaves,
         pagination: result.pagination,
       });
     } catch (error) {
@@ -337,6 +351,105 @@ router.get(
       message: "Leave types retrieved successfully",
       data: leaveTypes,
     });
+  },
+);
+
+// Update leave type (admin only)
+router.patch(
+  "/types/:id",
+  withPermission([Permission.APPROVE_LEAVE]),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { id } = req.params;
+    const { name, maxLeaves } = req.body.request || {};
+
+    try {
+      // Verify leave type belongs to school
+      const leaveType = await prisma.leaveType.findUnique({
+        where: { id },
+      });
+
+      if (!leaveType || leaveType.schoolId !== currentUser.schoolId || leaveType.deletedAt) {
+        return res.status(404).json({
+          errorCode: "LEAVE_TYPE_NOT_FOUND",
+          message: "Leave type not found",
+        });
+      }
+
+      const updated = await prisma.leaveType.update({
+        where: { id },
+        data: {
+          name: name !== undefined ? name : leaveType.name,
+          maxLeaves: maxLeaves !== undefined ? (maxLeaves === "" || maxLeaves === null ? null : parseInt(maxLeaves, 10)) : leaveType.maxLeaves,
+          updatedBy: currentUser.id,
+        },
+      });
+
+      res.json({
+        message: "Leave type updated successfully",
+        data: updated,
+      });
+    } catch (error) {
+      logger.error({ error, params: req.params, body: req.body }, "Failed to update leave type");
+      res.status(400).json({
+        errorCode: "LEAVE_TYPE_UPDATE_FAILED",
+        message: error.message || "Failed to update leave type",
+      });
+    }
+  },
+);
+
+// Delete leave type (admin only)
+router.delete(
+  "/types/:id",
+  withPermission([Permission.APPROVE_LEAVE]),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { id } = req.params;
+
+    try {
+      // Verify leave type belongs to school
+      const leaveType = await prisma.leaveType.findUnique({
+        where: { id },
+      });
+
+      if (!leaveType || leaveType.schoolId !== currentUser.schoolId || leaveType.deletedAt) {
+        return res.status(404).json({
+          errorCode: "LEAVE_TYPE_NOT_FOUND",
+          message: "Leave type not found",
+        });
+      }
+
+      // Check if leave type is in use
+      const usageCount = await prisma.leaveRequest.count({
+        where: { leaveTypeId: id, deletedAt: null },
+      });
+
+      if (usageCount > 0) {
+        return res.status(400).json({
+          errorCode: "LEAVE_TYPE_IN_USE",
+          message: "Cannot delete leave type because it is in use by existing leave requests",
+        });
+      }
+
+      await prisma.leaveType.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      res.json({
+        message: "Leave type deleted successfully",
+      });
+    } catch (error) {
+      logger.error({ error, params: req.params }, "Failed to delete leave type");
+      res.status(400).json({
+        errorCode: "LEAVE_TYPE_DELETION_FAILED",
+        message: error.message || "Failed to delete leave type",
+      });
+    }
   },
 );
 

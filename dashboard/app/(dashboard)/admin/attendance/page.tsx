@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import { Calendar, Download, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { useClassesContext } from "@/lib/context/classes-context";
-import { useStudentsPage } from "@/lib/hooks/use-students";
+import { useStudents } from "@/lib/hooks/use-students";
 
 export default function AttendancePage() {
   const router = useRouter();
@@ -30,13 +30,13 @@ export default function AttendancePage() {
   const [viewMode, setViewMode] = useState<"mark" | "view" | "report">("mark");
 
   // Fetch students for the selected class
-  const { data: studentsData, isLoading: studentsLoading } = useStudentsPage(1, 1000);
-  const students = studentsData?.data || [];
+  const { data: studentsData, isLoading: studentsLoading } = useStudents({
+    classId: selectedClassId,
+    limit: 1000
+  });
 
-  // Filter students by class
-  const filteredStudents = selectedClassId
-    ? students.filter((s: any) => s.studentProfile?.classId === selectedClassId)
-    : [];
+  // Since we fetch by classId, studentsData already contains the filtered list
+  const filteredStudents = selectedClassId ? (studentsData?.data || []) : [];
 
   // Fetch attendance for selected date and class
   const { data: attendanceData, isLoading: attendanceLoading, refetch } = useAttendance({

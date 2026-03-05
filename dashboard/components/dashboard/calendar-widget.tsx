@@ -26,19 +26,21 @@ interface CalendarHoliday {
 interface CalendarWidgetProps {
   events?: CalendarEvent[];
   holidays?: CalendarHoliday[];
-  currentMonth?: number;
-  currentYear?: number;
+  selectedDate: Date;
+  onDateSelect: (date: Date) => void;
+  displayMonth: Date;
+  onMonthChange: (date: Date) => void;
 }
 
-export function CalendarWidget({ events = [], holidays = [], currentMonth, currentYear }: CalendarWidgetProps) {
+export function CalendarWidget({
+  events = [],
+  holidays = [],
+  selectedDate,
+  onDateSelect,
+  displayMonth,
+  onMonthChange
+}: CalendarWidgetProps) {
   const router = useRouter();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [displayMonth, setDisplayMonth] = useState(() => {
-    if (currentMonth && currentYear) {
-      return new Date(currentYear, currentMonth - 1, 1);
-    }
-    return new Date();
-  });
 
   const monthStart = startOfMonth(displayMonth);
   const monthEnd = endOfMonth(displayMonth);
@@ -76,15 +78,19 @@ export function CalendarWidget({ events = [], holidays = [], currentMonth, curre
   };
 
   const handlePreviousMonth = () => {
-    setDisplayMonth(subMonths(displayMonth, 1));
+    onMonthChange(subMonths(displayMonth, 1));
   };
 
   const handleNextMonth = () => {
-    setDisplayMonth(addMonths(displayMonth, 1));
+    onMonthChange(addMonths(displayMonth, 1));
   };
 
   const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
+    onDateSelect(date);
+    // Keep display in sync with selection
+    if (!isSameMonth(date, displayMonth)) {
+      onMonthChange(startOfMonth(date));
+    }
   };
 
   const handleManageCalendar = () => {
@@ -153,17 +159,17 @@ export function CalendarWidget({ events = [], holidays = [], currentMonth, curre
                 className={cn(
                   "aspect-square rounded-md text-sm transition-all duration-200 relative flex flex-col items-center justify-center",
                   "hover:bg-gray-100 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary",
-                  isToday && "bg-schooliat-tint/30 font-semibold ring-2 ring-primary",
-                  isSelected && !isToday && "bg-primary text-white scale-105 z-10 shadow-sm",
-                  isHoliday && !isToday && !isSelected && "bg-red-50 font-bold",
+                  isToday && !isSelected && "bg-schooliat-tint/30 font-semibold ring-2 ring-primary/50",
+                  isSelected && "bg-primary text-white scale-105 z-10 shadow-md ring-2 ring-primary ring-offset-1",
+                  isHoliday && !isSelected && "bg-red-50 font-bold",
                   isWeekend && !isToday && !isSelected && !isHoliday && "bg-red-50/30",
                   !isToday && !isSelected && !isHoliday && !isWeekend && "hover:bg-gray-50"
                 )}
               >
                 <span className={cn(
-                  isToday && "text-primary",
-                  isSelected && !isToday && "text-white",
-                  isHoliday && !isToday && !isSelected && "text-red-600",
+                  isToday && !isSelected && "text-primary",
+                  isSelected && "text-white font-bold",
+                  isHoliday && !isSelected && "text-red-600",
                   isWeekend && !isToday && !isSelected && !isHoliday && "text-red-500",
                   !isToday && !isSelected && !isWeekend && !isHoliday && "text-gray-700"
                 )}>
@@ -180,6 +186,30 @@ export function CalendarWidget({ events = [], holidays = [], currentMonth, curre
               </button>
             );
           })}
+        </div>
+
+        {/* Selected date info */}
+        <div className="mt-3 p-2.5 bg-primary/5 rounded-xl border border-primary/10">
+          <p className="text-sm font-medium text-primary">
+            {format(selectedDate, "EEEE, MMMM d, yyyy")}
+          </p>
+          {(() => {
+            const selEvents = getEventsForDate(selectedDate);
+            const selHolidays = getHolidaysForDate(selectedDate);
+            if (selEvents.length === 0 && selHolidays.length === 0) {
+              return <p className="text-xs text-gray-500 mt-0.5">No events or holidays</p>;
+            }
+            return (
+              <div className="mt-1 space-y-0.5">
+                {selHolidays.map((h) => (
+                  <p key={h.id} className="text-xs text-red-600">🔴 {h.title}</p>
+                ))}
+                {selEvents.map((e) => (
+                  <p key={e.id} className="text-xs text-primary">📅 {e.title}</p>
+                ))}
+              </div>
+            );
+          })()}
         </div>
 
         {/* Manage Calendar button */}

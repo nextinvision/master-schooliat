@@ -22,11 +22,12 @@ import { format } from "date-fns";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { AdminLeaveTracker } from "@/components/leave/admin-leave-tracker";
+import { AdminLeaveTypesSetup } from "@/components/leave/admin-leave-types-setup";
 
 // ... Skipping existing imports exactly, replacing Active Tab
 export default function LeavePage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"request" | "history" | "balance" | "tracker">("request");
+  const [activeTab, setActiveTab] = useState<"request" | "history" | "balance" | "tracker" | "settings">("request");
   const [page, setPage] = useState(1);
 
   const { data: balanceData, isLoading: balanceLoading } = useLeaveBalance();
@@ -82,6 +83,7 @@ export default function LeavePage() {
           <TabsTrigger value="history">Leave History</TabsTrigger>
           <TabsTrigger value="balance">Leave Balance</TabsTrigger>
           <TabsTrigger value="tracker">Admin Tracker</TabsTrigger>
+          <TabsTrigger value="settings">Leave Types Setup</TabsTrigger>
         </TabsList>
 
         {/* Request Leave Tab */}
@@ -235,6 +237,11 @@ export default function LeavePage() {
         {/* Admin Tracker Tab */}
         <TabsContent value="tracker" className="space-y-6">
           <AdminLeaveTracker />
+        </TabsContent>
+
+        {/* Leave Types Setup Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          <AdminLeaveTypesSetup />
         </TabsContent>
       </Tabs>
     </div>

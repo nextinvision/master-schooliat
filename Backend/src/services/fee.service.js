@@ -1,5 +1,7 @@
 import prisma from "../prisma/client.js";
-import { FeePaymentStatus } from "../prisma/generated/index.js";
+import { FeePaymentStatus, RoleName } from "../prisma/generated/index.js";
+import logger from "../config/logger.js";
+import notificationService from "./notification.service.js";
 
 /**
  * Creates Fee and FeeInstallements records for a student based on school settings
@@ -95,7 +97,7 @@ const createFeeInstallementsForStudent = async (
  * @param {string} recordedBy - User ID recording payment
  * @returns {Promise<Object>} - Updated installment and fee
  */
-const recordPayment = async (installmentId, amount, paymentMethod, receiptFileId, recordedBy) => {
+const recordPayment = async (installmentId, amount, paymentMethod, receiptFileId, recordedBy, transactionId, remarks) => {
   const installment = await prisma.feeInstallements.findUnique({
     where: { id: installmentId },
     include: {
@@ -125,8 +127,11 @@ const recordPayment = async (installmentId, amount, paymentMethod, receiptFileId
         paidAmount: newPaidAmount,
         remainingAmount: newRemainingAmount,
         paymentStatus: newPaymentStatus,
-        paidAt: newRemainingAmount <= 0 ? new Date() : installment.paidAt,
+        paidAt: newRemainingAmount <= 0 ? new Date() : (installment.paidAt || new Date()),
         receiptFileId: receiptFileId || installment.receiptFileId,
+        transactionId: transactionId || installment.transactionId,
+        remarks: remarks || installment.remarks,
+        receivedBy: recordedBy,
         updatedBy: recordedBy,
       },
     });
@@ -147,6 +152,41 @@ const recordPayment = async (installmentId, amount, paymentMethod, receiptFileId
 
     return { installment: updatedInstallment, fee: updatedFee };
   });
+
+  // Notify Principal
+  try {
+    const schoolAdmins = await prisma.user.findMany({
+      where: {
+        schoolId: installment.schoolId,
+        role: {
+          name: RoleName.SCHOOL_ADMIN,
+        },
+        deletedAt: null,
+      },
+    });
+
+    if (schoolAdmins.length > 0) {
+      const student = await prisma.user.findUnique({
+        where: { id: installment.studentId },
+        select: { firstName: true, lastName: true },
+      });
+
+      const studentName = `${student.firstName} ${student.lastName || ""}`.trim();
+
+      for (const admin of schoolAdmins) {
+        await notificationService.createNotification({
+          userId: admin.id,
+          title: "Fee Payment Recorded",
+          content: `A payment of ₹${amount} has been recorded for student ${studentName} (Installment #${installment.installementNumber}).`,
+          type: "FEE",
+          schoolId: installment.schoolId,
+          createdBy: recordedBy,
+        });
+      }
+    }
+  } catch (error) {
+    logger.error({ error, installmentId }, "Failed to send principal notification for fee payment");
+  }
 
   return result;
 };

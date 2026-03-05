@@ -33,6 +33,8 @@ const ipWhitelistMiddleware = (req, res, next) => {
     req.connection?.remoteAddress ||
     "unknown";
 
+  console.log(`[DEBUG] IP Whitelist checking clientIP: ${clientIP} against: ${JSON.stringify(allowedIPs)}`);
+
   // Check if IP is whitelisted
   const isAllowed = allowedIPs.some((allowedIP) => {
     // Support CIDR notation (e.g., "192.168.1.0/24")
@@ -82,4 +84,3 @@ function ipToNumber(ip) {
 }
 
 export default ipWhitelistMiddleware;
-

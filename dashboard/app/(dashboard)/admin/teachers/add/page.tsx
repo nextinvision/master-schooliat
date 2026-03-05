@@ -23,7 +23,7 @@ export default function AddTeacherPage() {
   const { mutateAsync: createTeacher, isPending: isSaving } = useCreateTeacher();
 
   const methods = useForm<AddTeacherFormData>({
-    resolver: zodResolver(addTeacherSchemaWithRefinement),
+    resolver: zodResolver(addTeacherSchemaWithRefinement) as any,
     defaultValues: {
       firstName: "",
       lastName: "",
@@ -46,6 +46,7 @@ export default function AddTeacherPage() {
       registrationPhotoId: null,
       aadhaarId: "",
       panCardNumber: "",
+      subjects: "",
     },
     mode: "onBlur",
   });
@@ -75,13 +76,44 @@ export default function AddTeacherPage() {
 
   return (
     <FormProvider {...methods}>
-      <div className="space-y-6 pb-8">
+      <div className="space-y-6 pb-8 overflow-y-auto max-h-[calc(100vh-120px)]">
         <FormTopBar
           title="Add New Teacher"
           onCancel={() => router.push("/admin/teachers")}
           onReset={() => reset()}
-          onSave={handleSubmit(onSubmit)}
+          onSave={handleSubmit(onSubmit, (err) => {
+            const keys = Object.keys(err);
+            if (keys.length > 0) {
+              const first = (err as any)[keys[0]];
+              toast.error(`Please fix: ${first?.message || "Validation error"}`);
+            }
+          })}
           isSaving={isSaving}
+          extraActions={
+            <button
+              type="button"
+              onClick={() => {
+                const headers = [
+                  "FirstName", "LastName", "Email", "Contact", "Gender", "DateOfBirth",
+                  "Designation", "HighestQualification", "University", "YearOfPassing",
+                  "Grade", "AadhaarId", "PanCardNumber"
+                ];
+                const csvContent = headers.join(",") + "\n";
+                const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.setAttribute("href", url);
+                link.setAttribute("download", "teachers_template.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                toast.success("Template downloaded!");
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
+            >
+              Download Template
+            </button>
+          }
         />
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -166,6 +198,21 @@ export default function AddTeacherPage() {
                   {errors.designation && (
                     <p className="text-sm text-red-500">
                       {errors.designation.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="subjects">Subjects</Label>
+                  <Input
+                    id="subjects"
+                    {...methods.register("subjects")}
+                    placeholder="e.g. Maths, Science"
+                    className={errors.subjects ? "border-red-500" : ""}
+                  />
+                  {errors.subjects && (
+                    <p className="text-sm text-red-500">
+                      {errors.subjects.message}
                     </p>
                   )}
                 </div>

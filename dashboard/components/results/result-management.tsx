@@ -36,8 +36,9 @@ export function ResultManagement() {
   const { classFilter, divisionFilter, classes } = useClassFilters();
   const [classFilterValue, setClassFilterValue] = useState(classFilter.defaultValue);
   const [divisionFilterValue, setDivisionFilterValue] = useState(divisionFilter.defaultValue);
-  const [examFilter, setExamFilter] = useState<string>("");
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [isExportingAll, setIsExportingAll] = useState(false);
+  const [examFilter, setExamFilter] = useState<string>("");
 
   // Fetch exams from API
   const { data: examsData, isLoading: examsLoading } = useExams({ pageSize: 100 });
@@ -234,6 +235,38 @@ export function ResultManagement() {
     }
   }, [examFilter, exams]);
 
+  const handleExportAll = async () => {
+    if (!examFilter) {
+      toast.error("Please select an exam first");
+      return;
+    }
+    setIsExportingAll(true);
+    try {
+      const token = window.sessionStorage.getItem("accessToken");
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      const resp = await fetch(`${baseUrl}/marks/results/export?examId=${examFilter}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-platform": "web",
+        },
+      });
+      if (!resp.ok) throw new Error("Export failed");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const examName = exams.find((e: any) => e.id === examFilter)?.name || "results";
+      a.download = `exam_results_${examName}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("All exam results exported successfully!");
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to export results");
+    } finally {
+      setIsExportingAll(false);
+    }
+  };
+
   const isProcessing = calculateResults.isPending || publishResults.isPending;
 
   return (
@@ -241,6 +274,15 @@ export function ResultManagement() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-semibold">Results Management</h1>
         <div className="flex gap-2">
+          <Button
+            onClick={handleExportAll}
+            variant="outline"
+            className="gap-2"
+            disabled={isProcessing || isExportingAll}
+          >
+            {isExportingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            Download All Results
+          </Button>
           <Button
             onClick={handlePublishAll}
             variant="outline"

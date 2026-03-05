@@ -229,8 +229,8 @@ const getLeaveBalance = async (userId, year = new Date().getFullYear()) => {
 
 /**
  * Get leave history
- * @param {string} userId - User ID
- * @param {Object} filters - Filter options
+ * @param {string|null} userId - User ID (null for school-wide)
+ * @param {Object} filters - Filter options (includes schoolId if school-wide)
  * @returns {Promise<Object>} - Leave history with pagination
  */
 const getLeaveHistory = async (userId, filters = {}) => {
@@ -238,15 +238,23 @@ const getLeaveHistory = async (userId, filters = {}) => {
     status = null,
     startDate = null,
     endDate = null,
+    schoolId = null,
     ...paginationOptions
   } = filters;
 
   const { page, limit, skip } = parsePagination(paginationOptions);
 
   const where = {
-    userId,
     deletedAt: null,
   };
+
+  if (userId) {
+    where.userId = userId;
+  } else if (schoolId) {
+    where.schoolId = schoolId;
+  } else {
+    throw new Error("Either userId or schoolId must be provided");
+  }
 
   if (status) {
     where.status = status;
@@ -280,6 +288,13 @@ const getLeaveHistory = async (userId, filters = {}) => {
           },
         },
         approver: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+          },
+        },
+        user: {
           select: {
             id: true,
             firstName: true,

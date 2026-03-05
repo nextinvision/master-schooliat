@@ -204,9 +204,48 @@ export default function AttendanceReportsPage() {
     }));
   }, [attendanceRecords]);
 
-  const handleExport = () => {
-    // TODO: Implement PDF/Excel export
-    toast.info("Export functionality coming soon");
+  const handleExport = async () => {
+    try {
+      const token = window.sessionStorage.getItem("accessToken");
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+
+      const queryParams = new URLSearchParams({
+        format: "csv",
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+      });
+
+      if (selectedClassId && selectedClassId !== "all") {
+        queryParams.append("classId", selectedClassId);
+      }
+
+      if (selectedStudentId && selectedStudentId !== "all") {
+        queryParams.append("studentId", selectedStudentId);
+      }
+
+      const resp = await fetch(`${baseUrl}/attendance/report?${queryParams.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-platform": "web",
+        },
+      });
+
+      if (!resp.ok) throw new Error("Export failed");
+
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `attendance_report_${dateRange.startDate}_to_${dateRange.endDate}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success("Report exported successfully!");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to export report");
+    }
   };
 
   const getStatusBadge = (status: string) => {

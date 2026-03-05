@@ -849,6 +849,16 @@ router.get(
         deletedBy: null,
       };
 
+      const { classId, gender } = req.query;
+
+      if (classId && typeof classId === "string") {
+        where.studentProfile = { classId };
+      }
+
+      if (gender && typeof gender === "string" && ["MALE", "FEMALE"].includes(gender.toUpperCase())) {
+        where.gender = gender.toUpperCase();
+      }
+
       // Apply academic year filter if provided
       if (academicYear && typeof academicYear === "string") {
         const parts = academicYear.split("-");

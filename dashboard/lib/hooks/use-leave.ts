@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, post, patch } from "@/lib/api/client";
+import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
 // Fetch leave balance
@@ -88,34 +88,15 @@ export function useLeaveHistory(params: {
 }
 
 /**
- * Fetches all pending leave requests for the school by aggregating leave/history per teacher.
- * Backend does not expose a single "pending for school" endpoint; this uses existing APIs only.
- * Enriches each leave with requesterName from the teachers list (leave history does not include user).
+ * Fetches all pending leave requests for the school by using the updated global endpoint.
  */
 async function fetchPendingLeaveRequestsForApproval(): Promise<any[]> {
-  const teachersRes = await get("/users/teachers", { pageNumber: 1, pageSize: 100 });
-  const teachers = teachersRes?.data ?? [];
-  const userIds = teachers.map((t: { id: string }) => t.id).filter(Boolean);
-  if (userIds.length === 0) return [];
-
-  const results = await Promise.all(
-    userIds.map((userId: string) =>
-      get("/leave/history", { userId, status: "PENDING", limit: 50 })
-    )
-  );
-  const allLeaves: any[] = [];
-  results.forEach((res) => {
-    const leaves = res?.data?.leaves ?? [];
-    allLeaves.push(...leaves);
-  });
+  const res = await get("/leave/history", { userId: "all", status: "PENDING", limit: 200 });
+  const allLeaves = res?.data ?? [];
   allLeaves.sort(
-    (a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
+    (a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
   );
-  const userMap = new Map(teachers.map((t: any) => [t.id, `${t.firstName || ""} ${t.lastName || ""}`.trim() || t.email]));
-  return allLeaves.map((leave) => ({
-    ...leave,
-    requesterName: userMap.get(leave.userId) || leave.userId,
-  }));
+  return allLeaves;
 }
 
 export function usePendingLeaveRequestsForApproval() {
@@ -131,6 +112,38 @@ export function useLeaveTypes() {
     queryKey: ["leave-types"],
     queryFn: () => fetchLeaveTypes(),
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateLeaveType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { name: string; maxLeaves?: number | null }) =>
+      post("/leave/types", { request: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-types"] });
+    },
+  });
+}
+
+export function useUpdateLeaveType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { name?: string; maxLeaves?: number | null | "" } }) =>
+      patch(`/leave/types/${id}`, { request: data }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-types"] });
+    },
+  });
+}
+
+export function useDeleteLeaveType() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/leave/types/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leave-types"] });
+    },
   });
 }
 
