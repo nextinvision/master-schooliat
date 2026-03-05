@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/hooks/use-auth";
 import { usePathname } from "next/navigation";
 import { ClassesProvider } from "@/lib/context/classes-context";
 import { SidebarProvider } from "@/lib/context/sidebar-context";
+import { AcademicYearProvider } from "@/lib/context/academic-year-context";
 import { LayoutContent } from "./layout-content";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -39,11 +40,13 @@ export default function DashboardLayout({
   }
 
   return (
-    <ClassesProvider>
-      <SidebarProvider>
-        <LayoutContent>{children}</LayoutContent>
-      </SidebarProvider>
-    </ClassesProvider>
+    <AcademicYearProvider>
+      <ClassesProvider>
+        <SidebarProvider>
+          <LayoutContent>{children}</LayoutContent>
+        </SidebarProvider>
+      </ClassesProvider>
+    </AcademicYearProvider>
   );
 }
 
