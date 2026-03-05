@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useDashboard } from "@/lib/hooks/use-dashboard";
 import { useAcademicYear } from "@/lib/context/academic-year-context";
 import { useHolidays } from "@/lib/hooks/use-calendar";
@@ -7,7 +9,15 @@ import { format } from "date-fns";
 import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCw, MoreHorizontal, User, Users } from "lucide-react";
+import { AlertCircle, RefreshCw, MoreHorizontal, User, Users, CalendarDays, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 import { NoticeBoardWidget } from "@/components/dashboard/notice-board-widget";
@@ -69,7 +79,16 @@ const RadialProgress = ({ percentage, color, label, subLabel }: { percentage: nu
 
 export default function AdminDashboardPage() {
   const { selectedYear } = useAcademicYear();
-  const { data, isLoading, isError, refetch } = useDashboard({ academicYear: selectedYear });
+
+  // Dashboard filter state
+  const [filterType, setFilterType] = useState<string>("");
+  const [filterValue, setFilterValue] = useState<string>("");
+
+  const { data, isLoading, isError, refetch } = useDashboard({
+    academicYear: selectedYear,
+    filterType: filterType || undefined,
+    filterValue: filterValue || undefined,
+  });
   const stats = data?.data || {};
 
   const school = stats.school || {};
@@ -138,6 +157,73 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-4 md:space-y-6 max-w-[1600px] mx-auto pb-8 animate-fade-in bg-gray-50 min-h-screen p-4 rounded-3xl">
+      {/* Filter Bar */}
+      <div className="flex flex-wrap items-center gap-3 bg-white rounded-2xl p-4 shadow-sm border-none">
+        <div className="flex items-center gap-2 text-gray-500 mr-2">
+          <Filter className="h-4 w-4" />
+          <span className="text-sm font-medium">Filter by:</span>
+        </div>
+
+        <Select
+          value={filterType}
+          onValueChange={(val) => {
+            setFilterType(val === "none" ? "" : val);
+            setFilterValue("");
+          }}
+        >
+          <SelectTrigger className="w-[140px] h-9 text-sm">
+            <SelectValue placeholder="Select Filter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="none">None (Today)</SelectItem>
+            <SelectItem value="term">Term</SelectItem>
+            <SelectItem value="month">Month</SelectItem>
+            <SelectItem value="date">Date</SelectItem>
+          </SelectContent>
+        </Select>
+
+        {filterType === "term" && (
+          <Select value={filterValue} onValueChange={setFilterValue}>
+            <SelectTrigger className="w-[140px] h-9 text-sm">
+              <SelectValue placeholder="Select Term" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="1">Term 1 (Apr–Sep)</SelectItem>
+              <SelectItem value="2">Term 2 (Oct–Mar)</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+
+        {filterType === "month" && (
+          <Input
+            type="month"
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            className="w-[180px] h-9 text-sm"
+          />
+        )}
+
+        {filterType === "date" && (
+          <Input
+            type="date"
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            className="w-[180px] h-9 text-sm"
+          />
+        )}
+
+        {filterType && filterValue && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setFilterType(""); setFilterValue(""); }}
+            className="text-xs text-gray-500 hover:text-gray-700"
+          >
+            Clear
+          </Button>
+        )}
+      </div>
+
       {/* Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Welcome */}

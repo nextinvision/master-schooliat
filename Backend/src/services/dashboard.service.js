@@ -11,7 +11,7 @@ import dateUtil from "../utils/date.util.js";
 import cacheService from "./cache.service.js";
 import logger from "../config/logger.js";
 
-const getDashboard = async (currentUser, academicYear) => {
+const getDashboard = async (currentUser, academicYear, filterOptions = {}) => {
   try {
     const roleName = currentUser?.role?.name;
 
@@ -19,7 +19,7 @@ const getDashboard = async (currentUser, academicYear) => {
       return await getSuperAdminDashboard(academicYear);
     }
     if (roleName === RoleName.SCHOOL_ADMIN) {
-      return await getSchoolAdminDashboard(currentUser, academicYear);
+      return await getSchoolAdminDashboard(currentUser, academicYear, filterOptions);
     }
     if (roleName === RoleName.TEACHER) {
       return await getTeacherDashboard(currentUser, academicYear);
@@ -183,20 +183,21 @@ const getSuperAdminDashboardData = async (academicYear) => {
   };
 };
 
-const getSchoolAdminDashboard = async (currentUser, academicYear) => {
+const getSchoolAdminDashboard = async (currentUser, academicYear, filterOptions = {}) => {
   const schoolId = currentUser?.schoolId;
 
   if (!schoolId) {
     return {};
   }
 
-  // Cache dashboard per school and academic year for 5 minutes
-  const cacheKey = `dashboard:school_admin:${schoolId}:${academicYear || 'all'}`;
+  // Cache dashboard per school, academic year, and filter for 5 minutes
+  const filterKey = filterOptions.filterType ? `${filterOptions.filterType}:${filterOptions.filterValue}` : 'none';
+  const cacheKey = `dashboard:school_admin:${schoolId}:${academicYear || 'all'}:${filterKey}`;
   try {
     return await cacheService.getOrSet(
       cacheKey,
       async () => {
-        return await getSchoolAdminDashboardData(currentUser, schoolId, academicYear);
+        return await getSchoolAdminDashboardData(currentUser, schoolId, academicYear, filterOptions);
       },
       5 * 60 * 1000, // 5 minutes TTL
     );
@@ -269,7 +270,7 @@ const getSchoolAdminDashboardFallback = async (schoolId, academicYear) => {
   };
 };
 
-const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) => {
+const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, filterOptions = {}) => {
   // Get role IDs with null checks
   const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
   const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
@@ -329,11 +330,42 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
       ]
     };
 
-    // Calculate today's date for attendance queries
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    // Calculate attendance date range based on filterOptions
+    let attendanceStart, attendanceEnd;
+    const { filterType, filterValue } = filterOptions;
+    if (filterType === 'date' && filterValue) {
+      // Single day: filterValue = "2026-03-05"
+      attendanceStart = new Date(filterValue);
+      attendanceStart.setHours(0, 0, 0, 0);
+      attendanceEnd = new Date(attendanceStart);
+      attendanceEnd.setDate(attendanceEnd.getDate() + 1);
+    } else if (filterType === 'month' && filterValue) {
+      // Month: filterValue = "2026-03" or "3" (month number)
+      if (filterValue.includes('-')) {
+        const [y, m] = filterValue.split('-').map(Number);
+        attendanceStart = new Date(y, m - 1, 1);
+        attendanceEnd = new Date(y, m, 1);
+      } else {
+        const m = parseInt(filterValue, 10);
+        attendanceStart = new Date(currentYear, m - 1, 1);
+        attendanceEnd = new Date(currentYear, m, 1);
+      }
+    } else if (filterType === 'term' && filterValue) {
+      // Term: "Term 1" = Apr-Sep, "Term 2" = Oct-Mar
+      if (filterValue === 'Term 1' || filterValue === '1') {
+        attendanceStart = new Date(academicStart);
+        attendanceEnd = new Date(academicStart.getFullYear(), 8, 30, 23, 59, 59, 999); // Sep 30
+      } else {
+        attendanceStart = new Date(academicStart.getFullYear(), 9, 1); // Oct 1
+        attendanceEnd = new Date(academicEnd);
+      }
+    } else {
+      // Default: today
+      attendanceStart = new Date();
+      attendanceStart.setHours(0, 0, 0, 0);
+      attendanceEnd = new Date(attendanceStart);
+      attendanceEnd.setDate(attendanceEnd.getDate() + 1);
+    }
 
     // Get school settings to fetch current installment number (resilient to missing columns e.g. platform_config)
     let schoolSettings = null;
@@ -585,7 +617,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
       prisma.attendance.count({
         where: {
           schoolId,
-          date: { gte: today, lt: tomorrow },
+          date: { gte: attendanceStart, lt: attendanceEnd },
           status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY] },
           student: { role: { name: "STUDENT" }, deletedAt: null }
         }
@@ -593,7 +625,7 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear) 
       prisma.attendance.count({
         where: {
           schoolId,
-          date: { gte: today, lt: tomorrow },
+          date: { gte: attendanceStart, lt: attendanceEnd },
           status: { in: [AttendanceStatus.PRESENT, AttendanceStatus.HALF_DAY] },
           student: { role: { name: { in: ["STAFF", "TEACHER"] } }, deletedAt: null }
         }

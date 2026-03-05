@@ -50,7 +50,7 @@ function markAttendanceApi(data: {
   studentId: string;
   classId: string;
   date: string;
-  status: "PRESENT" | "ABSENT" | "LATE";
+  status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
   periodId?: string;
   lateArrivalTime?: string;
   absenceReason?: string;
@@ -64,7 +64,7 @@ function markBulkAttendanceApi(data: {
     studentId: string;
     classId: string;
     date: string;
-    status: "PRESENT" | "ABSENT" | "LATE";
+    status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
     periodId?: string;
     lateArrivalTime?: string;
     absenceReason?: string;
@@ -146,7 +146,7 @@ export function useMarkAttendance() {
       studentId: string;
       classId: string;
       date: string;
-      status: "PRESENT" | "ABSENT" | "LATE";
+      status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
       periodId?: string;
       lateArrivalTime?: string;
       absenceReason?: string;
@@ -167,7 +167,7 @@ export function useMarkBulkAttendance() {
         studentId: string;
         classId: string;
         date: string;
-        status: "PRESENT" | "ABSENT" | "LATE";
+        status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
         periodId?: string;
         lateArrivalTime?: string;
         absenceReason?: string;

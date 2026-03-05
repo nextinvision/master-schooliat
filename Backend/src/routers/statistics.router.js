@@ -316,7 +316,7 @@ router.get(
   async (req, res) => {
     try {
       const currentUser = req.context.user;
-      const { academicYear } = req.query;
+      const { academicYear, filterType, filterValue } = req.query;
 
       if (!currentUser) {
         return res.status(401).json({
@@ -324,7 +324,7 @@ router.get(
         });
       }
 
-      const data = await dashboardService.getDashboard(currentUser, academicYear);
+      const data = await dashboardService.getDashboard(currentUser, academicYear, { filterType, filterValue });
 
       return res.json({
         message: "Dashboard statistics fetched!",

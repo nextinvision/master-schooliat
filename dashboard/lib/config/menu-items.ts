@@ -19,6 +19,7 @@ export const FINANCE_SUBMENU: SubMenuItem[] = [
 // Submenu items for Attendance
 export const ATTENDANCE_SUBMENU: SubMenuItem[] = [
   { name: "Mark Attendance", route: "/admin/attendance" },
+  { name: "Staff Attendance", route: "/admin/attendance/staff" },
   { name: "Reports", route: "/admin/attendance/reports" },
 ];
 

@@ -3,8 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api/client";
 
-function fetchDashboardStats(academicYear?: string) {
-  return get("/statistics/dashboard", { academicYear });
+function fetchDashboardStats(academicYear?: string, filterType?: string, filterValue?: string) {
+  return get("/statistics/dashboard", { academicYear, filterType, filterValue });
 }
 
 export interface DashboardStats {
@@ -32,12 +32,14 @@ export interface DashboardStats {
 
 export function useDashboard(options: {
   academicYear?: string;
+  filterType?: string;
+  filterValue?: string;
   [key: string]: any;
 } = {}) {
-  const { academicYear, ...rest } = options;
+  const { academicYear, filterType, filterValue, ...rest } = options;
   return useQuery<DashboardStats>({
-    queryKey: ["dashboard", "statistics", academicYear],
-    queryFn: () => fetchDashboardStats(academicYear),
+    queryKey: ["dashboard", "statistics", academicYear, filterType, filterValue],
+    queryFn: () => fetchDashboardStats(academicYear, filterType, filterValue),
     staleTime: 5 * 60 * 1000, // 5 minutes
     retry: 1, // Retry once on failure (e.g. transient 500)
     ...rest,
