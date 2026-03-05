@@ -109,30 +109,38 @@ jobs:
             echo "Ensuring latest code from main branch..."
             git fetch origin main
             git checkout main
+            git reset --hard origin/main
             cd dashboard
-            echo "Installing dependencies (including devDependencies for build)..."
+            
+            # Clean up any local environment pollution
+            rm -f .env.local
+            
+            echo "Installing dependencies..."
             npm ci
+            
             echo "Loading production environment variables for build..."
-            cp /opt/schooliat/dashboard/production/shared/.env .env.production
-            echo "Building dashboard with production API URL..."
+            if [ -f /opt/schooliat/dashboard/production/shared/.env ]; then
+                cp /opt/schooliat/dashboard/production/shared/.env .env.production
+                echo "   ✓ Environment file loaded"
+            else
+                echo "   ⚠ Warning: .env file not found"
+            fi
+            
+            echo "Building dashboard..."
             NODE_ENV=production npm run build
+            
             echo "Copying build to production directory..."
-            # Ensure production directory structure exists
             mkdir -p /opt/schooliat/dashboard/production/current
-            # Remove old build
             rm -rf /opt/schooliat/dashboard/production/current/.next
-            rm -rf /opt/schooliat/dashboard/production/.next
-            # Copy new build to current directory (where PM2 runs from)
             cp -r .next /opt/schooliat/dashboard/production/current/
             cp -r public /opt/schooliat/dashboard/production/current/ 2>/dev/null || true
             cp package.json /opt/schooliat/dashboard/production/current/
-            # Also copy to parent for backup
-            cp -r .next /opt/schooliat/dashboard/production/ 2>/dev/null || true
+            
             echo "Clearing Next.js cache..."
             rm -rf /opt/schooliat/dashboard/production/current/.next/cache
+            
             echo "Restarting PM2 process..."
             pm2 restart schooliat-dashboard-production --update-env
-            echo "Waiting for PM2 to fully restart..."
             sleep 5
             pm2 status schooliat-dashboard-production
             echo "Dashboard Production deployment complete!"
@@ -156,16 +164,26 @@ jobs:
             echo "Ensuring latest code from main branch..."
             git fetch origin main
             git checkout main
+            git reset --hard origin/main
             cd landing
-            echo "Installing dependencies (including devDependencies for build)..."
+            
+            echo "Installing dependencies..."
             npm ci
+            
             echo "Loading production environment variables for build..."
-            cp /opt/schooliat/landing/production/shared/.env .env.production
-            echo "Building landing page with production dashboard URL..."
+            if [ -f /opt/schooliat/landing/production/shared/.env ]; then
+                cp /opt/schooliat/landing/production/shared/.env .env.production
+            fi
+            
+            echo "Building landing page..."
             NODE_ENV=production npm run build
+            
             echo "Copying files to web root..."
-            cp -r out/* /var/www/schooliat-landing/
-            chown -R www-data:www-data /var/www/schooliat-landing
+            # Use sudo for web root directory operations if needed
+            sudo rm -rf /var/www/schooliat-landing/* || rm -rf /var/www/schooliat-landing/*
+            sudo cp -r out/* /var/www/schooliat-landing/ || cp -r out/* /var/www/schooliat-landing/
+            sudo chown -R www-data:www-data /var/www/schooliat-landing || chown -R www-data:www-data /var/www/schooliat-landing
+            
             echo "Reloading Nginx..."
-            systemctl reload nginx
+            sudo systemctl reload nginx || systemctl reload nginx
             echo "Landing Page deployment complete!"
