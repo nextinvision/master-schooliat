@@ -264,6 +264,11 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     route: "/super-admin/reminders",
   },
   {
+    name: "Courier",
+    icon: "Truck",
+    route: "/admin/courier",
+  },
+  {
     name: "Settings",
     icon: "ShieldCheck",
     route: "/super-admin/settings",
