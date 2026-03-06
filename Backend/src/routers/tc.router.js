@@ -10,14 +10,12 @@ const router = Router();
 
 // Create TC schema
 const createTCSchema = z.object({
-  body: z.object({
-    request: z.object({
-      studentId: z.string().uuid(),
-      reason: z.string().min(1),
-      transferDate: z.string().datetime(),
-      destinationSchool: z.string().optional(),
-      remarks: z.string().optional(),
-    }),
+  request: z.object({
+    studentId: z.string().uuid(),
+    reason: z.string().min(1),
+    transferDate: z.string().min(1),
+    destinationSchool: z.string().optional(),
+    remarks: z.string().optional(),
   }),
 });
 
@@ -39,10 +37,8 @@ const updateTCStatusSchema = z.object({
   params: z.object({
     id: z.string().uuid(),
   }),
-  body: z.object({
-    request: z.object({
-      status: z.enum(["ISSUED", "COLLECTED", "CANCELLED"]),
-    }),
+  request: z.object({
+    status: z.enum(["ISSUED", "COLLECTED", "CANCELLED"]),
   }),
 });
 

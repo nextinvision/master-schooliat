@@ -217,6 +217,11 @@ const defaultRolePermissionsMap = {
     Permission.GET_CONSOLIDATED_DASHBOARD,
     // Security permissions
     Permission.REQUEST_DELETION_OTP,
+    // Inventory permissions
+    Permission.CREATE_INVENTORY_ITEM,
+    Permission.GET_INVENTORY,
+    Permission.EDIT_INVENTORY_ITEM,
+    Permission.DELETE_INVENTORY_ITEM,
   ],
   [RoleName.STUDENT]: [
     Permission.GET_MY_SCHOOL,

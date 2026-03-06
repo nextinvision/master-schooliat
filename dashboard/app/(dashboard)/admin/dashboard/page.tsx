@@ -10,7 +10,7 @@ import { format } from "date-fns";
 import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, RefreshCw, MoreHorizontal, User, Users, CalendarDays, Filter } from "lucide-react";
+import { AlertCircle, RefreshCw, MoreHorizontal, User, Users, CalendarDays, Filter, Truck, Package, CreditCard, BookOpen, Award } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -24,6 +24,7 @@ import { CalendarWidget } from "@/components/dashboard/calendar-widget";
 import { NoticeBoardWidget } from "@/components/dashboard/notice-board-widget";
 import { FinancialOverviewWidget } from "@/components/dashboard/financial-overview-widget";
 import { FeeStatusWidget } from "@/components/dashboard/fee-status-widget";
+import { TimetableWidget } from "@/components/dashboard/timetable-widget";
 
 const CHART_HEIGHT = 280;
 
@@ -225,6 +226,55 @@ export default function AdminDashboardPage() {
         )}
       </div>
 
+      {/* Quick Actions */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <a href="/admin/courier" className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border-none cursor-pointer">
+          <div className="bg-blue-100 p-2 rounded-lg">
+            <Truck className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">Courier</p>
+            <p className="text-xs text-gray-500">Track dispatches</p>
+          </div>
+        </a>
+        <a href="/admin/inventory" className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border-none cursor-pointer">
+          <div className="bg-green-100 p-2 rounded-lg">
+            <Package className="w-5 h-5 text-green-600" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">Inventory</p>
+            <p className="text-xs text-gray-500">Manage stock</p>
+          </div>
+        </a>
+        <a href="/admin/id-cards" className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border-none cursor-pointer">
+          <div className="bg-purple-100 p-2 rounded-lg">
+            <CreditCard className="w-5 h-5 text-purple-600" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">ID Cards</p>
+            <p className="text-xs text-gray-500">Generate cards</p>
+          </div>
+        </a>
+        <a href="/admin/results" className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border-none cursor-pointer">
+          <div className="bg-orange-100 p-2 rounded-lg">
+            <Award className="w-5 h-5 text-orange-600" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">Results</p>
+            <p className="text-xs text-gray-500">View & download</p>
+          </div>
+        </a>
+        <a href="/admin/finance/fees" className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-all border-none cursor-pointer">
+          <div className="bg-emerald-100 p-2 rounded-lg">
+            <BookOpen className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div>
+            <p className="font-medium text-sm">Fees</p>
+            <p className="text-xs text-gray-500">Receipts & payments</p>
+          </div>
+        </a>
+      </div>
+
       {/* Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Welcome */}
@@ -333,8 +383,16 @@ export default function AdminDashboardPage() {
           <NoticeBoardWidget notices={notices} />
         </div>
 
-        {/* Financial */}
+        {/* Timetable */}
         <div className="lg:col-span-4 h-[350px]">
+          <TimetableWidget />
+        </div>
+      </div>
+
+      {/* Row 3 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
+        {/* Financial */}
+        <div className="lg:col-span-4 h-[350px] lg:h-auto">
           <FinancialOverviewWidget
             totalIncome={financial.totalIncome}
             totalSalary={financial.totalSalary}
@@ -347,10 +405,7 @@ export default function AdminDashboardPage() {
             filterValue={filterValue}
           />
         </div>
-      </div>
 
-      {/* Row 3 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Earnings */}
         <div className="lg:col-span-8">
           <Card className="border-none shadow-sm rounded-2xl h-full">
@@ -422,6 +477,10 @@ export default function AdminDashboardPage() {
           </Card>
         </div>
 
+      </div>
+
+      {/* Row 4 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6">
         {/* Fee Status */}
         <div className="lg:col-span-4">
           <FeeStatusWidget

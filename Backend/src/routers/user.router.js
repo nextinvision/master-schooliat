@@ -1407,7 +1407,13 @@ router.get(
   async (req, res) => {
     try {
       const currentUser = req.context.user;
+      console.log(`Exporting students for school: ${currentUser.schoolId}`);
+
       const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
+      if (!studentRole) {
+        console.error("Student role not found!");
+        return res.status(404).json({ message: "Student role not found!" });
+      }
 
       const students = await prisma.user.findMany({
         where: {
@@ -1497,7 +1503,13 @@ router.get(
   async (req, res) => {
     try {
       const currentUser = req.context.user;
+      console.log(`Exporting teachers for school: ${currentUser.schoolId}`);
+
       const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      if (!teacherRole) {
+        console.error("Teacher role not found!");
+        return res.status(404).json({ message: "Teacher role not found!" });
+      }
 
       const teachers = await prisma.user.findMany({
         where: {

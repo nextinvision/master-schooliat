@@ -160,6 +160,11 @@ export const MENU_ITEMS: MenuItem[] = [
     route: "/admin/reports",
   },
   {
+    name: "Courier",
+    icon: "Truck",
+    route: "/admin/courier",
+  },
+  {
     name: "Settings",
     icon: "ShieldCheck",
     route: "/admin/settings",
@@ -252,6 +257,11 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     name: "Reports & Analytics",
     icon: "BarChart3",
     route: "/super-admin/reports",
+  },
+  {
+    name: "Reminders",
+    icon: "Bell",
+    route: "/super-admin/reminders",
   },
   {
     name: "Settings",

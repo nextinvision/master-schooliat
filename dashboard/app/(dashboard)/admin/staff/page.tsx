@@ -115,14 +115,14 @@ export default function StaffPage() {
 
             {/* Add Staff Dialog */}
             <Dialog open={isAddStaffDialogOpen} onOpenChange={setIsAddStaffDialogOpen}>
-                <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+                <DialogContent className="sm:max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
                     <DialogHeader>
                         <DialogTitle>Add New Staff Member</DialogTitle>
                         <DialogDescription>
                             Fill in the information below to add a new staff member.
                         </DialogDescription>
                     </DialogHeader>
-                    <ScrollArea className="flex-1 pr-4">
+                    <div className="flex-1 overflow-y-auto pr-4 min-h-0">
                         <FormProvider {...staffForm}>
                             <form onSubmit={staffForm.handleSubmit(handleCreateStaff)} className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-1">
@@ -280,7 +280,7 @@ export default function StaffPage() {
                                 </div>
                             </form>
                         </FormProvider>
-                    </ScrollArea>
+                    </div>
                     <DialogFooter className="mt-6">
                         <Button
                             type="button"

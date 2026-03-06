@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Download, Loader2, Info, FileDown } from "lucide-react";
+import { Download, Loader2, Info, FileDown, Eye } from "lucide-react";
 import { useClassFilters } from "@/lib/hooks/use-class-filters";
 import {
   useExams,
@@ -29,6 +29,7 @@ import {
 } from "@/lib/hooks/use-marks";
 import { get } from "@/lib/api/client";
 import { toast } from "sonner";
+import { ResultViewModal } from "./result-view-modal";
 
 export function ResultManagement() {
   const [page, setPage] = useState(0);
@@ -39,6 +40,10 @@ export function ResultManagement() {
   const [downloading, setDownloading] = useState<string | null>(null);
   const [isExportingAll, setIsExportingAll] = useState(false);
   const [examFilter, setExamFilter] = useState<string>("");
+  const [viewClassId, setViewClassId] = useState<string | null>(null);
+  const [viewClassName, setViewClassName] = useState("");
+  const [viewDivision, setViewDivision] = useState("");
+  const [viewModalOpen, setViewModalOpen] = useState(false);
 
   // Fetch exams from API
   const { data: examsData, isLoading: examsLoading } = useExams({ pageSize: 100 });
@@ -417,21 +422,38 @@ export function ResultManagement() {
                           Generate
                         </Button>
                         {item.marksCount > 0 && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDownloadCSV(item.id, item.class, item.division)}
-                            disabled={downloading === item.id}
-                            className="gap-1 text-primary"
-                            title="Download results as CSV"
-                          >
-                            {downloading === item.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <FileDown className="w-4 h-4" />
-                            )}
-                            CSV
-                          </Button>
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setViewClassId(item.id);
+                                setViewClassName(item.class);
+                                setViewDivision(item.division);
+                                setViewModalOpen(true);
+                              }}
+                              className="gap-1"
+                              title="View results"
+                            >
+                              <Eye className="w-4 h-4" />
+                              View
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDownloadCSV(item.id, item.class, item.division)}
+                              disabled={downloading === item.id}
+                              className="gap-1 text-primary"
+                              title="Download results as CSV"
+                            >
+                              {downloading === item.id ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <FileDown className="w-4 h-4" />
+                              )}
+                              CSV
+                            </Button>
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -469,6 +491,16 @@ export function ResultManagement() {
           </div>
         </div>
       )}
+
+      <ResultViewModal
+        open={viewModalOpen}
+        onOpenChange={setViewModalOpen}
+        classId={viewClassId}
+        className={viewClassName}
+        divisionName={viewDivision}
+        examId={examFilter}
+        examName={exams.find((e: any) => e.id === examFilter)?.name || ""}
+      />
     </div>
   );
 }

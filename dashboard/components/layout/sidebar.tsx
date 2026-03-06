@@ -36,6 +36,10 @@ import {
   Database,
   ScrollText,
   Activity,
+  Truck,
+  Bell,
+  SquareUser,
+  Book,
 } from "lucide-react";
 import { clearToken } from "@/lib/auth/storage";
 import {
@@ -81,6 +85,10 @@ const iconMap: Record<string, LucideIcon> = {
   Database,
   ScrollText,
   Activity,
+  Truck,
+  Bell,
+  SquareUser,
+  Book,
 };
 
 export function Sidebar() {

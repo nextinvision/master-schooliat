@@ -249,7 +249,7 @@ router.get(
     if (format === "csv" || format === "excel") {
       const headers = [
         { label: "Date", key: "date" },
-        { label: "Student Name", key: "firstName" }, // Note: We need to flat the data or handle it in generateCSV
+        { label: "Student Name", key: "firstName" },
         { label: "Roll Number", key: "rollNumber" },
         { label: "Class", key: "className" },
         { label: "Period", key: "periodName" },
@@ -260,12 +260,12 @@ router.get(
 
       // Flatten the data for CSV
       const flattenedData = reportData.map(record => ({
-        date: new Date(record.date).toLocaleDateString(),
-        firstName: `${record.student.firstName} ${record.student.lastName} `,
-        rollNumber: record.student.studentProfile?.rollNumber || "N/A",
-        className: `${record.class.grade}${record.class.division ? `-${record.class.division}` : ""} `,
+        date: record.date ? new Date(record.date).toLocaleDateString() : "N/A",
+        firstName: record.student ? `${record.student.firstName} ${record.student.lastName || ""}` : "N/A",
+        rollNumber: record.student?.studentProfile?.rollNumber || "N/A",
+        className: record.class ? `${record.class.grade}${record.class.division ? `-${record.class.division}` : ""}` : "N/A",
         periodName: record.period?.name || "Daily",
-        status: record.status,
+        status: record.status || "N/A",
         lateArrivalTime: record.lateArrivalTime ? new Date(record.lateArrivalTime).toLocaleTimeString() : "N/A",
         absenceReason: record.absenceReason || "N/A",
       }));
@@ -273,7 +273,7 @@ router.get(
       const csv = csvUtil.generateCSV(flattenedData, headers);
 
       res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", `attachment; filename = attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
+      res.setHeader("Content-Disposition", `attachment; filename=attendance_report_${new Date().toISOString().split('T')[0]}.csv`);
       return res.send(csv);
     }
 

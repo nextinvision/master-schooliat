@@ -20,68 +20,78 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Edit, Trash2, Plus } from "lucide-react";
-import { searchInventoryByName } from "@/lib/utils/search-utils";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Edit, Trash2, Plus, Loader2 } from "lucide-react";
+import {
+  useInventory,
+  useCreateInventoryItem,
+  useUpdateInventoryItem,
+  useDeleteInventoryItem,
+  InventoryItem,
+} from "@/lib/hooks/use-inventory";
+import { toast } from "sonner";
 
 const CATEGORY_OPTIONS = ["All Categories", "Electronics", "Stationery", "Furniture", "Lab Equipment", "Sports"];
 const UNIT_OPTIONS = ["All Units", "Pieces", "Boxes", "Kits", "Sets", "Bottles"];
-const CONDITION_OPTIONS = ["All Conditions", "New", "Good", "Fair", "Poor"];
+const CONDITION_OPTIONS = ["All Conditions", "NEW", "GOOD", "FAIR", "POOR"];
 
-// Mock data - replace with API call
-const MOCK_DATA = Array.from({ length: 50 }, (_, i) => ({
-  id: `item-${i + 1}`,
-  no: i + 1,
-  itemName: `Item ${i + 1}`,
-  itemCode: `INV${String(i + 1).padStart(3, "0")}`,
-  avatar: `https://i.pravatar.cc/150?u=${i + 1}`,
-  unit: ["Pieces", "Boxes", "Kits", "Sets", "Bottles"][i % 5],
-  totalStock: Math.floor(Math.random() * 100) + 50,
-  issuedTo: ["Class 12-A", "Lab Assistant", "Sports Dept", "Office", "Library"][i % 5],
-  issuedQty: Math.floor(Math.random() * 20) + 5,
-  lastIssuedDate: "2025-11-15",
-  updatedStock: Math.floor(Math.random() * 80) + 20,
-  condition: ["New", "Good", "Fair", "Poor"][i % 4],
-  category: ["Electronics", "Stationery", "Furniture", "Lab Equipment", "Sports"][i % 5],
-  type: ["Consumable", "Non Consumable"][i % 2],
-}));
+const EMPTY_FORM: {
+  itemName: string;
+  itemCode: string;
+  category: string;
+  unit: string;
+  type: InventoryItem["type"];
+  totalStock: number;
+  condition: InventoryItem["condition"];
+} = {
+  itemName: "",
+  itemCode: "",
+  category: "Electronics",
+  unit: "Pieces",
+  type: "NON_CONSUMABLE",
+  totalStock: 0,
+  condition: "NEW",
+};
 
 export function InventoryManagement() {
   const [page, setPage] = useState(0);
   const itemsPerPage = 15;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState("Non Consumable");
+  const [activeTab, setActiveTab] = useState("NON_CONSUMABLE");
   const [categoryFilter, setCategoryFilter] = useState("All Categories");
   const [unitFilter, setUnitFilter] = useState("All Units");
   const [conditionFilter, setConditionFilter] = useState("All Conditions");
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editItem, setEditItem] = useState<InventoryItem | null>(null);
+  const [form, setForm] = useState(EMPTY_FORM);
 
-  const filteredData = useMemo(() => {
-    let data = MOCK_DATA.filter((item) => item.type === activeTab);
+  // API hooks
+  const { data, isLoading, isError, refetch } = useInventory({
+    type: activeTab,
+    category: categoryFilter !== "All Categories" ? categoryFilter : undefined,
+    unit: unitFilter !== "All Units" ? unitFilter : undefined,
+    condition: conditionFilter !== "All Conditions" ? conditionFilter : undefined,
+    search: searchQuery || undefined,
+    limit: 200,
+  });
+  const createItem = useCreateInventoryItem();
+  const updateItem = useUpdateInventoryItem();
+  const deleteItem = useDeleteInventoryItem();
 
-    if (searchQuery.trim()) {
-      data = searchInventoryByName(data, searchQuery);
-    }
-
-    if (categoryFilter !== "All Categories") {
-      data = data.filter((item) => item.category === categoryFilter);
-    }
-
-    if (unitFilter !== "All Units") {
-      data = data.filter((item) => item.unit === unitFilter);
-    }
-
-    if (conditionFilter !== "All Conditions") {
-      data = data.filter((item) => item.condition === conditionFilter);
-    }
-
-    return data;
-  }, [MOCK_DATA, searchQuery, activeTab, categoryFilter, unitFilter, conditionFilter]);
+  const items: InventoryItem[] = data?.data || [];
 
   const from = page * itemsPerPage;
-  const to = Math.min((page + 1) * itemsPerPage, filteredData.length);
-  const numberOfPages = Math.ceil(filteredData.length / itemsPerPage);
-  const paginatedData = filteredData.slice(from, to);
+  const to = Math.min((page + 1) * itemsPerPage, items.length);
+  const numberOfPages = Math.ceil(items.length / itemsPerPage);
+  const paginatedData = items.slice(from, to);
 
   useEffect(() => {
     setPage(0);
@@ -107,11 +117,77 @@ export function InventoryManagement() {
 
   const allSelected = paginatedData.length > 0 && selectedRows.size === paginatedData.length;
 
+  const openCreateDialog = () => {
+    setEditItem(null);
+    setForm({ ...EMPTY_FORM, type: activeTab as any });
+    setIsDialogOpen(true);
+  };
+
+  const openEditDialog = (item: InventoryItem) => {
+    setEditItem(item);
+    setForm({
+      itemName: item.itemName,
+      itemCode: item.itemCode,
+      category: item.category,
+      unit: item.unit,
+      type: item.type as InventoryItem["type"],
+      totalStock: item.totalStock,
+      condition: item.condition as InventoryItem["condition"],
+    });
+    setIsDialogOpen(true);
+  };
+
+  const handleSubmit = async () => {
+    if (!form.itemName || !form.itemCode || !form.category || !form.unit) {
+      toast.error("Please fill all required fields");
+      return;
+    }
+    try {
+      if (editItem) {
+        await updateItem.mutateAsync({ id: editItem.id, data: form });
+        toast.success("Item updated successfully!");
+      } else {
+        await createItem.mutateAsync(form);
+        toast.success("Item created successfully!");
+      }
+      setIsDialogOpen(false);
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to save item");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this item?")) return;
+    try {
+      await deleteItem.mutateAsync(id);
+      toast.success("Item deleted!");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete item");
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!confirm(`Delete ${selectedRows.size} selected item(s)?`)) return;
+    try {
+      for (const id of selectedRows) {
+        await deleteItem.mutateAsync(id);
+      }
+      setSelectedRows(new Set());
+      toast.success("Selected items deleted!");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to delete items");
+    }
+  };
+
+  const conditionLabel = (c: string) => {
+    return c.charAt(0) + c.slice(1).toLowerCase();
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-semibold">Inventory Management</h1>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={openCreateDialog}>
           <Plus className="w-4 h-4" />
           Add New
         </Button>
@@ -120,22 +196,20 @@ export function InventoryManagement() {
       {/* Tabs */}
       <div className="flex gap-2 border-b">
         <button
-          onClick={() => setActiveTab("Non Consumable")}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-            activeTab === "Non Consumable"
-              ? "border-primary text-primary"
-              : "border-transparent text-gray-600 hover:text-gray-900"
-          }`}
+          onClick={() => setActiveTab("NON_CONSUMABLE")}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === "NON_CONSUMABLE"
+            ? "border-primary text-primary"
+            : "border-transparent text-gray-600 hover:text-gray-900"
+            }`}
         >
           Non Consumable
         </button>
         <button
-          onClick={() => setActiveTab("Consumable")}
-          className={`px-4 py-2 font-medium border-b-2 transition-colors ${
-            activeTab === "Consumable"
-              ? "border-primary text-primary"
-              : "border-transparent text-gray-600 hover:text-gray-900"
-          }`}
+          onClick={() => setActiveTab("CONSUMABLE")}
+          className={`px-4 py-2 font-medium border-b-2 transition-colors ${activeTab === "CONSUMABLE"
+            ? "border-primary text-primary"
+            : "border-transparent text-gray-600 hover:text-gray-900"
+            }`}
         >
           Consumable
         </button>
@@ -182,7 +256,7 @@ export function InventoryManagement() {
           <SelectContent>
             {CONDITION_OPTIONS.map((opt) => (
               <SelectItem key={opt} value={opt}>
-                {opt}
+                {opt === "All Conditions" ? opt : conditionLabel(opt)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -195,14 +269,19 @@ export function InventoryManagement() {
           <span className="text-sm text-blue-700">
             {selectedRows.size} item(s) selected
           </span>
-          <Button variant="destructive" size="sm">
+          <Button variant="destructive" size="sm" onClick={handleDeleteSelected}>
             Delete Selected
           </Button>
         </div>
       )}
 
       {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      <div className="border rounded-lg overflow-hidden relative">
+        {isLoading && (
+          <div className="absolute inset-0 bg-white/50 flex items-center justify-center z-10 backdrop-blur-sm">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -221,7 +300,7 @@ export function InventoryManagement() {
                 <TableHead>Issued To</TableHead>
                 <TableHead className="w-32">Issued Qty</TableHead>
                 <TableHead className="w-40">Last Issued</TableHead>
-                <TableHead className="w-32">Updated Stock</TableHead>
+                <TableHead className="w-32">Available</TableHead>
                 <TableHead className="w-32">Condition</TableHead>
                 <TableHead className="w-32">Action</TableHead>
               </TableRow>
@@ -230,12 +309,13 @@ export function InventoryManagement() {
               {paginatedData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={11} className="text-center py-8">
-                    No inventory items found
+                    {isLoading ? "Loading..." : isError ? "Failed to load inventory" : "No inventory items found"}
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedData.map((item) => {
+                paginatedData.map((item, idx) => {
                   const isSelected = selectedRows.has(item.id);
+                  const available = item.totalStock - item.issuedQty;
                   return (
                     <TableRow
                       key={item.id}
@@ -248,48 +328,56 @@ export function InventoryManagement() {
                         />
                       </TableCell>
                       <TableCell className="font-medium">
-                        {String(item.no).padStart(2, "0")}
+                        {String(from + idx + 1).padStart(2, "0")}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          <Avatar>
-                            <AvatarImage src={item.avatar} />
-                            <AvatarFallback>{item.itemName[0]}</AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <div className="font-semibold">{item.itemName}</div>
-                            <div className="text-xs text-gray-500">{item.itemCode}</div>
-                          </div>
+                        <div>
+                          <div className="font-semibold">{item.itemName}</div>
+                          <div className="text-xs text-gray-500">{item.itemCode}</div>
                         </div>
                       </TableCell>
                       <TableCell>{item.unit}</TableCell>
                       <TableCell className="text-right">{item.totalStock}</TableCell>
-                      <TableCell>{item.issuedTo}</TableCell>
+                      <TableCell>{item.issuedTo || "—"}</TableCell>
                       <TableCell className="text-right">{item.issuedQty}</TableCell>
-                      <TableCell>{item.lastIssuedDate}</TableCell>
-                      <TableCell className="text-right">{item.updatedStock}</TableCell>
+                      <TableCell>
+                        {item.lastIssuedDate
+                          ? new Date(item.lastIssuedDate).toLocaleDateString("en-IN")
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-right">{available}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
                           className={
-                            item.condition === "New"
+                            item.condition === "NEW"
                               ? "bg-schooliat-tint text-primary border-primary/30"
-                              : item.condition === "Good"
-                              ? "bg-blue-100 text-blue-800 border-blue-300"
-                              : item.condition === "Fair"
-                              ? "bg-yellow-100 text-yellow-800 border-yellow-300"
-                              : "bg-red-100 text-red-800 border-red-300"
+                              : item.condition === "GOOD"
+                                ? "bg-blue-100 text-blue-800 border-blue-300"
+                                : item.condition === "FAIR"
+                                  ? "bg-yellow-100 text-yellow-800 border-yellow-300"
+                                  : "bg-red-100 text-red-800 border-red-300"
                           }
                         >
-                          {item.condition}
+                          {conditionLabel(item.condition)}
                         </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openEditDialog(item)}
+                          >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => handleDelete(item.id)}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -329,7 +417,97 @@ export function InventoryManagement() {
           </div>
         </div>
       )}
+
+      {/* Add/Edit Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>{editItem ? "Edit Inventory Item" : "Add New Inventory Item"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Name *</Label>
+              <Input
+                className="col-span-3"
+                value={form.itemName}
+                onChange={(e) => setForm({ ...form, itemName: e.target.value })}
+                placeholder="Item name"
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Code *</Label>
+              <Input
+                className="col-span-3"
+                value={form.itemCode}
+                onChange={(e) => setForm({ ...form, itemCode: e.target.value })}
+                placeholder="INV001"
+                disabled={!!editItem}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Category *</Label>
+              <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORY_OPTIONS.filter((o) => o !== "All Categories").map((opt) => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Unit *</Label>
+              <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {UNIT_OPTIONS.filter((o) => o !== "All Units").map((opt) => (
+                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Stock</Label>
+              <Input
+                className="col-span-3"
+                type="number"
+                value={form.totalStock}
+                onChange={(e) => setForm({ ...form, totalStock: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">Condition</Label>
+              <Select value={form.condition} onValueChange={(v: any) => setForm({ ...form, condition: v })}>
+                <SelectTrigger className="col-span-3">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NEW">New</SelectItem>
+                  <SelectItem value="GOOD">Good</SelectItem>
+                  <SelectItem value="FAIR">Fair</SelectItem>
+                  <SelectItem value="POOR">Poor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={createItem.isPending || updateItem.isPending}
+            >
+              {(createItem.isPending || updateItem.isPending) && (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              )}
+              {editItem ? "Update" : "Create"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

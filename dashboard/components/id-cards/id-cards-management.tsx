@@ -29,9 +29,11 @@ import {
 } from "@/lib/hooks/use-id-cards";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { IdCardTemplateConfig } from "./id-card-template-config";
 
 export function IDCardsManagement() {
   const [page, setPage] = useState(0);
+  const [configDialogOpen, setConfigDialogOpen] = useState(false);
   const itemsPerPage = 15;
   const { classFilter, divisionFilter } = useClassFilters();
   const [classFilterValue, setClassFilterValue] = useState(classFilter.defaultValue);
@@ -209,6 +211,10 @@ export function IDCardsManagement() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-semibold">ID Cards Management</h1>
         <div className="flex gap-2">
+          <Button onClick={() => setConfigDialogOpen(true)} variant="outline" className="gap-2">
+            <Settings className="w-4 h-4" />
+            Configure Template
+          </Button>
           <Button onClick={handleViewTemplate} variant="outline" className="gap-2">
             <FileText className="w-4 h-4" />
             View Template
@@ -373,6 +379,8 @@ export function IDCardsManagement() {
           </div>
         </div>
       )}
+
+      <IdCardTemplateConfig open={configDialogOpen} onOpenChange={setConfigDialogOpen} />
     </div>
   );
 }

@@ -713,41 +713,63 @@ router.get(
 
       const installments = await prisma.feeInstallements.findMany({
         where,
-        include: {
-          student: {
-            select: {
-              firstName: true,
-              lastName: true,
-              publicUserId: true,
-              studentProfile: {
-                select: {
-                  rollNumber: true,
-                  class: { select: { grade: true, division: true } }
-                }
-              }
-            }
-          }
-        },
         orderBy: { createdAt: "desc" },
       });
+
+      // Manually fetch student details for each installment (Prisma relations missing for FeeInstallements)
+      const studentIds = [
+        ...new Set(installments.map((i) => i.studentId).filter(Boolean)),
+      ];
+
+      const students = await prisma.user.findMany({
+        where: {
+          id: { in: studentIds },
+          deletedAt: null,
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          publicUserId: true,
+          studentProfile: {
+            select: {
+              rollNumber: true,
+              class: {
+                select: {
+                  grade: true,
+                  division: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const studentMap = students.reduce((acc, student) => {
+        acc[student.id] = student;
+        return acc;
+      }, {});
 
       const headers = [
         "Receipt No", "Installment No", "Student ID", "Roll No", "Name",
         "Class", "Amount", "Paid At", "Status", "Payment Method"
       ];
 
-      const rows = installments.map((i) => [
-        i.id.slice(0, 8),
-        i.installementNumber,
-        i.student?.publicUserId || "N/A",
-        i.student?.studentProfile?.rollNumber || "N/A",
-        `${i.student?.firstName || ""} ${i.student?.lastName || ""}`.trim(),
-        i.student?.studentProfile?.class ? `${i.student.studentProfile.class.grade}${i.student.studentProfile.class.division ? `-${i.student.studentProfile.class.division}` : ""}` : "N/A",
-        i.paidAmount,
-        i.paidAt ? new Date(i.paidAt).toLocaleDateString("en-IN") : "N/A",
-        i.paymentStatus,
-        i.paymentMethod || "N/A"
-      ]);
+      const rows = installments.map((i) => {
+        const student = i.studentId ? studentMap[i.studentId] : null;
+        return [
+          i.id?.slice(0, 8) || "N/A",
+          i.installementNumber || "N/A",
+          student?.publicUserId || "N/A",
+          student?.studentProfile?.rollNumber || "N/A",
+          `${student?.firstName || ""} ${student?.lastName || ""}`.trim() || "N/A",
+          student?.studentProfile?.class ? `${student.studentProfile.class.grade}${student.studentProfile.class.division ? `-${student.studentProfile.class.division}` : ""}` : "N/A",
+          i.paidAmount || 0,
+          i.paidAt ? new Date(i.paidAt).toLocaleDateString("en-IN") : "N/A",
+          i.paymentStatus || "N/A",
+          i.paymentMethod || "N/A"
+        ];
+      });
 
       const csvContent = [
         headers.join(","),

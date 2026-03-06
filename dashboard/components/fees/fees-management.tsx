@@ -425,7 +425,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                           >
                             <IndianRupee className="w-4 h-4" />
                           </Button>
-                          {status === "Paid" && item.receiptFileUrl && (
+                          {item.receiptFileUrl && (
                             <Button
                               variant="ghost"
                               size="icon"

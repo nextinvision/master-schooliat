@@ -8,11 +8,34 @@ import { clearToken } from "@/lib/auth/storage";
 
 // API Base URL - must be set in environment variables
 // Next.js embeds NEXT_PUBLIC_* variables at build time
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+// API Base URL - must be set in environment variables
+// Next.js embeds NEXT_PUBLIC_* variables at build time
+export const BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== "undefined" ? "" : "http://localhost:4000");
 
-// Validate API URL is set
-if (typeof window !== "undefined" && !BASE_URL) {
-  console.log("API Base URL:", BASE_URL);
+
+// Log API URL in development
+if (typeof window !== "undefined") {
+  console.log("[API] Base URL:", BASE_URL);
+  if (!process.env.NEXT_PUBLIC_API_URL) {
+    console.warn("[API] Warning: NEXT_PUBLIC_API_URL is not set, using default localhost:4000");
+  }
+}
+
+/**
+ * Get full URL with proper prefixing
+ */
+function getFullUrl(path: string): string {
+  const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
+  let cleanPath = path.startsWith("/") ? path : `/${path}`;
+
+  // Ensure /api/v1 prefix if not present and not a static file path
+  if (!cleanPath.startsWith("/api/v1") && !cleanPath.startsWith("/files/")) {
+    cleanPath = `/api/v1${cleanPath}`;
+  }
+
+  return `${cleanBaseUrl}${cleanPath}`;
 }
 
 export class ApiError extends Error {
@@ -100,11 +123,7 @@ async function request(
   } = {}
 ): Promise<any> {
   const { method = "GET", body, query, headers = {} } = options;
-
-  // Build URL
-  const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  let url = `${cleanBaseUrl}${cleanPath}`;
+  let url = getFullUrl(path);
 
   // Add query parameters
   if (query && Object.keys(query).length > 0) {
@@ -147,10 +166,12 @@ async function request(
     return handleResponseStatus(response);
   } catch (error) {
     // Handle network errors
-    if (error instanceof TypeError && error.message.includes("fetch")) {
+    const isNetworkError = error instanceof TypeError || (error instanceof Error && error.name === "TypeError");
+    if (isNetworkError) {
+      console.error(`[API] Network Error fetching ${url}:`, error);
       apiEvents.emit(API_EVENTS.NETWORK_ERROR);
       throw new ApiError(
-        "Network error. Please check your connection and try again.",
+        `Network error when connecting to ${BASE_URL || "the server"}. Please ensure the backend is running.`,
         0
       );
     }
@@ -187,9 +208,7 @@ export async function uploadFile(
   file: File,
   additionalData?: Record<string, any>
 ): Promise<any> {
-  const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
-  const cleanPath = path.startsWith("/") ? path : `/${path}`;
-  const url = `${cleanBaseUrl}${cleanPath}`;
+  const url = getFullUrl(path);
 
   const token = await getAuthToken();
 
@@ -219,10 +238,12 @@ export async function uploadFile(
 
     return handleResponseStatus(response);
   } catch (error) {
-    if (error instanceof TypeError && error.message.includes("fetch")) {
+    const isNetworkError = error instanceof TypeError || (error instanceof Error && error.name === "TypeError");
+    if (isNetworkError) {
+      console.error(`[API] Network Error uploading to ${url}:`, error);
       apiEvents.emit(API_EVENTS.NETWORK_ERROR);
       throw new ApiError(
-        "Network error. Please check your connection and try again.",
+        `Network error when connecting to ${BASE_URL || "the server"}. Please ensure the backend is running.`,
         0
       );
     }
@@ -234,8 +255,7 @@ export async function uploadFile(
  * Get file URL
  */
 export function getFile(fileId: string): string {
-  const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
-  return `${cleanBaseUrl}/files/${fileId}`;
+  return getFullUrl(`/files/${fileId}`);
 }
 
 /**
@@ -260,5 +280,38 @@ export function changeUserPassword(
       newPassword,
     },
   });
+}
+
+/**
+ * Download file from API
+ */
+export async function downloadFromApi(path: string): Promise<Blob> {
+  const url = getFullUrl(path);
+
+  const token = await getAuthToken();
+
+  const headers: HeadersInit = {
+    "x-platform": "web",
+  };
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new ApiError(
+      errorData.message || "Download failed",
+      response.status,
+      errorData
+    );
+  }
+
+  return response.blob();
 }
 

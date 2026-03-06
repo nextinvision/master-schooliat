@@ -62,6 +62,7 @@ import deletionOtpRouter from "./routers/deletion-otp.router.js";
 import tcRouter from "./routers/tc.router.js";
 import emergencyContactRouter from "./routers/emergency-contact.router.js";
 import subjectRouter from "./routers/subject.router.js";
+import inventoryRouter from "./routers/inventory.router.js";
 import roleService from "./services/role.service.js";
 import userService from "./services/user.service.js";
 import logRequestStart from "./middlewares/log-request-start.middleware.js";
@@ -260,6 +261,7 @@ function addRouters(app) {
   app.use("/transfer-certificates", tcRouter);
   app.use("/emergency-contacts", emergencyContactRouter);
   app.use("/subjects", subjectRouter);
+  app.use("/inventory", inventoryRouter);
 }
 
 async function setupData() {

@@ -22,6 +22,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { downloadFromApi } from "@/lib/api/client";
 import {
   Plus,
   FileText,
@@ -297,16 +298,7 @@ export default function StudentsPage() {
             onClick={async () => {
               setIsExporting(true);
               try {
-                const token = window.sessionStorage.getItem("accessToken");
-                const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
-                const resp = await fetch(`${baseUrl}/users/students/export`, {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "x-platform": "web",
-                  },
-                });
-                if (!resp.ok) throw new Error("Export failed");
-                const blob = await resp.blob();
+                const blob = await downloadFromApi("/api/v1/users/students/export");
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -315,6 +307,7 @@ export default function StudentsPage() {
                 URL.revokeObjectURL(url);
                 toast.success("Students exported successfully!");
               } catch (e: any) {
+                console.error("Export error:", e);
                 toast.error(e?.message || "Failed to export students");
               } finally {
                 setIsExporting(false);
@@ -577,16 +570,15 @@ export default function StudentsPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Student Dialog */}
       <Dialog open={isAddStudentDialogOpen} onOpenChange={setIsAddStudentDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Add New Student</DialogTitle>
             <DialogDescription>
               Fill in the student information below. All required fields are marked with *.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
+          <div className="flex-1 overflow-y-auto pr-4 min-h-0">
             <FormProvider {...studentForm}>
               <form onSubmit={studentForm.handleSubmit(handleCreateStudent)} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -923,7 +915,7 @@ export default function StudentsPage() {
                 </div>
               </form>
             </FormProvider>
-          </ScrollArea>
+          </div>
           <DialogFooter className="mt-4">
             <Button
               type="button"
@@ -972,10 +964,10 @@ export default function StudentsPage() {
             <div>
               <Label htmlFor="studentId">Student *</Label>
               <Select
-                value={tcForm.watch("studentId")}
-                onValueChange={(value) => tcForm.setValue("studentId", value)}
+                value={tcForm.watch("studentId") || undefined}
+                onValueChange={(value) => tcForm.setValue("studentId", value, { shouldValidate: true })}
               >
-                <SelectTrigger id="studentId">
+                <SelectTrigger id="studentId" className={tcForm.formState.errors.studentId ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select Student" />
                 </SelectTrigger>
                 <SelectContent>

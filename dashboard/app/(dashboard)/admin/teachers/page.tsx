@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { TeachersTable } from "@/components/teachers/teachers-table";
 import { useTeachersPage, useCreateTeacher, useDeleteTeacher, useBulkUploadTeachers } from "@/lib/hooks/use-teachers";
 import { BulkUploadDialog } from "@/components/common/bulk-upload-dialog";
-import { FileUp, FileDown, Loader2 } from "lucide-react";
+import { FileDown, FileUp, Loader2, Plus, Search, Trash2, Mail, Phone, MapPin, User, ShieldCheck } from "lucide-react";
+import { downloadFromApi } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -148,16 +149,7 @@ export default function TeachersPage() {
             onClick={async () => {
               setIsExporting(true);
               try {
-                const token = window.sessionStorage.getItem("accessToken");
-                const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
-                const resp = await fetch(`${baseUrl}/users/teachers/export`, {
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    "x-platform": "web",
-                  },
-                });
-                if (!resp.ok) throw new Error("Export failed");
-                const blob = await resp.blob();
+                const blob = await downloadFromApi("/api/v1/users/teachers/export");
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -194,16 +186,15 @@ export default function TeachersPage() {
         onRefresh={refetchTeachers}
       />
 
-      {/* Add Teacher Dialog */}
       <Dialog open={isAddTeacherDialogOpen} onOpenChange={setIsAddTeacherDialogOpen}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+        <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle>Add New Teacher</DialogTitle>
             <DialogDescription>
               Fill in the teacher information below. All required fields are marked with *.
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 pr-4">
+          <div className="flex-1 overflow-y-auto pr-4 min-h-0">
             <FormProvider {...teacherForm}>
               <form onSubmit={teacherForm.handleSubmit(handleCreateTeacher)} className="space-y-6">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -575,7 +566,7 @@ export default function TeachersPage() {
                 </div>
               </form>
             </FormProvider>
-          </ScrollArea>
+          </div>
           <DialogFooter className="mt-4">
             <Button
               type="button"
