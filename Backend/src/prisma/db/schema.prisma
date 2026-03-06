@@ -154,7 +154,7 @@ model Class {
   syllabi        Syllabus[]
   timetable      Timetable[]
 
-  @@unique([grade, division, schoolId], name: "subjects_unique_name_school_id")
+  @@unique([grade, division, schoolId], name: "classes_unique_grade_division_school_id")
   @@map("classes")
 }
 

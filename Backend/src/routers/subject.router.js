@@ -48,11 +48,11 @@ router.get(
 
 router.post(
     "/",
-    withPermission([Permission.MANAGE_CLASSES]), // Reusing MANAGE_CLASSES or similar admin permission
+    withPermission([Permission.CREATE_CLASSES]),
     validateRequest(createSubjectSchema),
     async (req, res) => {
         const currentUser = req.context.user;
-        const { name, code, description } = req.body;
+        const { name, code, description } = req.body.request;
 
         try {
             const subject = await subjectService.createSubject({
@@ -79,12 +79,12 @@ router.post(
 
 router.patch(
     "/:id",
-    withPermission([Permission.MANAGE_CLASSES]),
+    withPermission([Permission.EDIT_CLASSES]),
     validateRequest(updateSubjectSchema),
     async (req, res) => {
         const currentUser = req.context.user;
         const { id } = req.params;
-        const updateData = req.body;
+        const updateData = req.body.request;
 
         try {
             const subject = await subjectService.updateSubject(
@@ -110,7 +110,7 @@ router.patch(
 
 router.delete(
     "/:id",
-    withPermission([Permission.MANAGE_CLASSES]),
+    withPermission([Permission.DELETE_CLASSES]),
     validateRequest(deleteSubjectSchema),
     async (req, res) => {
         const currentUser = req.context.user;
