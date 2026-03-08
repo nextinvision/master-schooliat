@@ -28,6 +28,8 @@ function createStaffApi(form: any) {
             ].filter(Boolean),
             aadhaarId: form.aadhaarId?.trim(),
             registrationPhotoId: form.registrationPhotoId || null,
+            designation: form.designation?.trim() || null,
+            basicSalary: form.basicSalary != null ? Number(form.basicSalary) : null,
         },
     };
     return post("/users/staff", payload);
@@ -49,6 +51,8 @@ function updateStaffApi(id: string, form: any) {
             ].filter(Boolean),
             aadhaarId: form.aadhaarId?.trim(),
             registrationPhotoId: form.registrationPhotoId || null,
+            designation: form.designation?.trim() || null,
+            basicSalary: form.basicSalary != null ? Number(form.basicSalary) : null,
         },
     };
     return patch(`/users/staff/${id}`, payload);

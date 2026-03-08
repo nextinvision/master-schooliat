@@ -40,18 +40,20 @@ model Template {
 }
 
 model Region {
-  id        String     @id @default(uuid())
-  name      String
-  createdBy String     @map("created_by")
-  updatedBy String?    @map("updated_by")
-  deletedBy String?    @map("deleted_by")
-  createdAt DateTime   @default(now()) @map("created_at")
-  updatedAt DateTime?  @updatedAt @map("updated_at")
-  deletedAt DateTime?  @map("deleted_at")
-  locations Location[]
-  schools   School[]
-  users     User[]
-  vendors   Vendor[]
+  id         String     @id @default(uuid())
+  name       String
+  zoneHeadId String?    @map("zone_head_id")
+  createdBy  String     @map("created_by")
+  updatedBy  String?    @map("updated_by")
+  deletedBy  String?    @map("deleted_by")
+  createdAt  DateTime   @default(now()) @map("created_at")
+  updatedAt  DateTime?  @updatedAt @map("updated_at")
+  deletedAt  DateTime?  @map("deleted_at")
+  zoneHead   User?      @relation("RegionZoneHead", fields: [zoneHeadId], references: [id])
+  locations  Location[]
+  schools    School[]
+  users      User[]     @relation("RegionUsers")
+  vendors    Vendor[]
 
   @@map("regions")
 }
@@ -121,6 +123,7 @@ model School {
   faqs                    FAQ[]
   galleries               Gallery[]
   grievances              Grievance[]
+  invoices                Invoice[]
   libraryBooks            LibraryBook[]
   notes                   Note[]
   receipts                Receipt[]
@@ -231,7 +234,8 @@ model User {
   teacherProfile             TeacherProfile?
   teacherTimetableSlots      TimetableSlot[]       @relation("TeacherTimetableSlots")
   studentTCs                 TransferCertificate[] @relation("StudentTCs")
-  assignedRegion             Region?               @relation(fields: [assignedRegionId], references: [id])
+  assignedRegion             Region?               @relation("RegionUsers", fields: [assignedRegionId], references: [id])
+  regionAsZoneHead           Region[]              @relation("RegionZoneHead")
   role                       Role                  @relation(fields: [roleId], references: [id])
   school                     School?               @relation(fields: [schoolId], references: [id])
   assignedVendors            Vendor[]              @relation("EmployeeVendors")
@@ -363,6 +367,8 @@ model Vendor {
   createdAt  DateTime   @default(now()) @map("created_at")
   updatedAt  DateTime?  @updatedAt @map("updated_at")
   deletedAt  DateTime?  @map("deleted_at")
+  invoices   Invoice[]
+  receipts   Receipt[]
   employee   User?      @relation("EmployeeVendors", fields: [employeeId], references: [id])
   region     Region     @relation(fields: [regionId], references: [id])
 
@@ -409,7 +415,8 @@ model License {
 model Receipt {
   id            String        @id @default(uuid())
   receiptNumber String?       @unique @map("receipt_number")
-  schoolId      String        @map("school_id")
+  schoolId      String?       @map("school_id")
+  vendorId      String?       @map("vendor_id")
   amount        Decimal       @db.Decimal(10, 2)
   baseAmount    Decimal       @map("base_amount") @db.Decimal(10, 2)
   sgstPercent   Decimal?      @map("sgst_percent") @db.Decimal(5, 2)
@@ -430,9 +437,41 @@ model Receipt {
   createdAt     DateTime      @default(now()) @map("created_at")
   updatedAt     DateTime?     @updatedAt @map("updated_at")
   deletedAt     DateTime?     @map("deleted_at")
-  school        School        @relation(fields: [schoolId], references: [id])
+  school        School?       @relation(fields: [schoolId], references: [id])
+  vendor        Vendor?       @relation(fields: [vendorId], references: [id])
 
   @@map("receipts")
+}
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String?       @unique @map("invoice_number")
+  schoolId      String?       @map("school_id")
+  vendorId      String?       @map("vendor_id")
+  amount        Decimal       @db.Decimal(10, 2)
+  baseAmount    Decimal       @map("base_amount") @db.Decimal(10, 2)
+  sgstPercent   Decimal?      @map("sgst_percent") @db.Decimal(5, 2)
+  cgstPercent   Decimal?      @map("cgst_percent") @db.Decimal(5, 2)
+  igstPercent   Decimal?      @map("igst_percent") @db.Decimal(5, 2)
+  ugstPercent   Decimal?      @map("ugst_percent") @db.Decimal(5, 2)
+  sgstAmount    Decimal?      @map("sgst_amount") @db.Decimal(10, 2)
+  cgstAmount    Decimal?      @map("cgst_amount") @db.Decimal(10, 2)
+  igstAmount    Decimal?      @map("igst_amount") @db.Decimal(10, 2)
+  ugstAmount    Decimal?      @map("ugst_amount") @db.Decimal(10, 2)
+  totalGst      Decimal?      @map("total_gst") @db.Decimal(10, 2)
+  description   String
+  dueDate       DateTime?     @map("due_date")
+  status        InvoiceStatus @default(DRAFT)
+  createdBy     String        @map("created_by")
+  updatedBy     String?       @map("updated_by")
+  deletedBy     String?       @map("deleted_by")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime?     @updatedAt @map("updated_at")
+  deletedAt     DateTime?     @map("deleted_at")
+  school        School?       @relation(fields: [schoolId], references: [id])
+  vendor        Vendor?       @relation(fields: [vendorId], references: [id])
+
+  @@map("invoices")
 }
 
 model Event {
@@ -1733,6 +1772,10 @@ enum Permission {
   GET_INVENTORY
   EDIT_INVENTORY_ITEM
   DELETE_INVENTORY_ITEM
+  CREATE_INVOICE
+  GET_INVOICES
+  UPDATE_INVOICE
+  DELETE_INVOICE
 
   @@map("permission")
 }
@@ -1855,6 +1898,16 @@ enum ReceiptStatus {
   CANCELLED
 
   @@map("receipt_status")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+
+  @@map("invoice_status")
 }
 
 enum SalaryComponentValueType {

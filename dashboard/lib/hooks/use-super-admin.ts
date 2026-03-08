@@ -58,6 +58,19 @@ export function useSchool(id: string) {
   });
 }
 
+/** Super Admin: fetch single school by ID including bank details (GET /schools/:id) */
+export function useSchoolById(id: string) {
+  return useQuery({
+    queryKey: ["schoolById", id],
+    queryFn: async () => {
+      const res = await get(`/schools/${id}`);
+      return res?.data ?? null;
+    },
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useCreateSchool() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -154,10 +167,11 @@ export function useUpdateEmployeePermissions() {
 }
 
 // Receipts
-export function useReceipts(schoolId?: string, status?: string) {
+export function useReceipts(params?: { schoolId?: string; vendorId?: string; status?: string }) {
+  const { schoolId, vendorId, status } = params || {};
   return useQuery({
-    queryKey: ["receipts", schoolId, status],
-    queryFn: () => get("/receipts", { schoolId, status }),
+    queryKey: ["receipts", schoolId, vendorId, status],
+    queryFn: () => get("/receipts", { schoolId, vendorId, status }),
     staleTime: 30 * 1000,
   });
 }
@@ -197,6 +211,64 @@ export function useUpdateReceipt() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["receipts"] });
       queryClient.invalidateQueries({ queryKey: ["receipt", variables.id] });
+    },
+  });
+}
+
+// Invoices
+export function useInvoices(params?: { schoolId?: string; vendorId?: string; status?: string }) {
+  return useQuery({
+    queryKey: ["invoices", params],
+    queryFn: () => get("/invoices", params),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useCreateInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (formData: any) =>
+      post("/invoices", { request: formData }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+    },
+  });
+}
+
+export function useGenerateInvoice() {
+  return useMutation({
+    mutationFn: ({ invoiceId, notes }: { invoiceId: string; notes?: string }) =>
+      post(`/invoices/${invoiceId}/generate`, { notes }),
+  });
+}
+
+export function useInvoice(id: string) {
+  return useQuery({
+    queryKey: ["invoice", id],
+    queryFn: () => get(`/invoices/${id}`),
+    enabled: !!id,
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useUpdateInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...formData }: { id: string } & any) =>
+      patch(`/invoices/${id}`, { request: formData }),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
+      queryClient.invalidateQueries({ queryKey: ["invoice", variables.id] });
+    },
+  });
+}
+
+export function useDeleteInvoice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => del(`/invoices/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -396,8 +468,10 @@ export interface CreateEmployeeData {
 export interface Receipt {
   id: string;
   receiptNumber: string;
-  schoolId: string;
+  schoolId?: string | null;
+  vendorId?: string | null;
   school?: School;
+  vendor?: { id: string; name: string; contact?: string };
   amount: number;
   status: string;
   description?: string;
@@ -405,8 +479,23 @@ export interface Receipt {
   createdAt: string;
 }
 
+export interface Invoice {
+  id: string;
+  invoiceNumber: string;
+  schoolId?: string;
+  school?: School;
+  vendorId?: string;
+  vendor?: Vendor;
+  amount: number;
+  status: string;
+  description?: string;
+  dueDate?: string;
+  createdAt: string;
+}
+
 export interface CreateReceiptData {
-  schoolId: string;
+  schoolId?: string;
+  vendorId?: string;
   baseAmount: number;
   description?: string;
   paymentMethod?: string;

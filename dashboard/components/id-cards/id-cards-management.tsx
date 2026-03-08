@@ -28,6 +28,7 @@ import {
   IdCardStatus,
 } from "@/lib/hooks/use-id-cards";
 import { toast } from "sonner";
+import { BASE_URL } from "@/lib/api/config";
 import { format } from "date-fns";
 import { IdCardTemplateConfig } from "./id-card-template-config";
 
@@ -168,7 +169,7 @@ export function IDCardsManagement() {
     // Fallback to the auto-generated template preview image if no custom sample is saved yet
     const templateId = idCardConfig?.templateId;
     if (templateId) {
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      const baseUrl = BASE_URL;
       window.open(`${baseUrl}/images/previews/id-cards/${templateId}.png`, "_blank");
       return;
     }
@@ -208,6 +209,22 @@ export function IDCardsManagement() {
 
   return (
     <div className="space-y-6">
+      {!hasConfig && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            No ID card template is configured. Templates define the layout for student ID cards.
+            Configure the ID card template in Settings to generate cards.
+            <Button
+              variant="link"
+              className="ml-2 h-auto p-0 text-primary font-medium"
+              onClick={() => setConfigDialogOpen(true)}
+            >
+              Configure ID card template
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-semibold">ID Cards Management</h1>
         <div className="flex gap-2">

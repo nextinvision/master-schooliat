@@ -125,17 +125,30 @@ router.post(
     const { examId, studentId, classId, gradeConfig } = req.body.request;
 
     try {
-      const result = await marksService.calculateResult(
+      if (studentId) {
+        const result = await marksService.calculateResult(
+          examId,
+          studentId,
+          classId,
+          gradeConfig || {},
+          currentUser.id,
+        );
+        return res.json({
+          message: "Result calculated successfully",
+          data: result,
+        });
+      }
+
+      // Bulk: calculate for all students in class
+      const results = await marksService.calculateResultForClass(
         examId,
-        studentId,
         classId,
         gradeConfig || {},
         currentUser.id,
       );
-
-      res.json({
-        message: "Result calculated successfully",
-        data: result,
+      return res.json({
+        message: "Results calculated successfully",
+        data: results,
       });
     } catch (error) {
       logger.error({ error, body: req.body }, "Failed to calculate result");

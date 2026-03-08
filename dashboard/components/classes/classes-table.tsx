@@ -14,6 +14,7 @@ import {
 import { Plus, Download } from "lucide-react";
 import { toast } from "sonner";
 import { getAuthToken } from "@/lib/auth/storage";
+import { BASE_URL } from "@/lib/api/config";
 
 const CLASS_COLUMNS = [
   { key: "no", title: "No", width: "w-16" },
@@ -62,7 +63,7 @@ export function ClassesTable({
   const handleDownload = async (classId: string, className: string) => {
     try {
       const token = await getAuthToken();
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      const baseUrl = BASE_URL;
       const response = await fetch(`${baseUrl}/schools/classes/${classId}/students/export`, {
         headers: {
           Authorization: `Bearer ${token}`,

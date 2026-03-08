@@ -1,12 +1,18 @@
 import { Router } from "express";
 import validateRequest from "../middlewares/validate-request.middleware.js";
+import withPermission from "../middlewares/with-permission.middleware.js";
+import { Permission } from "../prisma/generated/index.js";
 import fileService from "../services/file.service.js";
 import templateService from "../services/template.service.js";
 import getTemplatesSchema from "../schemas/template/get-templates.schema.js";
 
 const router = Router();
 
-router.get("/", validateRequest(getTemplatesSchema), async (req, res) => {
+router.get(
+  "/",
+  withPermission(Permission.GET_SETTINGS),
+  validateRequest(getTemplatesSchema),
+  async (req, res) => {
   const { type } = req.query;
 
   const templates = await templateService.getTemplates(type);
@@ -28,9 +34,13 @@ router.get("/", validateRequest(getTemplatesSchema), async (req, res) => {
     message: "Templates fetched successfully",
     data: templatesWithUrls,
   });
-});
+  },
+);
 
-router.get("/:templateId/default", async (req, res) => {
+router.get(
+  "/:templateId/default",
+  withPermission(Permission.GET_SETTINGS),
+  async (req, res) => {
   const { templateId } = req.params;
 
   try {

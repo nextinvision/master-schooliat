@@ -130,11 +130,19 @@ export function EmergencyContactsSection({ studentId }: EmergencyContactsSection
     { label: "Other", value: "OTHER" },
   ];
 
+  const maxContacts = 6;
+  const atLimit = contacts.length >= maxContacts;
+
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
-          <CardTitle>Emergency Contacts</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Emergency Contacts
+            <span className="text-sm font-normal text-muted-foreground">
+              ({contacts.length} / {maxContacts} max)
+            </span>
+          </CardTitle>
           <Button
             onClick={() => {
               setEditingContact(null);
@@ -143,6 +151,8 @@ export function EmergencyContactsSection({ studentId }: EmergencyContactsSection
             }}
             size="sm"
             className="gap-2"
+            disabled={atLimit}
+            title={atLimit ? "Maximum 6 emergency contacts allowed" : undefined}
           >
             <Plus className="h-4 w-4" />
             Add Contact

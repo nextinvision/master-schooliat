@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, FormProvider, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,10 +17,23 @@ import { RadioGroup } from "@/components/forms/radio-group";
 import { ChipGroup } from "@/components/forms/chip-group";
 import { TransportDropdown } from "@/components/forms/transport-dropdown";
 import { PhotoUpload } from "@/components/forms/photo-upload";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { Copy, KeyRound } from "lucide-react";
+
+type CreatedCredentials = { email: string; password: string } | null;
 
 export default function AddTeacherPage() {
   const router = useRouter();
+  const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials>(null);
   const { mutateAsync: createTeacher, isPending: isSaving } = useCreateTeacher();
 
   const methods = useForm<AddTeacherFormData>({
@@ -63,18 +77,23 @@ export default function AddTeacherPage() {
 
   const onSubmit = async (data: AddTeacherFormData) => {
     try {
-      await createTeacher(data);
-      toast.success("Teacher saved successfully");
-      setTimeout(() => {
+      const result = await createTeacher(data);
+      const created = result?.data;
+      const password = created?.password;
+      if (password && created?.email) {
+        setCreatedCredentials({ email: created.email, password });
+      } else {
+        toast.success("Teacher saved successfully");
         reset();
         router.push("/admin/teachers");
-      }, 1500);
+      }
     } catch (error: any) {
       toast.error(error?.message || "Failed to save teacher");
     }
   };
 
   return (
+    <>
     <FormProvider {...methods}>
       <div className="space-y-6 pb-8 overflow-y-auto max-h-[calc(100vh-120px)]">
         <FormTopBar
@@ -504,6 +523,62 @@ export default function AddTeacherPage() {
         </form>
       </div>
     </FormProvider>
+
+    <Dialog open={!!createdCredentials} onOpenChange={(open) => { if (!open) setCreatedCredentials(null); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5" />
+            Teacher login credentials
+          </DialogTitle>
+          <DialogDescription>
+            Share these with the teacher for app and dashboard login. The password cannot be viewed again.
+          </DialogDescription>
+        </DialogHeader>
+        {createdCredentials && (
+          <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
+            <div>
+              <Label className="text-muted-foreground text-xs">Login ID (Email)</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input readOnly value={createdCredentials.email} className="font-mono" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdCredentials.email);
+                    toast.success("Email copied");
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div>
+              <Label className="text-muted-foreground text-xs">Temporary password</Label>
+              <div className="flex items-center gap-2 mt-1">
+                <Input readOnly value={createdCredentials.password} className="font-mono" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(createdCredentials.password);
+                    toast.success("Password copied");
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+        <DialogFooter>
+          <Button onClick={() => { setCreatedCredentials(null); reset(); router.push("/admin/teachers"); }}>Done</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

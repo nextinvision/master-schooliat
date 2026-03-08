@@ -17,12 +17,12 @@ function fetchSubjects(params: { classId?: string; page?: number; limit?: number
 
 // Create subject
 function createSubjectApi(data: SubjectData) {
-  return post("/subjects", data);
+  return post("/subjects", { request: data });
 }
 
 // Update subject
 function updateSubjectApi(id: string, data: Partial<SubjectData>) {
-  return patch(`/subjects/${id}`, data);
+  return patch(`/subjects/${id}`, { request: data });
 }
 
 // Delete subject

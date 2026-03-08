@@ -1,15 +1,5 @@
 import { saveToken } from "@/lib/auth/storage";
-
-// API Base URL - must be set in environment variables
-// This variable is REQUIRED and must be set at build time for Next.js
-// For production, this should be set in .env.production file
-// Next.js embeds NEXT_PUBLIC_* variables at build time
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
-
-// Validate API URL is set
-if (typeof window !== "undefined" && !BASE_URL) {
-  console.error("NEXT_PUBLIC_API_URL is not set! API calls will fail.");
-}
+import { BASE_URL } from "./config";
 
 export async function loginAndSaveToken(
   email: string,
@@ -17,19 +7,34 @@ export async function loginAndSaveToken(
 ): Promise<any> {
   // Ensure BASE_URL doesn't end with / and path starts with /
   const cleanBaseUrl = BASE_URL.endsWith("/") ? BASE_URL.slice(0, -1) : BASE_URL;
-  const res = await fetch(`${cleanBaseUrl}/auth/authenticate`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-platform": "web",
-    },
-    body: JSON.stringify({
-      request: {
-        email,
-        password,
+  const authUrl = cleanBaseUrl ? `${cleanBaseUrl}/auth/authenticate` : "/auth/authenticate";
+  let res: Response;
+  try {
+    res = await fetch(authUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-platform": "web",
       },
-    }),
-  });
+      body: JSON.stringify({
+        request: {
+          email,
+          password,
+        },
+      }),
+    });
+  } catch (err) {
+    const isNetworkError =
+      err instanceof TypeError &&
+      (err.message === "Failed to fetch" || (err as any).cause?.code === "ECONNREFUSED");
+    if (isNetworkError) {
+      const hint = cleanBaseUrl
+        ? `Cannot connect to ${cleanBaseUrl}. Ensure the backend is running there, or set NEXT_PUBLIC_API_URL in .env.local.`
+        : "Cannot connect to the API. Ensure the Backend is running (e.g. cd Backend && npm run dev, default port 4000).";
+      throw new Error(hint);
+    }
+    throw err;
+  }
 
   if (!res.ok) {
     // Try to parse error response for better error messages

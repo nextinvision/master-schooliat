@@ -261,6 +261,34 @@ const calculateResult = async (examId, studentId, classId, gradeConfig, createdB
 };
 
 /**
+ * Calculate results for all students in a class
+ * @param {string} examId - Exam ID
+ * @param {string} classId - Class ID
+ * @param {Object} gradeConfig - Grade configuration
+ * @param {string} createdBy - User ID
+ * @returns {Promise<{ calculated: number, results: Object[] }>}
+ */
+const calculateResultForClass = async (examId, classId, gradeConfig, createdBy) => {
+  const profiles = await prisma.studentProfile.findMany({
+    where: { classId, deletedAt: null },
+    select: { userId: true },
+  });
+  const studentIds = profiles.map((p) => p.userId);
+  const results = [];
+  const errors = [];
+  for (const studentId of studentIds) {
+    try {
+      const result = await calculateResult(examId, studentId, classId, gradeConfig, createdBy);
+      results.push(result);
+    } catch (err) {
+      logger.warn({ err, examId, studentId, classId }, "Skipped one student in bulk calculate");
+      errors.push({ studentId, message: err.message });
+    }
+  }
+  return { calculated: results.length, total: studentIds.length, results, errors };
+};
+
+/**
  * Calculate grade from percentage
  * @param {number} percentage - Percentage
  * @param {Array} gradeRanges - Grade ranges configuration
@@ -526,6 +554,7 @@ const marksService = {
   enterMarks,
   enterBulkMarks,
   calculateResult,
+  calculateResultForClass,
   publishResults,
   getStudentMarks,
   getExamMarks,

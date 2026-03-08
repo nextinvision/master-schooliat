@@ -2,7 +2,12 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
-First, run the development server:
+**The dashboard talks to the Backend API.** For login and all API features to work:
+
+1. Start the **Backend** first (from the repo root: `cd Backend && npm run dev`). It listens on **port 4000** by default so the dashboard's Next.js proxy can forward requests to it.
+2. Optionally set `NEXT_PUBLIC_API_URL` in `.env.local` to point directly at the API (e.g. `http://localhost:4000`); when unset, requests go same-origin and are proxied.
+
+Then run the dashboard:
 
 ```bash
 npm run dev
@@ -14,7 +19,7 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open the URL shown in the terminal (e.g. [http://localhost:3001](http://localhost:3001)) with your browser. If you see "Cannot connect to the API", the backend is not reachable—ensure it is running on the configured URL.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 

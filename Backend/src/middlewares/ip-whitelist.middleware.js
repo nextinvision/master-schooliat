@@ -12,10 +12,10 @@ const ipWhitelistMiddleware = (req, res, next) => {
     return next(); // Let authorization middleware handle this
   }
 
-  // Only apply to Super Admin and School Admin
-  const adminRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-  if (!adminRoles.includes(user.role?.name)) {
-    return next(); // Not an admin role, skip IP check
+  // Only apply to Super Admin (not School Admin - they use dashboard from various locations)
+  const restrictedRoles = ["SUPER_ADMIN"];
+  if (!restrictedRoles.includes(user.role?.name)) {
+    return next(); // Not restricted, skip IP check
   }
 
   // Get IP whitelist from config
@@ -28,12 +28,12 @@ const ipWhitelistMiddleware = (req, res, next) => {
   // Get client IP
   const clientIP =
     req.ip ||
-    req.headers["x-forwarded-for"]?.split(",")[0] ||
+    req.headers["x-forwarded-for"]?.split(",")[0]?.trim() ||
     req.headers["x-real-ip"] ||
     req.connection?.remoteAddress ||
     "unknown";
 
-  console.log(`[DEBUG] IP Whitelist checking clientIP: ${clientIP} against: ${JSON.stringify(allowedIPs)}`);
+  logger.debug({ clientIP, allowedIPs }, "IP whitelist check");
 
   // Check if IP is whitelisted
   const isAllowed = allowedIPs.some((allowedIP) => {

@@ -46,6 +46,13 @@ export default function TemplatesPage() {
 
   const templateTypes = Array.from(new Set(templates.map((t: Template) => t.type)));
 
+  // next/image requires a valid URL: absolute (http/https) or path starting with /
+  const isValidImageUrl = (url: string | null | undefined) =>
+    typeof url === "string" &&
+    url.length > 0 &&
+    !url.startsWith("undefined") &&
+    (url.startsWith("/") || url.startsWith("http://") || url.startsWith("https://"));
+
   const openPreview = (template: Template) => {
     setSelectedTemplate(template);
     setIsPreviewOpen(true);
@@ -56,7 +63,7 @@ export default function TemplatesPage() {
       <div>
         <h1 className="text-xl font-bold">Template Management</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Manage document templates for receipts, certificates, and other documents
+          Templates define layouts for ID cards, result cards, fee receipts, and inventory receipts. Schools use the selected template when generating these documents.
         </p>
       </div>
 
@@ -108,9 +115,9 @@ export default function TemplatesPage() {
               {filteredTemplates.map((template: Template) => (
                 <Card key={template.id} className="overflow-hidden">
                   <div className="relative h-48 bg-gray-100">
-                    {template.imageUrl ? (
+                    {isValidImageUrl(template.imageUrl) ? (
                       <Image
-                        src={template.imageUrl}
+                        src={template.imageUrl!}
                         alt={template.title || "Template Preview"}
                         fill
                         className="object-cover"
@@ -171,11 +178,11 @@ export default function TemplatesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {selectedTemplate?.imageUrl && (
+            {isValidImageUrl(selectedTemplate?.imageUrl) && (
               <div className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
                 <Image
-                  src={selectedTemplate.imageUrl}
-                  alt={selectedTemplate.title || "Selected Template"}
+                  src={selectedTemplate!.imageUrl!}
+                  alt={selectedTemplate!.title || "Selected Template"}
                   fill
                   className="object-contain"
                 />

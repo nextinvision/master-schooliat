@@ -21,12 +21,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Filter, Calendar as CalendarIcon, FileDown, Loader2, DownloadCloud, Eye, IndianRupee } from "lucide-react";
 import { useInstallments, useRecordPayment } from "@/lib/hooks/use-fees";
+import { get } from "@/lib/api/client";
 import { FeeDetailsModal } from "./fee-details-modal";
 import { PaymentModal } from "./payment-modal";
 import { PaymentFormData } from "@/lib/schemas/fees-schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PaymentInfoCard } from "./payment-info-card";
 import { toast } from "sonner";
+import { BASE_URL } from "@/lib/api/config";
 
 const STATUS_OPTIONS = ["All Status", "Paid", "Pending"];
 const YEAR_OPTIONS = ["2023-2024", "2024-2025", "2025-2026"];
@@ -149,7 +151,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     setIsExporting(true);
     try {
       const token = window.sessionStorage.getItem("accessToken");
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      const baseUrl = BASE_URL;
       const resp = await fetch(`${baseUrl}/fees/export?academicYear=${yearFilter}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -436,6 +438,28 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                               <DownloadCloud className="w-4 h-4" />
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Student fee receipt"
+                            onClick={async () => {
+                              try {
+                                const res = await get(`/fees/student/${item.studentId}`);
+                                const installments = res?.data?.installments ?? [];
+                                const withReceipt = installments.filter((i: any) => i.receiptFileUrl);
+                                if (withReceipt.length > 0) {
+                                  window.open(withReceipt[0].receiptFileUrl, "_blank");
+                                } else {
+                                  toast.info("No receipt available for this student yet. Record a payment first.");
+                                }
+                              } catch {
+                                toast.error("Could not load student receipts.");
+                              }
+                            }}
+                          >
+                            <FileDown className="w-4 h-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

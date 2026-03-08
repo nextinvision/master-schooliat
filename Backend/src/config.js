@@ -1,7 +1,7 @@
 // ENV variables with defaults
 const config = {
   ENVIRONMENT: process.env.NODE_ENV?.toLowerCase() || "production",
-  PORT: process.env.PORT || 3000,
+  PORT: process.env.PORT || 4000,
   // Supabase connection string (use pooled connection for better performance)
   // Format: postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:6543/postgres
   // Or direct: postgresql://postgres:[PASSWORD]@[PROJECT_REF].supabase.co:5432/postgres
@@ -30,18 +30,18 @@ const config = {
     /^\/files\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
   ],
 
-  // File Storage Config
+  // File Storage Config: "local" (filesystem), "minio" (local MinIO), "aws-s3" (AWS cloud)
   FILE_STORAGE: process.env.FILE_STORAGE || "local",
   FILE_SIZE_LIMIT: parseInt(process.env.FILE_SIZE_LIMIT) || 10,
-  FILE_PATH: process.env.FILE_PATH || "files", // in MBs
-  AWS_S3_BUCKET: process.env.AWS_S3_BUCKET,
-  AWS_REGION: process.env.AWS_REGION,
+  FILE_PATH: process.env.FILE_PATH || "files",
+  AWS_S3_BUCKET: process.env.AWS_S3_BUCKET || (process.env.FILE_STORAGE === "minio" ? "schooliat-files" : undefined),
+  AWS_REGION: process.env.AWS_REGION || "us-east-1",
   AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
-  
-  // MinIO Configuration (for local development)
+
+  // MinIO (locally installed S3-compatible storage). Set when FILE_STORAGE=minio or aws-s3 with local MinIO.
   MINIO_ENDPOINT: process.env.MINIO_ENDPOINT,
-  MINIO_FORCE_PATH_STYLE: process.env.MINIO_FORCE_PATH_STYLE !== "false", // Default to true
+  MINIO_FORCE_PATH_STYLE: process.env.MINIO_FORCE_PATH_STYLE !== "false",
 
   // Redis Configuration
   REDIS_HOST: process.env.REDIS_HOST || "localhost",

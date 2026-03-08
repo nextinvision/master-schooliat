@@ -235,7 +235,7 @@ const getTemplateDefaults = async (templateId) => {
     return extractDefaultsFromSchema(schema);
   } catch (error) {
     if (error.code === "ENOENT") {
-      throw new Error(`Schema file not found for template: ${template.path}`);
+      return {};
     }
     throw error;
   }

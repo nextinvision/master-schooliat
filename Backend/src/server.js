@@ -28,6 +28,7 @@ import regionRouter from "./routers/region.router.js";
 import vendorRouter from "./routers/vendor.router.js";
 import licenseRouter from "./routers/license.router.js";
 import receiptRouter from "./routers/receipt.router.js";
+import invoiceRouter from "./routers/invoice.router.js";
 import statisticsRouter from "./routers/statistics.router.js";
 import locationRouter from "./routers/location.router.js";
 import transportRouter from "./routers/transport.router.js";
@@ -228,6 +229,7 @@ function addRouters(app) {
   app.use("/files", fileRouter);
   app.use("/licenses", licenseRouter);
   app.use("/receipts", receiptRouter);
+  app.use("/invoices", invoiceRouter);
   app.use("/statistics", statisticsRouter);
   app.use("/locations", locationRouter);
   app.use("/letterhead", letterheadRouter);

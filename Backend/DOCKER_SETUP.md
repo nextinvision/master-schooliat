@@ -99,6 +99,16 @@ Password: schooliat_redis_password
 
 Access the MinIO console at: http://localhost:9001
 
+To use MinIO for file and media storage (no cloud URLs), set in your `.env`:
+
+- `FILE_STORAGE=minio`
+- `MINIO_ENDPOINT=http://localhost:9000`
+- `AWS_S3_BUCKET=schooliat-files`
+- `AWS_ACCESS_KEY_ID=minioadmin`
+- `AWS_SECRET_ACCESS_KEY=minioadmin123`
+
+Files are then stored in MinIO and served via the API (`/files/:id`); URLs stay local (API base URL or relative).
+
 ## Docker Commands
 
 ### Start Services

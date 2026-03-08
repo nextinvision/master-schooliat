@@ -191,6 +191,128 @@ router.get(
   },
 );
 
+// GET /schools/classes - must be before /:id so "classes" is not matched as school id
+router.get(
+  "/classes",
+  withPermission(Permission.GET_CLASSES),
+  validateRequest(getClassesSchema),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const where = {
+      schoolId: currentUser.schoolId,
+      deletedAt: null,
+      deletedBy: null,
+    };
+
+    const pageNumber = parseInt(req.query.pageNumber) || 1;
+    const pageSize = parseInt(req.query.pageSize) || 10;
+
+    const classes = await prisma.class.findMany({
+      where,
+      ...paginateUtil.getPaginationParams(req),
+      orderBy: { createdAt: "desc" },
+    });
+
+    const totalCount = await prisma.class.count({ where });
+
+    const classTeacherIds = classes
+      .map((cls) => cls.classTeacherId)
+      .filter((id) => id != null);
+
+    let classTeacherMap = {};
+    if (classTeacherIds.length > 0) {
+      const classTeachers = await prisma.user.findMany({
+        where: {
+          id: { in: classTeacherIds },
+          deletedAt: null,
+          deletedBy: null,
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          contact: true,
+        },
+      });
+
+      classTeacherMap = classTeachers.reduce((acc, teacher) => {
+        acc[teacher.id] = teacher;
+        return acc;
+      }, {});
+    }
+
+    const classesWithTeachers = classes.map((cls) => ({
+      ...cls,
+      classTeacher: cls.classTeacherId
+        ? classTeacherMap[cls.classTeacherId] || null
+        : null,
+    }));
+
+    const totalPages = Math.ceil(totalCount / pageSize);
+    const hasNext = pageNumber < totalPages;
+
+    return res.json({
+      message: "Classes fetched!",
+      data: classesWithTeachers,
+      totalPages,
+      hasNext,
+    });
+  },
+);
+
+// GET /schools/:id - Super Admin: full school details including bank (by id)
+router.get(
+  "/:id",
+  withPermission(Permission.GET_SCHOOLS),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { id } = req.params;
+    if (currentUser.role?.name !== RoleName.SUPER_ADMIN) {
+      return res.status(403).json({ message: "Only Super Admin can fetch a school by ID." });
+    }
+    const school = await prisma.school.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        deletedBy: null,
+      },
+      select: {
+        id: true,
+        name: true,
+        code: true,
+        address: true,
+        email: true,
+        phone: true,
+        certificateLink: true,
+        logoId: true,
+        gstNumber: true,
+        principalName: true,
+        principalEmail: true,
+        principalPhone: true,
+        establishedYear: true,
+        boardAffiliation: true,
+        studentStrength: true,
+        bankName: true,
+        bankAccountNumber: true,
+        bankIfscCode: true,
+        bankBranchName: true,
+        upiId: true,
+        regionId: true,
+        region: { select: { id: true, name: true } },
+        createdAt: true,
+      },
+    });
+    if (!school) {
+      return res.status(404).json({ message: "School not found!" });
+    }
+    return res.json({
+      message: "School fetched!",
+      data: school,
+    });
+  },
+);
+
 // PATCH my-school: school admin updates their own school (requires EDIT_SETTINGS)
 router.patch(
   "/my-school",
@@ -393,78 +515,6 @@ router.post(
     return res.status(201).json({
       message: "Classes processed successfully!",
       data: result,
-    });
-  },
-);
-
-router.get(
-  "/classes",
-  withPermission(Permission.GET_CLASSES),
-  validateRequest(getClassesSchema),
-  async (req, res) => {
-    const currentUser = req.context.user;
-    const where = {
-      schoolId: currentUser.schoolId,
-      deletedAt: null,
-      deletedBy: null,
-    };
-
-    const pageNumber = parseInt(req.query.pageNumber) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 10;
-
-    const classes = await prisma.class.findMany({
-      where,
-      ...paginateUtil.getPaginationParams(req),
-      orderBy: { createdAt: "desc" },
-    });
-
-    const totalCount = await prisma.class.count({ where });
-
-    // Collect unique classTeacherIds
-    const classTeacherIds = classes
-      .map((cls) => cls.classTeacherId)
-      .filter((id) => id != null);
-
-    // Fetch classTeachers if any exist using findMany
-    let classTeacherMap = {};
-    if (classTeacherIds.length > 0) {
-      const classTeachers = await prisma.user.findMany({
-        where: {
-          id: { in: classTeacherIds },
-          deletedAt: null,
-          deletedBy: null,
-        },
-        select: {
-          id: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          contact: true,
-        },
-      });
-
-      classTeacherMap = classTeachers.reduce((acc, teacher) => {
-        acc[teacher.id] = teacher;
-        return acc;
-      }, {});
-    }
-
-    // Add classTeacher object to each class
-    const classesWithTeachers = classes.map((cls) => ({
-      ...cls,
-      classTeacher: cls.classTeacherId
-        ? classTeacherMap[cls.classTeacherId] || null
-        : null,
-    }));
-
-    const totalPages = Math.ceil(totalCount / pageSize);
-    const hasNext = pageNumber < totalPages;
-
-    return res.json({
-      message: "Classes fetched!",
-      data: classesWithTeachers,
-      totalPages,
-      hasNext,
     });
   },
 );

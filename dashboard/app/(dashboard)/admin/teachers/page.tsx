@@ -31,7 +31,9 @@ import { TransportDropdown } from "@/components/forms/transport-dropdown";
 import { PhotoUpload } from "@/components/forms/photo-upload";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { UserPlus } from "lucide-react";
+import { UserPlus, Copy, KeyRound } from "lucide-react";
+
+type CreatedCredentials = { email: string; password: string } | null;
 
 export default function TeachersPage() {
   const router = useRouter();
@@ -39,6 +41,7 @@ export default function TeachersPage() {
   const [isAddTeacherDialogOpen, setIsAddTeacherDialogOpen] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials>(null);
   const limit = 15;
 
   // Teachers data
@@ -82,11 +85,17 @@ export default function TeachersPage() {
 
   const handleCreateTeacher = useCallback(async (data: AddTeacherFormData) => {
     try {
-      await createTeacher.mutateAsync(data);
-      toast.success("Teacher created successfully!");
+      const result = await createTeacher.mutateAsync(data);
+      const created = result?.data;
+      const password = created?.password;
       teacherForm.reset();
       setIsAddTeacherDialogOpen(false);
       refetchTeachers();
+      if (password && created?.email) {
+        setCreatedCredentials({ email: created.email, password });
+      } else {
+        toast.success("Teacher created successfully!");
+      }
     } catch (error: any) {
       toast.error(error?.message || "Failed to create teacher");
     }
@@ -592,6 +601,62 @@ export default function TeachersPage() {
             >
               {createTeacher.isPending ? "Creating..." : "Create Teacher"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Login credentials modal after create */}
+      <Dialog open={!!createdCredentials} onOpenChange={() => setCreatedCredentials(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5" />
+              Teacher login credentials
+            </DialogTitle>
+            <DialogDescription>
+              Share these with the teacher for app and dashboard login. The password cannot be viewed again.
+            </DialogDescription>
+          </DialogHeader>
+          {createdCredentials && (
+            <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
+              <div>
+                <Label className="text-muted-foreground text-xs">Login ID (Email)</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input readOnly value={createdCredentials.email} className="font-mono" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdCredentials.email);
+                      toast.success("Email copied");
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div>
+                <Label className="text-muted-foreground text-xs">Temporary password</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input readOnly value={createdCredentials.password} className="font-mono" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdCredentials.password);
+                      toast.success("Password copied");
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setCreatedCredentials(null)}>Done</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

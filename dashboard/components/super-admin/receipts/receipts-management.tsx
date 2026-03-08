@@ -29,8 +29,8 @@ const STATUS_OPTIONS = ["All", "GENERATED", "PENDING", "PAID", "CANCELLED"];
 interface ReceiptDisplay {
   id: string;
   receiptNumber: string;
-  schoolName: string;
-  schoolCode: string;
+  recipientName: string;
+  recipientSub: string;
   amount: number;
   date: string;
   status: string;
@@ -44,10 +44,9 @@ export function ReceiptsManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("All");
   const itemsPerPage = 10;
 
-  const { data, isLoading, error } = useReceipts(
-    undefined,
-    statusFilter !== "All" ? statusFilter : undefined
-  );
+  const { data, isLoading, error } = useReceipts({
+    status: statusFilter !== "All" ? statusFilter : undefined,
+  });
 
   const generateReceipt = useGenerateReceipt();
 
@@ -60,6 +59,7 @@ export function ReceiptsManagement() {
       filtered = filtered.filter(
         (receipt: Receipt) =>
           receipt.school?.name?.toLowerCase().includes(searchLower) ||
+          receipt.vendor?.name?.toLowerCase().includes(searchLower) ||
           receipt.receiptNumber?.toLowerCase().includes(searchLower)
       );
     }
@@ -67,11 +67,11 @@ export function ReceiptsManagement() {
     return filtered.map((receipt: Receipt) => ({
       id: receipt.id,
       receiptNumber: receipt.receiptNumber,
-      schoolName: receipt.school?.name || "N/A",
+      recipientName: receipt.school?.name || receipt.vendor?.name || "N/A",
+      recipientSub: receipt.school?.code || (receipt.vendor ? "Vendor" : "N/A"),
       amount: parseFloat(String(receipt.amount)) || 0,
       date: new Date(receipt.createdAt).toISOString().split("T")[0],
       status: receipt.status || "GENERATED",
-      schoolCode: receipt.school?.code || "N/A",
     }));
   }, [data, searchQuery]);
 
@@ -173,7 +173,7 @@ export function ReceiptsManagement() {
             <TableHeader>
               <TableRow className="bg-schooliat-tint">
                 <TableHead>Receipt Number</TableHead>
-                <TableHead>School</TableHead>
+                <TableHead>Recipient</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
@@ -195,9 +195,9 @@ export function ReceiptsManagement() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <div className="font-semibold">{receipt.schoolName}</div>
+                        <div className="font-semibold">{receipt.recipientName}</div>
                         <div className="text-sm text-gray-500">
-                          {receipt.schoolCode}
+                          {receipt.recipientSub}
                         </div>
                       </div>
                     </TableCell>

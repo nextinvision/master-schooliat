@@ -9,6 +9,18 @@ export function useSettings() {
   });
 }
 
+/** Platform/company bank details (for schools to pay SchooliAT) */
+export function usePlatformBank() {
+  return useQuery({
+    queryKey: ["settings", "platform-bank"],
+    queryFn: async () => {
+      const res = await get("/settings/platform-bank");
+      return res?.data ?? {};
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useUpdateSettings() {
   const queryClient = useQueryClient();
   return useMutation({

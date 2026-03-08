@@ -8,11 +8,26 @@ const getFileById = async (fileId) => {
 };
 
 const attachFileURL = (file) => {
-  if (config.FILE_STORAGE === "aws-s3") {
+  // MinIO (local S3) and local filesystem: serve via API, never use cloud URLs.
+  // Only use AWS cloud URL when FILE_STORAGE=aws-s3 and no MinIO endpoint (real AWS).
+  const useLocalOrMinIOUrl =
+    config.FILE_STORAGE === "local" ||
+    config.FILE_STORAGE === "minio" ||
+    (config.FILE_STORAGE === "aws-s3" && config.MINIO_ENDPOINT);
+
+  if (useLocalOrMinIOUrl) {
+    const base = config.API_URL && config.API_URL !== "undefined"
+      ? config.API_URL.replace(/\/$/, "")
+      : "";
+    file["url"] = base ? `${base}/files/${file.id}` : `/files/${file.id}`;
+  } else if (config.FILE_STORAGE === "aws-s3") {
     file["url"] =
       `https://${config.AWS_S3_BUCKET}.s3.${config.AWS_REGION}.amazonaws.com/${config.FILE_PATH}/${file.id}.${file.extension}`;
   } else {
-    file["url"] = `${config.API_URL}/files/${file.id}`;
+    const base = config.API_URL && config.API_URL !== "undefined"
+      ? config.API_URL.replace(/\/$/, "")
+      : "";
+    file["url"] = base ? `${base}/files/${file.id}` : `/files/${file.id}`;
   }
 
   return file;

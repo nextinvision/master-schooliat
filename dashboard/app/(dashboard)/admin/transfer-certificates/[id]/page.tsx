@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { BASE_URL } from "@/lib/api/config";
 
 export default function TCDetailPage() {
     const params = useParams();
@@ -32,7 +33,7 @@ export default function TCDetailPage() {
 
         try {
             const token = window.sessionStorage.getItem("accessToken");
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+            const baseUrl = BASE_URL;
             const resp = await fetch(`${baseUrl}/transfer-certificates/${tc.id}/download`, {
                 headers: {
                     Authorization: `Bearer ${token}`,

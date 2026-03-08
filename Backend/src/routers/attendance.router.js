@@ -244,13 +244,23 @@ router.get(
       status,
     };
 
-    const reportData = await attendanceService.getAttendanceReport(filters);
+    let reportData = await attendanceService.getAttendanceReport(filters);
+
+    // Sort by roll number then date for consistent report ordering
+    reportData = reportData.sort((a, b) => {
+      const rollA = Number(a.student?.studentProfile?.rollNumber ?? 99999) || 99999;
+      const rollB = Number(b.student?.studentProfile?.rollNumber ?? 99999) || 99999;
+      if (rollA !== rollB) return rollA - rollB;
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateA - dateB;
+    });
 
     if (format === "csv" || format === "excel") {
       const headers = [
+        { label: "Roll Number", key: "rollNumber" },
         { label: "Date", key: "date" },
         { label: "Student Name", key: "firstName" },
-        { label: "Roll Number", key: "rollNumber" },
         { label: "Class", key: "className" },
         { label: "Period", key: "periodName" },
         { label: "Status", key: "status" },

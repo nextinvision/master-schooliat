@@ -143,6 +143,39 @@ router.get(
   },
 );
 
+// GET /settings/platform-bank – platform/company bank details for schools (e.g. where to pay)
+router.get(
+  "/platform-bank",
+  authorize,
+  async (req, res) => {
+    try {
+      const platformSettings = await prisma.settings.findFirst({
+        where: { schoolId: null, deletedAt: null },
+      });
+      let config = platformSettings?.platformConfig;
+      if (config === undefined || config === null) {
+        try {
+          const raw = await prisma.$queryRaw`SELECT platform_config FROM settings WHERE school_id IS NULL AND deleted_at IS NULL LIMIT 1`;
+          config = raw[0]?.platform_config;
+        } catch (e) {
+          // ignore
+        }
+      }
+      const bank = config?.platformBank || config?.bankDetails || {};
+      return res.json({
+        message: "Platform bank details",
+        data: bank,
+      });
+    } catch (error) {
+      console.error("Error fetching platform bank:", error);
+      return res.status(500).json({
+        message: "Failed to fetch platform bank",
+        error: error.message,
+      });
+    }
+  },
+);
+
 // GET /settings/content/:slug – fetch platform-level content (Terms, Privacy, Support)
 router.get(
   "/content/:slug",

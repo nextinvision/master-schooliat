@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { BASE_URL } from "@/lib/api/config";
 import { useAttendanceReports } from "@/lib/hooks/use-reports";
 import { useClasses } from "@/lib/hooks/use-classes";
 import { useStudents } from "@/lib/hooks/use-students";
@@ -96,10 +97,10 @@ export default function AttendanceReportsPage() {
   const sortedAttendanceRecords = useMemo(() => {
     if (!attendanceRecords || attendanceRecords.length === 0) return [];
     return [...attendanceRecords].sort((a: any, b: any) => {
-      // 1. Sort by Date (Descending)
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      if (dateA !== dateB) return dateB - dateA;
+      // 1. Sort by Roll Number (primary)
+      const rollA = parseInt(String(a.student?.studentProfile?.rollNumber ?? "99999"), 10);
+      const rollB = parseInt(String(b.student?.studentProfile?.rollNumber ?? "99999"), 10);
+      if (rollA !== rollB) return rollA - rollB;
 
       // 2. Sort by Class Grade
       const classA = a.student?.studentProfile?.class;
@@ -113,10 +114,10 @@ export default function AttendanceReportsPage() {
       const divB = String(classB?.division || "").toLowerCase();
       if (divA !== divB) return divA.localeCompare(divB);
 
-      // 4. Sort by Roll Number
-      const rollA = parseInt(a.student?.studentProfile?.rollNumber || "99999", 10);
-      const rollB = parseInt(b.student?.studentProfile?.rollNumber || "99999", 10);
-      return rollA - rollB;
+      // 4. Sort by Date (Descending)
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dateB - dateA;
     });
   }, [attendanceRecords]);
 
@@ -207,7 +208,7 @@ export default function AttendanceReportsPage() {
   const handleExport = async () => {
     try {
       const token = window.sessionStorage.getItem("accessToken");
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      const baseUrl = BASE_URL;
 
       const queryParams = new URLSearchParams({
         format: "csv",
@@ -570,6 +571,7 @@ export default function AttendanceReportsPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-schooliat-tint">
+                    <TableHead>Roll No</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Student</TableHead>
                     <TableHead>Class</TableHead>
@@ -581,6 +583,9 @@ export default function AttendanceReportsPage() {
                 <TableBody>
                   {sortedAttendanceRecords.map((record: any, index: number) => (
                     <TableRow key={record.id || index}>
+                      <TableCell className="font-medium">
+                        {record.student?.studentProfile?.rollNumber ?? "—"}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {format(new Date(record.date), "MMM dd, yyyy")}
                       </TableCell>

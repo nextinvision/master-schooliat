@@ -23,9 +23,8 @@ export const ATTENDANCE_SUBMENU: SubMenuItem[] = [
   { name: "Reports", route: "/admin/attendance/reports" },
 ];
 
-// Submenu items for Leave
+// Submenu items for Leave (school admin: Approvals only; "My Leave" removed per requirement)
 export const LEAVE_SUBMENU: SubMenuItem[] = [
-  { name: "My Leaves", route: "/admin/leave" },
   { name: "Approvals", route: "/admin/leave/approvals" },
 ];
 
@@ -198,6 +197,11 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     route: "/super-admin/receipts",
   },
   {
+    name: "Invoices",
+    icon: "FileText",
+    route: "/super-admin/invoices",
+  },
+  {
     name: "Licenses",
     icon: "ShieldCheck",
     route: "/super-admin/licenses",
@@ -262,11 +266,6 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     name: "Reminders",
     icon: "Bell",
     route: "/super-admin/reminders",
-  },
-  {
-    name: "Courier",
-    icon: "Truck",
-    route: "/super-admin/courier",
   },
   {
     name: "Settings",

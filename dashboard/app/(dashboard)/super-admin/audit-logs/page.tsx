@@ -213,6 +213,11 @@ export default function AuditLogsPage() {
                                   log.user.email
                                   : "System"}
                               </span>
+                              {log.user?.id && (
+                                <span className="text-[10px] font-mono text-muted-foreground">
+                                  ID: {log.user.id}
+                                </span>
+                              )}
                               {log.user?.role && (
                                 <Badge variant="secondary" className="w-fit text-[10px] px-1 py-0 h-4">
                                   {log.user.role.name.replace("_", " ")}

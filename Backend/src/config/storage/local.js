@@ -19,3 +19,23 @@ export function uploadToLocal({ buffer, key }) {
     writeStream.on("error", reject);
   });
 }
+
+/**
+ * Get a read stream for a file from local filesystem.
+ * @param {string} key - File key (e.g. fileId.extension)
+ * @returns {Promise<{ stream: import("stream").Readable; contentType?: string }>}
+ */
+export function getStreamFromLocal(key) {
+  const fullPath = path.join(
+    process.cwd(),
+    ...config.FILE_PATH.split("/"),
+    key,
+  );
+  if (!fs.existsSync(fullPath)) {
+    return null;
+  }
+  return {
+    stream: fs.createReadStream(fullPath),
+    contentType: undefined,
+  };
+}

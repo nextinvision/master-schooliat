@@ -5,7 +5,7 @@ import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
 function fetchTeachers({ page = 1, limit = 15, academicYear }: { page?: number; limit?: number; academicYear?: string } = {}) {
-  return get("/users/teachers", { page, limit, academicYear });
+  return get("/users/teachers", { pageNumber: page, pageSize: limit, academicYear });
 }
 
 function fetchTeacher(teacherId: string) {

@@ -30,6 +30,7 @@ import {
 import { get } from "@/lib/api/client";
 import { toast } from "sonner";
 import { ResultViewModal } from "./result-view-modal";
+import { BASE_URL } from "@/lib/api/config";
 
 export function ResultManagement() {
   const [page, setPage] = useState(0);
@@ -146,8 +147,14 @@ export function ResultManagement() {
       toast.error("Please select an exam first");
       return;
     }
+    if (!classRows.length) {
+      toast.error("No classes to generate results for");
+      return;
+    }
     try {
-      await calculateResults.mutateAsync({ examId: examFilter });
+      for (const row of classRows) {
+        await calculateResults.mutateAsync({ examId: examFilter, classId: row.id });
+      }
       toast.success("All results calculated successfully!");
     } catch (error: any) {
       toast.error(error?.message || "Failed to calculate results");
@@ -248,7 +255,7 @@ export function ResultManagement() {
     setIsExportingAll(true);
     try {
       const token = window.sessionStorage.getItem("accessToken");
-      const baseUrl = process.env.NEXT_PUBLIC_API_URL || "https://api.schooliat.com";
+      const baseUrl = BASE_URL;
       const resp = await fetch(`${baseUrl}/marks/results/export?examId=${examFilter}`, {
         headers: {
           Authorization: `Bearer ${token}`,

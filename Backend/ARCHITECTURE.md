@@ -101,7 +101,7 @@ The SchooliAt ERP backend is a RESTful API built with Node.js and Express.js, de
 | Logging | Pino | ^9.6.0 |
 | Email | Nodemailer | ^8.0.1 |
 | PDF Generation | Puppeteer | ^24.32.0 |
-| File Storage | AWS S3 / Local | - |
+| File Storage | Local filesystem / MinIO (S3-compatible) / AWS S3 | - |
 | Caching | In-memory (Redis-ready) | - |
 
 ### Security Libraries

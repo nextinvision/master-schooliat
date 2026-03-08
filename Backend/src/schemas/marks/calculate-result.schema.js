@@ -11,7 +11,7 @@ const calculateResultSchema = z
     request: z
       .object({
         examId: z.string().uuid("Invalid exam ID"),
-        studentId: z.string().uuid("Invalid student ID"),
+        studentId: z.string().uuid("Invalid student ID").optional(),
         classId: z.string().uuid("Invalid class ID"),
         gradeConfig: z.object({
           gradeRanges: z.array(gradeRangeSchema).optional().default([]),
@@ -19,12 +19,10 @@ const calculateResultSchema = z
           cgpaScale: z.number().min(1).max(10).optional().nullable(),
           calculateRank: z.boolean().optional().default(false),
         }).optional().default({}),
-      })
-      ,
+      }),
     query: z.object({}),
     params: z.object({}),
-  })
-  ;
+  });
 
 export default calculateResultSchema;
 

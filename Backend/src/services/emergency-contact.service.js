@@ -46,6 +46,13 @@ const createEmergencyContact = async (data) => {
     throw new Error("Student not found or does not belong to this school");
   }
 
+  const existingCount = await prisma.emergencyContact.count({
+    where: { studentId, deletedAt: null },
+  });
+  if (existingCount >= 6) {
+    throw new Error("Maximum 6 emergency contacts allowed per student.");
+  }
+
   // If this is primary, unset other primary contacts
   if (isPrimary) {
     await prisma.emergencyContact.updateMany({

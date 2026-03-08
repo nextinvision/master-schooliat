@@ -1,7 +1,7 @@
 import { Router } from "express";
 import prisma from "../prisma/client.js";
 import crypto from "crypto";
-import { uploadFile } from "../config/storage/index.js";
+import { uploadFile, getFileStream } from "../config/storage/index.js";
 import fileService from "../services/file.service.js";
 import config from "../config.js";
 import fileUpload from "../middlewares/file-upload.middleware.js";
@@ -25,12 +25,16 @@ router.post("/", fileUpload.single("file"), async (req, res, next) => {
   const extension = originalFileName.split(".").pop();
   const fileName = originalFileName.replace(`.${extension}`, "");
 
-  // Upload to S3
-  uploadFile({
-    buffer: req.file.buffer,
-    key: `${fileId}.${extension}`,
-    contentType: req.file.mimetype,
-  });
+  try {
+    // Upload to configured storage (local filesystem or MinIO/S3)
+    await uploadFile({
+      buffer: req.file.buffer,
+      key: `${fileId}.${extension}`,
+      contentType: req.file.mimetype,
+    });
+  } catch (uploadErr) {
+    return res.status(500).json({ error: "File upload failed", message: uploadErr?.message });
+  }
 
   // Store metadata in DB
   let file = await prisma.file.create({
@@ -50,7 +54,8 @@ router.post("/", fileUpload.single("file"), async (req, res, next) => {
   });
 });
 
-if (config.ENVIRONMENT !== "production") {
+// Serve file from configured storage (local or MinIO). In production with cloud S3, URLs point to CDN; otherwise we stream here.
+if (config.ENVIRONMENT !== "production" || config.FILE_STORAGE === "minio" || config.MINIO_ENDPOINT) {
   router.get("/:id", validateRequest(getFileSchema), async (req, res) => {
     const file = await fileService.getFileById(req.params.id);
 
@@ -58,23 +63,25 @@ if (config.ENVIRONMENT !== "production") {
       return res.status(404).json({ error: "File not found" });
     }
 
-    const fullPath = path.join(
-      process.cwd(),
-      ...config.FILE_PATH.split("/"),
-      `${file.id}.${file.extension}`,
-    );
-
-    if (!fs.existsSync(fullPath)) {
+    const key = `${file.id}.${file.extension}`;
+    let result;
+    try {
+      result = await getFileStream(key);
+    } catch (err) {
       return res.status(404).json({ error: "File not found" });
     }
 
-    res.setHeader("Content-Type", file.contentType);
+    if (!result || !result.stream) {
+      return res.status(404).json({ error: "File not found" });
+    }
+
+    res.setHeader("Content-Type", result.contentType || file.contentType || "application/octet-stream");
     res.setHeader(
       "Content-Disposition",
       `inline; filename="${file.name}.${file.extension}"`,
     );
 
-    fs.createReadStream(fullPath).pipe(res);
+    result.stream.pipe(res);
   });
 }
 

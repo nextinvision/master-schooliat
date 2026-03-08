@@ -5,22 +5,13 @@
 
 import { apiEvents, API_EVENTS } from "./events";
 import { clearToken } from "@/lib/auth/storage";
+import { BASE_URL } from "./config";
 
-// API Base URL - must be set in environment variables
-// Next.js embeds NEXT_PUBLIC_* variables at build time
-// API Base URL - must be set in environment variables
-// Next.js embeds NEXT_PUBLIC_* variables at build time
-export const BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  (typeof window !== "undefined" ? "" : "http://localhost:4000");
-
+export { BASE_URL };
 
 // Log API URL in development
 if (typeof window !== "undefined") {
-  console.log("[API] Base URL:", BASE_URL);
-  if (!process.env.NEXT_PUBLIC_API_URL) {
-    console.warn("[API] Warning: NEXT_PUBLIC_API_URL is not set, using default localhost:4000");
-  }
+  console.log("[API] Base URL:", BASE_URL || "(same-origin, proxied to backend)");
 }
 
 /**

@@ -19,6 +19,7 @@ import {
 import { FormCard } from "@/components/forms/form-card";
 import {
   useSchools,
+  useVendors,
   useReceipt,
   useCreateReceipt,
   useUpdateReceipt,
@@ -29,7 +30,8 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Receipt } from "lucide-react";
 
 const receiptSchema = z.object({
-  schoolId: z.string().min(1, "Please select a school"),
+  recipientType: z.enum(["school", "vendor"]),
+  recipientId: z.string().min(1, "Please select a recipient"),
   amount: z.string().min(1, "Amount is required").refine((val) => !isNaN(parseFloat(val)) && parseFloat(val) > 0, "Please enter a valid amount"),
   description: z.string().min(1, "Description is required"),
   notes: z.string().optional(),
@@ -59,6 +61,7 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
   const [gstType, setGstType] = useState<"cgst-sgst" | "igst" | "cgst-ugst" | null>(null);
 
   const { data: schoolsData } = useSchools();
+  const { data: vendorsData } = useVendors();
   const { data: receiptData } = useReceipt(receiptId || "");
   const createReceipt = useCreateReceipt();
   const updateReceipt = useUpdateReceipt();
@@ -68,6 +71,11 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
     id: string;
     name: string;
     code: string;
+  }
+  interface VendorOption {
+    id: string;
+    name: string;
+    contact?: string;
   }
 
   const schools = useMemo<SchoolOption[]>(() => {
@@ -79,10 +87,20 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
     }));
   }, [schoolsData]);
 
+  const vendors = useMemo<VendorOption[]>(() => {
+    if (!vendorsData?.data) return [];
+    return vendorsData.data.map((v: VendorOption) => ({
+      id: v.id,
+      name: v.name,
+      contact: v.contact,
+    }));
+  }, [vendorsData]);
+
   const form = useForm<ReceiptFormData>({
     resolver: zodResolver(receiptSchema),
     defaultValues: {
-      schoolId: "",
+      recipientType: "school",
+      recipientId: "",
       amount: "",
       description: "",
       notes: "",
@@ -94,11 +112,16 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
     },
   });
 
+  const recipientType = form.watch("recipientType");
+
   useEffect(() => {
     if (isEditMode && receiptData?.data) {
-      const receipt = receiptData.data;
+      const receipt = receiptData.data as { schoolId?: string; vendorId?: string; amount?: number; description?: string; paymentMethod?: string };
+      const type = receipt.vendorId ? "vendor" : "school";
+      const id = (receipt.vendorId || receipt.schoolId) || "";
       form.reset({
-        schoolId: receipt.schoolId,
+        recipientType: type,
+        recipientId: id,
         amount: receipt.amount?.toString() || "",
         description: receipt.description || "",
         paymentMethod: receipt.paymentMethod || "Bank Transfer",
@@ -130,28 +153,26 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
     try {
       let currentReceiptId = receiptId;
 
+      const payload = {
+        baseAmount: parseFloat(values.amount),
+        description: values.description,
+        paymentMethod: values.paymentMethod,
+        sgstPercent: values.sgstPercent ? parseFloat(values.sgstPercent) : null,
+        cgstPercent: values.cgstPercent ? parseFloat(values.cgstPercent) : null,
+        igstPercent: values.igstPercent ? parseFloat(values.igstPercent) : null,
+        ugstPercent: values.ugstPercent ? parseFloat(values.ugstPercent) : null,
+      };
       if (isEditMode && receiptId) {
         await updateReceipt.mutateAsync({
           id: receiptId,
-          schoolId: values.schoolId,
+          ...(values.recipientType === "school" ? { schoolId: values.recipientId } : { vendorId: values.recipientId }),
           amount: parseFloat(values.amount),
-          description: values.description,
-          paymentMethod: values.paymentMethod,
-          sgstPercent: values.sgstPercent ? parseFloat(values.sgstPercent) : null,
-          cgstPercent: values.cgstPercent ? parseFloat(values.cgstPercent) : null,
-          igstPercent: values.igstPercent ? parseFloat(values.igstPercent) : null,
-          ugstPercent: values.ugstPercent ? parseFloat(values.ugstPercent) : null,
+          ...payload,
         });
       } else {
         const result = await createReceipt.mutateAsync({
-          schoolId: values.schoolId,
-          baseAmount: parseFloat(values.amount),
-          description: values.description,
-          paymentMethod: values.paymentMethod,
-          sgstPercent: values.sgstPercent ? parseFloat(values.sgstPercent) : null,
-          cgstPercent: values.cgstPercent ? parseFloat(values.cgstPercent) : null,
-          igstPercent: values.igstPercent ? parseFloat(values.igstPercent) : null,
-          ugstPercent: values.ugstPercent ? parseFloat(values.ugstPercent) : null,
+          ...(values.recipientType === "school" ? { schoolId: values.recipientId } : { vendorId: values.recipientId }),
+          ...payload,
         });
         currentReceiptId = result?.data?.id;
       }
@@ -209,25 +230,49 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
         <FormCard title="Receipt Information" icon={<Receipt className="w-5 h-5" />}>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="schoolId">School *</Label>
+              <Label>Recipient Type *</Label>
               <Select
-                value={form.watch("schoolId")}
-                onValueChange={(value) => form.setValue("schoolId", value)}
+                value={recipientType}
+                onValueChange={(value: "school" | "vendor") => {
+                  form.setValue("recipientType", value);
+                  form.setValue("recipientId", "");
+                }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a school" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {schools.map((school) => (
-                    <SelectItem key={school.id} value={school.id}>
-                      {school.name} ({school.code})
-                    </SelectItem>
-                  ))}
+                  <SelectItem value="school">School</SelectItem>
+                  <SelectItem value="vendor">Vendor</SelectItem>
                 </SelectContent>
               </Select>
-              {form.formState.errors.schoolId && (
+            </div>
+            <div>
+              <Label htmlFor="recipientId">{recipientType === "school" ? "School" : "Vendor"} *</Label>
+              <Select
+                value={form.watch("recipientId")}
+                onValueChange={(value) => form.setValue("recipientId", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={recipientType === "school" ? "Select a school" : "Select a vendor"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {recipientType === "school"
+                    ? schools.map((school) => (
+                        <SelectItem key={school.id} value={school.id}>
+                          {school.name} ({school.code})
+                        </SelectItem>
+                      ))
+                    : vendors.map((v) => (
+                        <SelectItem key={v.id} value={v.id}>
+                          {v.name} {v.contact ? `(${v.contact})` : ""}
+                        </SelectItem>
+                      ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.recipientId && (
                 <p className="text-sm text-red-500 mt-1">
-                  {form.formState.errors.schoolId.message}
+                  {form.formState.errors.recipientId.message}
                 </p>
               )}
             </div>

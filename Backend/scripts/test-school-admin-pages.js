@@ -15,7 +15,7 @@ const PASSWORD = process.env.SCHOOL_ADMIN_PASSWORD || "Admin@123";
 const PAGES_STATIC = [
   { name: "1. Dashboard", path: "/api/v1/statistics/dashboard", method: "GET" },
   { name: "2. My School", path: "/api/v1/schools/my-school", method: "GET" },
-  { name: "3. Classes", path: "/api/v1/schools/classes", method: "GET" },
+  { name: "3. Classes", path: "/api/v1/schools/classes?pageNumber=1&pageSize=10", method: "GET" },
   { name: "4. Teachers", path: "/api/v1/users/teachers?page=1&limit=10", method: "GET" },
   { name: "5. Students", path: "/api/v1/users/students?page=1&limit=10", method: "GET" },
   { name: "6. Attendance (list)", path: "/api/v1/attendance?page=1&limit=10", method: "GET" },
@@ -91,7 +91,7 @@ async function fetchIds(token) {
     }
   } catch (_) {}
   try {
-    const classesRes = await fetch(`${API_URL}/api/v1/schools/classes?page=1&limit=1`, opts);
+    const classesRes = await fetch(`${API_URL}/api/v1/schools/classes?pageNumber=1&pageSize=1`, opts);
     if (classesRes.ok) {
       const j = await classesRes.json();
       const list = j?.data?.data ?? j?.data;

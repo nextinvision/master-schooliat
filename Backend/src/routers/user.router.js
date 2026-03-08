@@ -113,8 +113,8 @@ router.get(
   async (req, res) => {
     try {
       const currentUser = req.context.user;
-      const pageNumber = parseInt(req.query.pageNumber) || 1;
-      const pageSize = parseInt(req.query.pageSize) || 15;
+      const pageNumber = parseInt(req.query.pageNumber ?? req.query.page) || 1;
+      const pageSize = parseInt(req.query.pageSize ?? req.query.limit) || 15;
 
       const { academicYear } = req.query;
       const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
@@ -1587,24 +1587,45 @@ router.post(
     try {
       const request = req.body.request;
       const currentUser = req.context.user;
-
-      const school = await prisma.school.findUnique({
-        where: { id: currentUser.schoolId },
-      });
+      const isSuperAdmin = currentUser.role?.name === RoleName.SUPER_ADMIN;
 
       const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
 
       // Generate password
       const generatedPassword = stringUtil.generateRandomString(15);
 
-      // Generate public user ID (format: SCHOOLCODE + E + 4 digits)
-      const existingEmployees = await prisma.user.count({
-        where: {
-          schoolId: currentUser.schoolId,
-          roleId: employeeRole.id,
-        },
-      });
-      const publicUserId = `${school.code}E${String(existingEmployees + 1).padStart(4, "0")}`;
+      let publicUserId;
+      let schoolIdToUse;
+      let userTypeToUse;
+
+      if (isSuperAdmin) {
+        const existingEmployees = await prisma.user.count({
+          where: {
+            roleId: employeeRole.id,
+            userType: UserType.APP,
+            deletedAt: null,
+          },
+        });
+        publicUserId = `EMP${String(existingEmployees + 1).padStart(4, "0")}`;
+        schoolIdToUse = null;
+        userTypeToUse = UserType.APP;
+      } else {
+        const school = await prisma.school.findUnique({
+          where: { id: currentUser.schoolId },
+        });
+        if (!school) {
+          return res.status(404).json({ message: "School not found!" });
+        }
+        const existingEmployees = await prisma.user.count({
+          where: {
+            schoolId: currentUser.schoolId,
+            roleId: employeeRole.id,
+          },
+        });
+        publicUserId = `${school.code}E${String(existingEmployees + 1).padStart(4, "0")}`;
+        schoolIdToUse = currentUser.schoolId;
+        userTypeToUse = UserType.SCHOOL;
+      }
 
       // Create user
       const user = await prisma.user.create({
@@ -1618,9 +1639,9 @@ router.post(
           dateOfBirth: request.dateOfBirth ? new Date(request.dateOfBirth) : null,
           address: request.address || [],
           aadhaarId: request.aadhaarId?.trim() || null,
-          userType: UserType.SCHOOL,
+          userType: userTypeToUse,
           roleId: employeeRole.id,
-          schoolId: currentUser.schoolId,
+          schoolId: schoolIdToUse,
           publicUserId,
           assignedRegionId: request.assignedRegionId || null,
           createdBy: currentUser.id,
@@ -1660,15 +1681,21 @@ router.get(
     try {
       const currentUser = req.context.user;
       const { search } = req.query;
+      const isSuperAdmin = currentUser.role?.name === RoleName.SUPER_ADMIN;
 
       const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
 
       const where = {
-        schoolId: currentUser.schoolId,
         roleId: employeeRole.id,
         deletedAt: null,
         deletedBy: null,
       };
+
+      if (isSuperAdmin) {
+        where.userType = UserType.APP;
+      } else {
+        where.schoolId = currentUser.schoolId;
+      }
 
       if (search) {
         where.OR = [
@@ -1684,24 +1711,22 @@ router.get(
           assignedRegion: {
             select: { id: true, name: true }
           },
-          // Get counts for vendors and locations
           assignedLocations: {
             where: { deletedAt: null }
           },
-          vendors: {
+          assignedVendors: {
             where: { deletedAt: null }
           }
         },
         orderBy: { firstName: "asc" },
       });
 
-      // Map to include total counts
       const employeesWithCounts = employees.map(emp => {
-        const { assignedLocations, vendors, ...rest } = emp;
+        const { assignedLocations, assignedVendors, ...rest } = emp;
         return {
           ...rest,
           totalLocations: assignedLocations.length,
-          totalVendors: vendors.length,
+          totalVendors: assignedVendors.length,
           status: "Active"
         };
       });
@@ -1714,7 +1739,7 @@ router.get(
         data: employeesWithUrls,
       });
     } catch (error) {
-      return res.status(400).json({
+      return res.status(500).json({
         message: error.message || "Failed to fetch employees",
       });
     }
@@ -1729,17 +1754,24 @@ router.get(
     try {
       const { id } = req.params;
       const currentUser = req.context.user;
+      const isSuperAdmin = currentUser.role?.name === RoleName.SUPER_ADMIN;
 
       const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
 
+      const employeeWhere = {
+        id,
+        roleId: employeeRole.id,
+        deletedAt: null,
+        deletedBy: null,
+      };
+      if (!isSuperAdmin) {
+        employeeWhere.schoolId = currentUser.schoolId;
+      } else {
+        employeeWhere.userType = UserType.APP;
+      }
+
       const employee = await prisma.user.findFirst({
-        where: {
-          id,
-          schoolId: currentUser.schoolId,
-          roleId: employeeRole.id,
-          deletedAt: null,
-          deletedBy: null,
-        },
+        where: employeeWhere,
         include: {
           assignedRegion: {
             select: { id: true, name: true }
@@ -1747,7 +1779,7 @@ router.get(
           assignedLocations: {
             where: { deletedAt: null }
           },
-          vendors: {
+          assignedVendors: {
             where: { deletedAt: null }
           }
         },
@@ -1757,11 +1789,11 @@ router.get(
         return res.status(404).json({ message: "Employee not found!" });
       }
 
-      const { assignedLocations, vendors, ...rest } = employee;
+      const { assignedLocations, assignedVendors, ...rest } = employee;
       const employeeWithCounts = {
         ...rest,
         totalLocations: assignedLocations.length,
-        totalVendors: vendors.length,
+        totalVendors: assignedVendors.length,
         status: "Active"
       };
 
@@ -1792,15 +1824,20 @@ router.patch(
 
       const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
 
-      // Check if employee exists
+      const patchEmployeeWhere = {
+        id,
+        roleId: employeeRole.id,
+        deletedAt: null,
+        deletedBy: null,
+      };
+      if (currentUser.role?.name === RoleName.SUPER_ADMIN) {
+        patchEmployeeWhere.userType = UserType.APP;
+      } else {
+        patchEmployeeWhere.schoolId = currentUser.schoolId;
+      }
+
       const existingEmployee = await prisma.user.findFirst({
-        where: {
-          id,
-          schoolId: currentUser.schoolId,
-          roleId: employeeRole.id,
-          deletedAt: null,
-          deletedBy: null,
-        },
+        where: patchEmployeeWhere,
       });
 
       if (!existingEmployee) {
@@ -1871,14 +1908,20 @@ router.delete(
 
       const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
 
+      const deleteEmployeeWhere = {
+        id,
+        roleId: employeeRole.id,
+        deletedAt: null,
+        deletedBy: null,
+      };
+      if (currentUser.role?.name === RoleName.SUPER_ADMIN) {
+        deleteEmployeeWhere.userType = UserType.APP;
+      } else {
+        deleteEmployeeWhere.schoolId = currentUser.schoolId;
+      }
+
       const existingEmployee = await prisma.user.findFirst({
-        where: {
-          id,
-          schoolId: currentUser.schoolId,
-          roleId: employeeRole.id,
-          deletedAt: null,
-          deletedBy: null,
-        },
+        where: deleteEmployeeWhere,
       });
 
       if (!existingEmployee) {
@@ -1918,14 +1961,20 @@ router.patch(
 
       const employeeRole = await roleService.getRoleByName(RoleName.EMPLOYEE);
 
+      const permEmployeeWhere = {
+        id,
+        roleId: employeeRole.id,
+        deletedAt: null,
+        deletedBy: null,
+      };
+      if (currentUser.role?.name === RoleName.SUPER_ADMIN) {
+        permEmployeeWhere.userType = UserType.APP;
+      } else {
+        permEmployeeWhere.schoolId = currentUser.schoolId;
+      }
+
       const existingEmployee = await prisma.user.findFirst({
-        where: {
-          id,
-          schoolId: currentUser.schoolId,
-          roleId: employeeRole.id,
-          deletedAt: null,
-          deletedBy: null,
-        },
+        where: permEmployeeWhere,
       });
 
       if (!existingEmployee) {

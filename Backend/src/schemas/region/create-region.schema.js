@@ -5,6 +5,7 @@ const createRegionSchema = z
     request: z
       .object({
         name: z.string().trim().min(1, "Region name is required"),
+        zoneHeadId: z.string().uuid().optional().nullable(),
       })
       ,
     query: z.object({}),

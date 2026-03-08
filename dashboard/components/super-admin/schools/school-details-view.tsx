@@ -41,7 +41,7 @@ import {
   Briefcase,
 } from "lucide-react";
 import {
-  useSchool,
+  useSchoolById,
   useUpdateSchool,
   useDeleteSchool,
   useRegions,
@@ -61,7 +61,7 @@ interface SchoolDetailsViewProps {
 export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { data, isLoading } = useSchool(schoolId);
+  const { data, isLoading } = useSchoolById(schoolId);
   const updateSchool = useUpdateSchool();
   const deleteSchool = useDeleteSchool();
   const { data: regionsData } = useRegions();
@@ -70,7 +70,7 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
-  const school = data as School | null;
+  const school = (data ?? null) as (School & { bankName?: string; bankAccountNumber?: string; bankIfscCode?: string; bankBranchName?: string; upiId?: string }) | null;
   const regions = (regionsData?.data || []) as Region[];
   const schoolStats = statisticsData?.data?.schools?.find(
     (s: any) => s.id === schoolId
@@ -296,6 +296,49 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
             </div>
           </CardContent>
         </Card>
+
+        {(school as any).bankName || (school as any).bankAccountNumber || (school as any).upiId ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Briefcase className="w-4 h-4" />
+                Bank Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(school as any).bankName && (
+                <div>
+                  <p className="text-xs text-gray-500">Bank Name</p>
+                  <p className="text-sm font-medium">{(school as any).bankName}</p>
+                </div>
+              )}
+              {(school as any).bankAccountNumber && (
+                <div>
+                  <p className="text-xs text-gray-500">Account Number</p>
+                  <p className="text-sm font-medium">{(school as any).bankAccountNumber}</p>
+                </div>
+              )}
+              {(school as any).bankIfscCode && (
+                <div>
+                  <p className="text-xs text-gray-500">IFSC</p>
+                  <p className="text-sm font-medium">{(school as any).bankIfscCode}</p>
+                </div>
+              )}
+              {(school as any).bankBranchName && (
+                <div>
+                  <p className="text-xs text-gray-500">Branch</p>
+                  <p className="text-sm font-medium">{(school as any).bankBranchName}</p>
+                </div>
+              )}
+              {(school as any).upiId && (
+                <div>
+                  <p className="text-xs text-gray-500">UPI ID</p>
+                  <p className="text-sm font-medium">{(school as any).upiId}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {/* Additional Information */}

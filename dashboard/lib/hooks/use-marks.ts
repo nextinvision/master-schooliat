@@ -55,12 +55,13 @@ function enterBulkMarksApi(data: {
   return post("/marks/bulk", { request: data });
 }
 
-// Calculate results
+// Calculate results (single student or whole class when studentId omitted)
 function calculateResultsApi(data: {
   examId: string;
-  classId?: string;
+  classId: string;
+  studentId?: string;
 }) {
-  return post("/marks/calculate", { request: data });
+  return post("/marks/calculate-result", { request: data });
 }
 
 // Publish results
@@ -150,7 +151,7 @@ export function useCalculateResults() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (data: { examId: string; classId?: string }) =>
+    mutationFn: (data: { examId: string; classId: string; studentId?: string }) =>
       calculateResultsApi(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["results"] });
