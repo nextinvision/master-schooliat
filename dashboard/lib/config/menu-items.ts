@@ -266,7 +266,7 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
   {
     name: "Courier",
     icon: "Truck",
-    route: "/admin/courier",
+    route: "/super-admin/courier",
   },
   {
     name: "Settings",

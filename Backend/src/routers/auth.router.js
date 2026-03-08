@@ -20,6 +20,7 @@ import otpService from "../services/otp.service.js";
 import emailService from "../services/email.service.js";
 import passwordUtil from "../utils/password.util.js";
 import authorize from "../middlewares/authorize.middleware.js";
+import userService from "../services/user.service.js";
 
 const router = Router();
 
@@ -344,6 +345,29 @@ router.post(
   },
 );
 
+// GET /auth/roles – list available roles for mobile login
+router.get("/roles", async (req, res) => {
+  const mobileRoles = [
+    RoleName.TEACHER,
+    RoleName.STUDENT,
+    RoleName.STAFF,
+    RoleName.EMPLOYEE,
+  ];
+
+  const roles = await prisma.role.findMany({
+    where: {
+      name: { in: mobileRoles },
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+      name: true,
+    },
+  });
+
+  res.json({ message: "Roles fetched", data: roles });
+});
+
 // GET /auth/me – current user profile (authenticated)
 router.get(
   "/me",
@@ -351,18 +375,29 @@ router.get(
   validateRequest(getMeSchema),
   async (req, res) => {
     const userId = req.context.user.id;
+    const userRole = req.context.user.role?.name;
+
     const user = await prisma.user.findUnique({
       where: { id: userId, deletedAt: null },
-      include: {
+      select: {
+        ...userService.getUserSelect(
+          userRole === RoleName.STUDENT,
+          userRole === RoleName.TEACHER,
+          userRole === RoleName.STAFF,
+        ),
         role: { select: { id: true, name: true, permissions: true } },
         school: { select: { id: true, name: true, code: true } },
       },
     });
+
     if (!user) {
       throw ApiErrors.USER_NOT_FOUND;
     }
-    const safeUser = toSafeUser(user, user.role, user.school ?? null);
-    res.json({ message: "Profile fetched", data: safeUser });
+
+    // Attach photo URLs
+    const [userWithPhotos] = await userService.attachFileURLs([user]);
+
+    res.json({ message: "Profile fetched", data: userWithPhotos });
   },
 );
 
@@ -373,23 +408,37 @@ router.patch(
   validateRequest(updateMeSchema),
   async (req, res) => {
     const userId = req.context.user.id;
+    const userRole = req.context.user.role?.name;
     const body = req.body.request || {};
+
     const updateData = {};
     if (body.firstName !== undefined) updateData.firstName = body.firstName;
     if (body.lastName !== undefined) updateData.lastName = body.lastName;
     if (body.contact !== undefined) updateData.contact = body.contact;
     updateData.updatedBy = userId;
 
-    const user = await prisma.user.update({
+    await prisma.user.update({
       where: { id: userId },
       data: updateData,
-      include: {
+    });
+
+    // Fetch fresh user with profiles
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        ...userService.getUserSelect(
+          userRole === RoleName.STUDENT,
+          userRole === RoleName.TEACHER,
+          userRole === RoleName.STAFF,
+        ),
         role: { select: { id: true, name: true, permissions: true } },
         school: { select: { id: true, name: true, code: true } },
       },
     });
-    const safeUser = toSafeUser(user, user.role, user.school ?? null);
-    res.json({ message: "Profile updated", data: safeUser });
+
+    const [userWithPhotos] = await userService.attachFileURLs([user]);
+
+    res.json({ message: "Profile updated", data: userWithPhotos });
   },
 );
 

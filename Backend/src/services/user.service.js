@@ -120,15 +120,22 @@ const getEmployeeSelect = () => ({
 const createSuperAdmin = async () => {
   const superAdminRole = await roleService.getRoleByName(RoleName.SUPER_ADMIN);
 
+  // Check if a user with the SUPER_ADMIN role already exists
   const existingSuperAdminUser = await prisma.user.findFirst({
     where: {
       roleId: superAdminRole.id,
     },
   });
 
-  if (existingSuperAdminUser) {
-    return logger.info("Super Admin Exists!");
+  // Also check if a user with the default admin email already exists (to avoid unique constraint violation)
+  const existingAdminByEmail = await prisma.user.findUnique({
+    where: { email: "admin@schooliat.com" },
+  });
+
+  if (existingSuperAdminUser || existingAdminByEmail) {
+    return logger.info("Super Admin already exists or admin email is already in use.");
   }
+
   const generatedPassword = stringUtil.generateRandomString(15);
   logger.info(
     `Generating super admin user with creds for super admin: ${JSON.stringify({

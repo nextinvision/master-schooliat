@@ -49,9 +49,9 @@ model Region {
   updatedAt DateTime?  @updatedAt @map("updated_at")
   deletedAt DateTime?  @map("deleted_at")
   locations Location[]
+  schools   School[]
   users     User[]
   vendors   Vendor[]
-  schools   School[]
 
   @@map("regions")
 }
@@ -104,7 +104,6 @@ model School {
   establishedYear         Int?                  @map("established_year")
   boardAffiliation        String?               @map("board_affiliation")
   studentStrength         Int?                  @map("student_strength")
-  regionId                String?               @map("region_id")
   createdBy               String                @map("created_by")
   updatedBy               String?               @map("updated_by")
   deletedBy               String?               @map("deleted_by")
@@ -116,7 +115,7 @@ model School {
   bankIfscCode            String?               @map("bank_ifsc_code")
   bankName                String?               @map("bank_name")
   upiId                   String?               @map("upi_id")
-  region                  Region?               @relation(fields: [regionId], references: [id])
+  regionId                String?               @map("region_id")
   circulars               Circular[]
   schoolEmergencyContacts EmergencyContact[]    @relation("SchoolEmergencyContacts")
   faqs                    FAQ[]
@@ -126,6 +125,7 @@ model School {
   notes                   Note[]
   receipts                Receipt[]
   routes                  Route[]
+  region                  Region?               @relation(fields: [regionId], references: [id])
   syllabi                 Syllabus[]
   schoolTCs               TransferCertificate[] @relation("SchoolTCs")
   users                   User[]
@@ -193,7 +193,6 @@ model User {
   aadhaarId                  String?               @unique @map("aadhaar_id")
   registrationPhotoId        String?               @map("registration_photo_id")
   idPhotoId                  String?               @map("id_photo_id")
-  permissions                Permission[]          @default([])
   roleId                     String                @map("role_id")
   schoolId                   String?               @map("school_id")
   assignedRegionId           String?               @map("assigned_region_id")
@@ -203,6 +202,7 @@ model User {
   createdAt                  DateTime              @default(now()) @map("created_at")
   updatedAt                  DateTime?             @updatedAt @map("updated_at")
   deletedAt                  DateTime?             @map("deleted_at")
+  permissions                Permission[]          @default([])
   markedAttendances          Attendance[]          @relation("MarkedAttendances")
   studentAttendances         Attendance[]          @relation("StudentAttendances")
   auditLogs                  AuditLog[]            @relation("AuditLogs")

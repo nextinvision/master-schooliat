@@ -7,6 +7,7 @@ import validateRequest from "../middlewares/validate-request.middleware.js";
 import getSettingsSchema from "../schemas/settings/get-settings.schema.js";
 import updateSettingsSchema from "../schemas/settings/update-settings.schema.js";
 import fileService from "../services/file.service.js";
+import authorize from "../middlewares/authorize.middleware.js";
 
 const router = Router();
 
@@ -91,9 +92,9 @@ router.get(
               LIMIT 1
             `;
           }
-          
+
           const settings = rawSettings[0] || null;
-          
+
           let logoUrl = null;
           if (settings?.logo_id) {
             const logoFile = await fileService.getFileById(settings.logo_id);
@@ -131,11 +132,67 @@ router.get(
           });
         }
       }
-      
+
       // Log error for debugging
       console.error("Error fetching settings:", error);
       return res.status(500).json({
         message: "Failed to fetch settings",
+        error: error.message,
+      });
+    }
+  },
+);
+
+// GET /settings/content/:slug – fetch platform-level content (Terms, Privacy, Support)
+router.get(
+  "/content/:slug",
+  authorize,
+  async (req, res) => {
+    const { slug } = req.params;
+
+    try {
+      const platformSettings = await prisma.settings.findFirst({
+        where: {
+          schoolId: null,
+          deletedAt: null,
+        },
+      });
+
+      if (!platformSettings) {
+        return res.status(404).json({
+          errorCode: "SETTINGS_NOT_FOUND",
+          message: "Platform settings not found",
+        });
+      }
+
+      // Handle raw config if field doesn't exist in Prisma model yet
+      let config = platformSettings.platformConfig;
+
+      // If platformConfig is null/undefined, try finding it via raw query if migration might be missing
+      if (config === undefined || config === null) {
+        try {
+          const raw = await prisma.$queryRaw`SELECT platform_config FROM settings WHERE school_id IS NULL AND deleted_at IS NULL LIMIT 1`;
+          config = raw[0]?.platform_config;
+        } catch (e) {
+          // Ignore raw query error
+        }
+      }
+
+      if (!config || !config[slug]) {
+        return res.status(404).json({
+          errorCode: "CONTENT_NOT_FOUND",
+          message: `Content for '${slug}' not found`,
+        });
+      }
+
+      return res.json({
+        message: "Content fetched successfully",
+        data: config[slug],
+      });
+    } catch (error) {
+      console.error(`Error fetching content for ${slug}:`, error);
+      return res.status(500).json({
+        message: "Failed to fetch content",
         error: error.message,
       });
     }
@@ -185,12 +242,12 @@ router.patch(
         logoId: updateData.logoId ?? null,
         createdBy: currentUser.id,
       };
-      
+
       // Only include platformConfig if provided (migration may not be applied yet)
       if (updateData.platformConfig !== undefined) {
         createData.platformConfig = updateData.platformConfig;
       }
-      
+
       resultSettings = await prisma.settings.create({
         data: createData,
       });

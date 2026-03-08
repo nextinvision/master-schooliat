@@ -1,8 +1,9 @@
 import { Router } from "express";
 import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
-import { Permission } from "../prisma/generated/index.js";
+import { Permission, RoleName } from "../prisma/generated/index.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
+import authorize from "../middlewares/authorize.middleware.js";
 import createTimetableSchema from "../schemas/timetable/create-timetable.schema.js";
 import updateTimetableSchema from "../schemas/timetable/update-timetable.schema.js";
 import getTimetableSchema from "../schemas/timetable/get-timetable.schema.js";
@@ -115,6 +116,36 @@ router.put(
       res.status(400).json({
         errorCode: "TIMETABLE_UPDATE_FAILED",
         message: error.message || "Failed to update timetable",
+      });
+    }
+  },
+);
+
+// GET /timetable/my-classes – current teacher's assigned classes (authenticated)
+router.get(
+  "/my-classes",
+  authorize,
+  async (req, res) => {
+    const currentUser = req.context.user;
+
+    if (currentUser.role?.name !== RoleName.TEACHER) {
+      return res.status(403).json({
+        errorCode: "FORBIDDEN",
+        message: "Only teachers can access their assigned classes",
+      });
+    }
+
+    try {
+      const timetable = await timetableService.getTeacherTimetable(currentUser.id);
+      res.json({
+        message: "Teacher timetable retrieved successfully",
+        data: timetable,
+      });
+    } catch (error) {
+      logger.error({ error, userId: currentUser.id }, "Failed to get teacher timetable");
+      res.status(500).json({
+        errorCode: "TIMETABLE_FETCH_FAILED",
+        message: "Failed to retrieve teacher timetable",
       });
     }
   },

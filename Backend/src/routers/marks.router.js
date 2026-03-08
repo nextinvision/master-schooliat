@@ -1,8 +1,9 @@
 import { Router } from "express";
 import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
-import { Permission } from "../prisma/generated/index.js";
+import { Permission, RoleName } from "../prisma/generated/index.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
+import authorize from "../middlewares/authorize.middleware.js";
 import enterMarksSchema from "../schemas/marks/enter-marks.schema.js";
 import enterBulkMarksSchema from "../schemas/marks/enter-bulk-marks.schema.js";
 import calculateResultSchema from "../schemas/marks/calculate-result.schema.js";
@@ -186,6 +187,43 @@ router.post(
       res.status(400).json({
         errorCode: "PUBLISH_RESULTS_FAILED",
         message: error.message || "Failed to publish results",
+      });
+    }
+  },
+);
+
+// GET /marks/my-summary – current student's academic summary (authenticated)
+router.get(
+  "/my-summary",
+  authorize,
+  async (req, res) => {
+    const currentUser = req.context.user;
+
+    if (currentUser.role?.name !== RoleName.STUDENT) {
+      return res.status(403).json({
+        errorCode: "FORBIDDEN",
+        message: "Only students can access their academic summary",
+      });
+    }
+
+    try {
+      const [marks, results] = await Promise.all([
+        marksService.getStudentMarks(currentUser.id),
+        marksService.getStudentResults(currentUser.id),
+      ]);
+
+      res.json({
+        message: "Academic summary retrieved successfully",
+        data: {
+          marks,
+          results,
+        },
+      });
+    } catch (error) {
+      logger.error({ error, userId: currentUser.id }, "Failed to get academic summary");
+      res.status(500).json({
+        errorCode: "ACADEMIC_SUMMARY_FETCH_FAILED",
+        message: "Failed to retrieve academic summary",
       });
     }
   },
