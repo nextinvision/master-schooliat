@@ -185,7 +185,7 @@ model Subject {
 
 model User {
   id                         String                @id @default(uuid())
-  publicUserId               String                @map("public_user_id")
+  publicUserId               String                @unique(map: "users_unique_public_user_id") @map("public_user_id")
   userType                   UserType              @map("user_type")
   email                      String                @unique(map: "users_unique_email")
   password                   String?

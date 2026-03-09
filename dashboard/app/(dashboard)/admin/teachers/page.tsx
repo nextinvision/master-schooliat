@@ -210,6 +210,17 @@ export default function TeachersPage() {
                   {/* Basic Information */}
                   <FormCard title="Basic Information">
                     <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="publicUserId">Login ID (Optional)</Label>
+                        <Input
+                          id="publicUserId"
+                          {...teacherForm.register("publicUserId")}
+                          placeholder="e.g. SCHT001"
+                        />
+                        <p className="text-[10px] text-muted-foreground italic">
+                          Share this with the teacher for mobile/app tracking and login. If left blank, it will be auto-generated.
+                        </p>
+                      </div>
                       <div className="space-y-2">
                         <Label htmlFor="firstName">First Name *</Label>
                         <Input

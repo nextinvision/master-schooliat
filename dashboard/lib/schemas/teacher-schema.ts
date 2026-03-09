@@ -24,6 +24,7 @@ export interface AddTeacherFormData {
   panCardNumber: string;
   subjects: string;
   basicSalary?: number;
+  publicUserId?: string;
 }
 
 export interface EditTeacherFormData extends AddTeacherFormData {
@@ -73,6 +74,7 @@ const baseTeacherSchema = z.object({
     .refine((val) => !val || /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(val.toUpperCase()), "Invalid PAN card number format")
     .transform((val) => val ? val.toUpperCase() : ""),
   basicSalary: z.number().min(0, "Salary cannot be negative").optional(),
+  publicUserId: z.string().trim().optional(),
 });
 
 // Schema for adding a teacher

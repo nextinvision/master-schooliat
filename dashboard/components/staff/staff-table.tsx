@@ -55,6 +55,8 @@ const getInitials = (firstName: string, lastName?: string): string => {
     return `${first}${last}` || "S";
 };
 
+import { PasswordResetModal } from "../students/password-reset-modal";
+
 export function StaffTable({
     staff,
     onAddNew,
@@ -68,6 +70,8 @@ export function StaffTable({
 }: StaffTableProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+    const [passwordResetVisible, setPasswordResetVisible] = useState(false);
+    const [resetStaff, setResetStaff] = useState<any>(null);
 
     // Search filter
     const filteredStaff = searchQuery.trim()
@@ -254,7 +258,12 @@ export function StaffTable({
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
+                                                        onClick={() => {
+                                                            setResetStaff(staffMember);
+                                                            setPasswordResetVisible(true);
+                                                        }}
                                                         className="h-8 w-8 hover:bg-amber-50 hover:text-amber-600"
+                                                        title="Reset Password / Create Login"
                                                     >
                                                         <Key className="w-4 h-4" />
                                                     </Button>
@@ -297,6 +306,19 @@ export function StaffTable({
                     </div>
                 </div>
             )}
+
+            <PasswordResetModal
+                visible={passwordResetVisible}
+                onClose={() => {
+                    setResetStaff(null);
+                    setPasswordResetVisible(false);
+                }}
+                userId={resetStaff?.id}
+                userName={`${resetStaff?.firstName || ""} ${resetStaff?.lastName || ""}`}
+                onSuccess={() => {
+                    // Modal handles toast
+                }}
+            />
         </div>
     );
 }

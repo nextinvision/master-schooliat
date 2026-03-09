@@ -37,19 +37,38 @@ router.post(
       // Generate password
       const generatedPassword = stringUtil.generateRandomString(15);
 
-      // Generate public user ID (format: SCHOOLCODE + T + 4 digits)
-      const existingTeachers = await prisma.user.count({
-        where: {
-          schoolId: currentUser.schoolId,
-          roleId: teacherRole.id,
-        },
-      });
-      const publicUserId = `${school.code}T${String(existingTeachers + 1).padStart(4, "0")}`;
+      // Profile Photo
+      let registrationPhotoId = null;
+      if (req.body.request.registrationPhotoId) {
+        registrationPhotoId = req.body.request.registrationPhotoId;
+      }
+
+      // Generate or Use Provided publicUserId
+      let publicUserId = req.body.request.publicUserId;
+      if (publicUserId) {
+        const existingIdUser = await prisma.user.findFirst({
+          where: { publicUserId },
+        });
+        if (existingIdUser) {
+          return res.status(400).json({ message: "Login ID already exists!" });
+        }
+      } else {
+        // Generate T for Teacher Type
+        const existingTeachers = await prisma.user.count({
+          where: {
+            schoolId: school.id,
+            roleId: teacherRole.id,
+            deletedAt: null,
+          },
+        });
+        publicUserId = `${school.code}T${String(existingTeachers + 1).padStart(4, "0")}`;
+      }
 
       // Create user
       const user = await prisma.user.create({
         data: {
-          email: request.email.trim(),
+          publicUserId,
+          email: req.body.request.email.trim(),
           password: await bcryptjs.hash(generatedPassword, 10),
           firstName: request.firstName.trim(),
           lastName: request.lastName?.trim() || "",
@@ -61,8 +80,7 @@ router.post(
           userType: UserType.SCHOOL,
           roleId: teacherRole.id,
           schoolId: currentUser.schoolId,
-          publicUserId,
-          registrationPhotoId: request.registrationPhotoId || null,
+          registrationPhotoId: registrationPhotoId || null,
           idPhotoId: request.idPhotoId || null,
           createdBy: currentUser.id,
         },
@@ -389,20 +407,38 @@ router.post(
       // Generate password
       const generatedPassword = stringUtil.generateRandomString(15);
 
-      // Generate public user ID (format: SCHOOLCODE + AT + 4 digits)
-      // AT for Admin/Staff Type
-      const existingStaff = await prisma.user.count({
-        where: {
-          schoolId: currentUser.schoolId,
-          roleId: staffRole.id,
-        },
-      });
-      const publicUserId = `${school.code}AT${String(existingStaff + 1).padStart(4, "0")}`;
+      // Profile Photo
+      let registrationPhotoId = null;
+      if (req.body.request.registrationPhotoId) {
+        registrationPhotoId = req.body.request.registrationPhotoId;
+      }
+
+      // Generate or Use Provided publicUserId
+      let publicUserId = req.body.request.publicUserId;
+      if (publicUserId) {
+        const existingIdUser = await prisma.user.findFirst({
+          where: { publicUserId },
+        });
+        if (existingIdUser) {
+          return res.status(400).json({ message: "Login ID already exists!" });
+        }
+      } else {
+        // AT for Admin/Staff Type
+        const existingStaff = await prisma.user.count({
+          where: {
+            schoolId: school.id,
+            roleId: staffRole.id,
+            deletedAt: null,
+          },
+        });
+        publicUserId = `${school.code}AT${String(existingStaff + 1).padStart(4, "0")}`;
+      }
 
       // Create user
       const user = await prisma.user.create({
         data: {
-          email: request.email.trim(),
+          publicUserId,
+          email: req.body.request.email.trim(),
           password: await bcryptjs.hash(generatedPassword, 10),
           firstName: request.firstName.trim(),
           lastName: request.lastName?.trim() || "",
@@ -414,8 +450,7 @@ router.post(
           userType: UserType.SCHOOL,
           roleId: staffRole.id,
           schoolId: currentUser.schoolId,
-          publicUserId,
-          registrationPhotoId: request.registrationPhotoId || null,
+          registrationPhotoId: registrationPhotoId || null,
           idPhotoId: request.idPhotoId || null,
           createdBy: currentUser.id,
         },

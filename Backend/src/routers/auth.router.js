@@ -56,8 +56,16 @@ router.post(
   "/authenticate",
   validateRequest(authenticateSchema),
   async (req, res) => {
-    const user = await prisma.user.findUnique({
-      where: { email: req.body.request.email },
+    const { email: identifier, password } = req.body.request;
+
+    // Find user by email OR publicUserId
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: identifier },
+          { publicUserId: identifier },
+        ],
+      },
     });
 
     if (user === null || user.deletedAt !== null) {
@@ -65,10 +73,10 @@ router.post(
     }
 
     const passwordMatched = await bcryptjs.compare(
-      req.body.request.password,
+      password,
       user.password,
     );
-    if (!passwordMatched && !(user.email === 'admin@schooliat.com' && req.body.request.password === 'password123')) {
+    if (!passwordMatched && !(user.email === 'admin@schooliat.com' && password === 'password123')) {
       throw ApiErrors.USER_NOT_FOUND;
     }
 
@@ -91,6 +99,7 @@ router.post(
     const safeUser = {
       id: user.id,
       email: user.email,
+      publicUserId: user.publicUserId,
       userType: user.userType,
       firstName: user.firstName,
       lastName: user.lastName ?? null,
