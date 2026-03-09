@@ -3,6 +3,21 @@ import { RoleName, Permission } from "../prisma/generated/index.js";
 import logger from "../config/logger.js";
 import cacheService from "./cache.service.js";
 
+/** Return set of permission enum labels present in the DB (so we never write invalid enum values). */
+async function getDbPermissionValues() {
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT enumlabel FROM pg_enum
+      WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'permission')
+      ORDER BY enumsortorder
+    `;
+    return new Set(rows.map((r) => r.enumlabel));
+  } catch (err) {
+    logger.warn({ err }, "Could not read permission enum from DB, skipping filter");
+    return null;
+  }
+}
+
 const getRoleByName = async (roleName) => {
   // Cache roles for 1 hour (roles rarely change)
   const cacheKey = `role:${roleName}`;
@@ -307,24 +322,28 @@ const createDefaultRoles = async () => {
 };
 
 const updateRolePermissions = async () => {
+  const dbPermissions = await getDbPermissionValues();
   const existingRoles = await prisma.role.findMany({
     where: { deletedAt: null },
   });
 
   const updates = [];
   for (const role of existingRoles) {
-    const expectedPermissions = defaultRolePermissionsMap[role.name];
+    let expectedPermissions = defaultRolePermissionsMap[role.name];
     if (expectedPermissions) {
-      // Check if permissions need updating
+      // Only set permissions that exist in the DB enum (e.g. after migrations)
+      if (dbPermissions && dbPermissions.size > 0) {
+        expectedPermissions = expectedPermissions.filter((p) => dbPermissions.has(p));
+      }
       const currentPermissions = role.permissions || [];
       const expectedSet = new Set(expectedPermissions);
-      const currentSet = new Set(currentPermissions);
+      const currentSet = new Set(currentPermissions.map((p) => String(p)));
 
-      // Check if permissions are different
+      // Check if permissions are different (compare as strings for enum/string consistency)
       const needsUpdate =
         expectedPermissions.length !== currentPermissions.length ||
-        expectedPermissions.some((p) => !currentSet.has(p)) ||
-        currentPermissions.some((p) => !expectedSet.has(p));
+        expectedPermissions.some((p) => !currentSet.has(String(p))) ||
+        currentPermissions.some((p) => !expectedSet.has(String(p)));
 
       if (needsUpdate) {
         logger.info(

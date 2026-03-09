@@ -12,7 +12,10 @@ const withPermission = (permissionOrPermissions) => {
     const required = Array.isArray(permissionOrPermissions)
       ? permissionOrPermissions
       : [permissionOrPermissions];
-    const hasAny = required.some((p) => permissions.includes(p));
+    // Normalize to string comparison so DB enum values always match Permission enum (e.g. GET_INVENTORY)
+    const hasAny = required.some((p) =>
+      permissions.some((up) => String(up) === String(p))
+    );
 
     if (hasAny) {
       next();
