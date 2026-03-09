@@ -99,6 +99,10 @@ const defaultRolePermissionsMap = {
     Permission.GET_TEACHERS,
     Permission.EDIT_TEACHER,
     Permission.DELETE_TEACHER,
+    Permission.CREATE_STAFF,
+    Permission.GET_STAFF,
+    Permission.EDIT_STAFF,
+    Permission.DELETE_STAFF,
     Permission.CREATE_CLASSES,
     Permission.GET_CLASSES,
     Permission.EDIT_CLASSES,
@@ -346,6 +350,9 @@ const updateRolePermissions = async () => {
 
   if (updates.length > 0) {
     await Promise.all(updates);
+    for (const roleName of Object.keys(defaultRolePermissionsMap)) {
+      await cacheService.delete(`role:${roleName}`).catch(() => {});
+    }
     logger.info(`Updated permissions for ${updates.length} role(s)`);
   } else {
     logger.info("All roles have up-to-date permissions");
