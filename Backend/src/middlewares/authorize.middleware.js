@@ -104,12 +104,14 @@ const authorize = async (req, res, next) => {
       logger.warn({ error: err.message }, "JWT validation failed");
       throw ApiErrors.UNAUTHORIZED;
     }
-    // Re-throw ApiErrors
-    if (err.errorCode) {
+    // Re-throw ApiErrors (like FORBIDDEN or UNAUTHORIZED manually thrown)
+    if (err.statusCode) {
       throw err;
     }
-    logger.error({ error: err }, "Authorization middleware error");
-    throw ApiErrors.UNAUTHORIZED;
+
+    // For unexpected errors (DB issues, etc.), log and let it propagate as 500
+    logger.error({ error: err }, "Unexpected error in authorization middleware");
+    next(err);
   }
 };
 

@@ -54,7 +54,21 @@ export function PlatformBankCard() {
     (bank.bankName || bank.accountNumber || bank.ifscCode || bank.branchName || bank.upiId);
 
   if (!hasBank) {
-    return null;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Building2 className="h-5 w-5" />
+            Platform Bank Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground italic">
+            Platform bank details have not been configured by the administrator yet.
+          </p>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

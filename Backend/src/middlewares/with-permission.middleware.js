@@ -23,7 +23,9 @@ const withPermission = (permissionOrPermissions) => {
           roleId: req?.context?.user?.roleId,
           roleName: req?.context?.user?.role?.name,
           required,
-          availablePermissions: permissions,
+          path: req.originalUrl || req.url,
+          method: req.method,
+          availablePermissionsCount: permissions.length,
         },
         "Permission check failed: User does not have required permission",
       );

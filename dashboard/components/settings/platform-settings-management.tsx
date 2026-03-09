@@ -34,6 +34,7 @@ import {
   AlertCircle,
   Save,
   RefreshCw,
+  CreditCard,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -203,6 +204,10 @@ export function PlatformSettingsManagement() {
           <TabsTrigger value="account" className="flex items-center gap-2">
             <Key className="w-4 h-4" />
             <span className="hidden sm:inline">Account</span>
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex items-center gap-2">
+            <CreditCard className="w-4 h-4" />
+            <span className="hidden sm:inline">Payments</span>
           </TabsTrigger>
         </TabsList>
 
@@ -1069,6 +1074,100 @@ export function PlatformSettingsManagement() {
                   </Button>
                 </form>
               </FormCard>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        {/* Payment & Bank Configuration */}
+        <TabsContent value="payments" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Platform Bank Details
+              </CardTitle>
+              <CardDescription>
+                Configure bank details for platform-level payments and invoicing (visible to schools)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="companyName">Company Name</Label>
+                  <Input
+                    id="companyName"
+                    placeholder="e.g. SchooliAT Technologies Pvt Ltd"
+                    value={platformConfig?.platformBank?.companyName || ""}
+                    onChange={(e) =>
+                      updateNestedConfig(["platformBank", "companyName"], e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="platformBankName">Bank Name</Label>
+                  <Input
+                    id="platformBankName"
+                    placeholder="e.g. HDFC Bank"
+                    value={platformConfig?.platformBank?.bankName || ""}
+                    onChange={(e) =>
+                      updateNestedConfig(["platformBank", "bankName"], e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="platformAccount">Account Number</Label>
+                  <Input
+                    id="platformAccount"
+                    placeholder="Enter account number"
+                    value={platformConfig?.platformBank?.accountNumber || ""}
+                    onChange={(e) =>
+                      updateNestedConfig(["platformBank", "accountNumber"], e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="platformIfsc">IFSC Code</Label>
+                  <Input
+                    id="platformIfsc"
+                    placeholder="e.g. HDFC0001234"
+                    value={platformConfig?.platformBank?.ifscCode || ""}
+                    onChange={(e) =>
+                      updateNestedConfig(["platformBank", "ifscCode"], e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="platformBranch">Branch Name</Label>
+                  <Input
+                    id="platformBranch"
+                    placeholder="Enter branch name"
+                    value={platformConfig?.platformBank?.branchName || ""}
+                    onChange={(e) =>
+                      updateNestedConfig(["platformBank", "branchName"], e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="platformUpi">UPI ID</Label>
+                  <Input
+                    id="platformUpi"
+                    placeholder="e.g. schooliat@upi"
+                    value={platformConfig?.platformBank?.upiId || ""}
+                    onChange={(e) =>
+                      updateNestedConfig(["platformBank", "upiId"], e.target.value)
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => updatePlatformConfig(platformConfig)}
+                  disabled={isSaving}
+                  className="gap-2"
+                >
+                  <Save className="w-4 h-4" />
+                  Save Bank Details
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

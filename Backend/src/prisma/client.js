@@ -15,7 +15,7 @@ connectionString = connectionString || undefined;
 if (!connectionString) {
   throw new Error(
     "DATABASE_URL is not set. Set it in .env or environment (e.g. postgresql://user:password@host:5432/dbname). " +
-      "On production server, ensure /opt/schooliat/backend/production/shared/.env exists and is loaded."
+    "On production server, ensure /opt/schooliat/backend/production/shared/.env exists and is loaded."
   );
 }
 
@@ -34,4 +34,5 @@ const prisma = new PrismaClient({
   log: config.ENVIRONMENT === "development" ? ["query", "error", "warn"] : ["error"],
 });
 
+export { PrismaClient };
 export default prisma;

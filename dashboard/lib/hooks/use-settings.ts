@@ -115,6 +115,15 @@ export interface PlatformConfig {
       temperature?: number;
     };
   };
+  // Payment & Bank Details
+  platformBank?: {
+    companyName?: string;
+    bankName?: string;
+    accountNumber?: string;
+    ifscCode?: string;
+    branchName?: string;
+    upiId?: string;
+  };
   // Features
   features?: {
     [key: string]: boolean;

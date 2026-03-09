@@ -1,4 +1,5 @@
 import prisma from "../prisma/client.js";
+import logger from "../config/logger.js";
 
 /**
  * Get subjects for a school
@@ -15,6 +16,7 @@ const getSubjects = async (schoolId, options = {}) => {
         deletedAt: null,
     };
 
+    console.time("getSubjects-queries");
     const [subjects, total] = await Promise.all([
         prisma.subject.findMany({
             where,
@@ -24,6 +26,7 @@ const getSubjects = async (schoolId, options = {}) => {
         }),
         prisma.subject.count({ where }),
     ]);
+    console.timeEnd("getSubjects-queries");
 
     return {
         subjects,
@@ -43,9 +46,17 @@ const getSubjects = async (schoolId, options = {}) => {
  * @returns {Promise<Object>} - Created subject
  */
 const createSubject = async (data) => {
-    return await prisma.subject.create({
-        data,
-    });
+    console.time("prisma-subject-create");
+    try {
+        const result = await prisma.subject.create({
+            data,
+        });
+        console.timeEnd("prisma-subject-create");
+        return result;
+    } catch (error) {
+        console.timeEnd("prisma-subject-create");
+        throw error;
+    }
 };
 
 /**

@@ -40,6 +40,7 @@ export function SchoolProfileSection() {
       bankIfscCode: "",
       bankBranchName: "",
       upiId: "",
+      emergencyContacts: [""],
     },
   });
 
@@ -64,6 +65,7 @@ export function SchoolProfileSection() {
       bankIfscCode: school.bankIfscCode ?? "",
       bankBranchName: school.bankBranchName ?? "",
       upiId: school.upiId ?? "",
+      emergencyContacts: school.emergencyContacts?.length ? school.emergencyContacts : [""],
     });
   }, [school, form]);
 
@@ -89,6 +91,7 @@ export function SchoolProfileSection() {
           bankIfscCode: values.bankIfscCode || null,
           bankBranchName: values.bankBranchName || null,
           upiId: values.upiId || null,
+          emergencyContacts: values.emergencyContacts?.filter(Boolean) || [],
         },
       });
       toast({ title: "Success", description: "School profile updated successfully." });
@@ -177,6 +180,49 @@ export function SchoolProfileSection() {
           </Button>
           {form.formState.errors.address && (
             <p className="text-sm text-destructive mt-1">{form.formState.errors.address.message}</p>
+          )}
+        </div>
+
+        <div className="border-t pt-4">
+          <Label>Emergency Contacts</Label>
+          <p className="text-sm text-muted-foreground mb-2">
+            Add up to 6 emergency contact numbers.
+          </p>
+          {(form.watch("emergencyContacts") as string[])?.map((_, i) => (
+            <div key={i} className="flex gap-2 mt-1">
+              <Input
+                {...form.register(`emergencyContacts.${i}`)}
+                placeholder={`Contact number ${i + 1}`}
+              />
+              {(form.watch("emergencyContacts") as string[])?.length > 1 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const currentContacts = form.getValues("emergencyContacts") || [];
+                    const next = currentContacts.filter((_, j) => j !== i);
+                    form.setValue("emergencyContacts", next.length ? next : [""]);
+                  }}
+                >
+                  Remove
+                </Button>
+              )}
+            </div>
+          ))}
+          {(form.watch("emergencyContacts") as string[])?.length < 6 && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="mt-2"
+              onClick={() => form.setValue("emergencyContacts", [...(form.getValues("emergencyContacts") || [""]), ""])}
+            >
+              + Add contact number
+            </Button>
+          )}
+          {form.formState.errors.emergencyContacts && (
+            <p className="text-sm text-destructive mt-1">{form.formState.errors.emergencyContacts.message}</p>
           )}
         </div>
 

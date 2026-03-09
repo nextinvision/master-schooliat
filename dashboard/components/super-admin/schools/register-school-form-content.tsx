@@ -66,7 +66,16 @@ export function RegisterSchoolFormContent({
   const createSchool = useCreateSchool();
   const { data: regionsData } = useRegions();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [credentials, setCredentials] = useState<{ loginId: string; password: string } | null>(null);
+  const [registeredInfo, setRegisteredInfo] = useState<{
+    loginId: string;
+    password: string;
+    bankDetails?: {
+      bankName?: string;
+      accountNumber?: string;
+      ifscCode?: string;
+      branchName?: string;
+    }
+  } | null>(null);
 
   const regions = regionsData?.data || [];
 
@@ -160,9 +169,15 @@ export function RegisterSchoolFormContent({
       });
 
       if (result?.data?.admin?.password) {
-        setCredentials({
+        setRegisteredInfo({
           loginId: result.data.admin.email || result.data.email,
           password: result.data.admin.password,
+          bankDetails: {
+            bankName: result.data.bankName,
+            accountNumber: result.data.bankAccountNumber,
+            ifscCode: result.data.bankIfscCode,
+            branchName: result.data.bankBranchName,
+          }
         });
         setShowSuccessModal(true);
       } else {
@@ -476,38 +491,71 @@ export function RegisterSchoolFormContent({
               Please save these credentials. They will not be shown again.
             </DialogDescription>
           </DialogHeader>
-          {credentials && (
+          {registeredInfo && (
             <div className="space-y-4">
-              <div>
-                <Label>Login ID</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Input value={credentials.loginId} readOnly />
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      navigator.clipboard.writeText(credentials.loginId);
-                      toast({ title: "Copied to clipboard" });
-                    }}
-                  >
-                    Copy
-                  </Button>
+              <div className="space-y-4 border-b pb-4">
+                <div>
+                  <Label>Login ID</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input value={registeredInfo.loginId} readOnly />
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(registeredInfo.loginId);
+                        toast({ title: "Copied to clipboard" });
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+                <div>
+                  <Label>Password</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input value={registeredInfo.password} readOnly type="password" />
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(registeredInfo.password);
+                        toast({ title: "Copied to clipboard" });
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
                 </div>
               </div>
-              <div>
-                <Label>Password</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Input value={credentials.password} readOnly type="password" />
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      navigator.clipboard.writeText(credentials.password);
-                      toast({ title: "Copied to clipboard" });
-                    }}
-                  >
-                    Copy
-                  </Button>
+
+              {registeredInfo.bankDetails && (registeredInfo.bankDetails.bankName || registeredInfo.bankDetails.accountNumber) && (
+                <div className="space-y-3">
+                  <h4 className="text-sm font-semibold">Registered Bank Details</h4>
+                  {registeredInfo.bankDetails.bankName && (
+                    <div className="grid grid-cols-3 text-sm">
+                      <span className="text-muted-foreground">Bank:</span>
+                      <span className="col-span-2 font-medium">{registeredInfo.bankDetails.bankName}</span>
+                    </div>
+                  )}
+                  {registeredInfo.bankDetails.accountNumber && (
+                    <div className="grid grid-cols-3 text-sm">
+                      <span className="text-muted-foreground">A/C No:</span>
+                      <span className="col-span-2 font-mono font-medium">{registeredInfo.bankDetails.accountNumber}</span>
+                    </div>
+                  )}
+                  {registeredInfo.bankDetails.ifscCode && (
+                    <div className="grid grid-cols-3 text-sm">
+                      <span className="text-muted-foreground">IFSC:</span>
+                      <span className="col-span-2 font-mono font-medium">{registeredInfo.bankDetails.ifscCode}</span>
+                    </div>
+                  )}
+                  {registeredInfo.bankDetails.branchName && (
+                    <div className="grid grid-cols-3 text-sm">
+                      <span className="text-muted-foreground">Branch:</span>
+                      <span className="col-span-2 font-medium">{registeredInfo.bankDetails.branchName}</span>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
+
               <Button
                 onClick={handleSuccessContinue}
                 className="w-full"

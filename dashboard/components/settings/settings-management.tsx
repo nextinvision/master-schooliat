@@ -1,7 +1,8 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Building2, IndianRupee, Bell, Key } from "lucide-react";
+import { Building2, IndianRupee, Bell, Key, CreditCard } from "lucide-react";
+import { PlatformBankCard } from "@/components/fees/platform-bank-card";
 import { SchoolProfileSection } from "./SchoolProfileSection";
 import { SchoolLogoSection } from "./SchoolLogoSection";
 import { FeesConfigSection } from "./FeesConfigSection";
@@ -19,7 +20,7 @@ export function SchoolSettingsManagement() {
       </div>
 
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
+        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5">
           <TabsTrigger value="general" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             General
@@ -34,7 +35,11 @@ export function SchoolSettingsManagement() {
           </TabsTrigger>
           <TabsTrigger value="account" className="flex items-center gap-2">
             <Key className="h-4 w-4" />
-            Account
+            <span className="hidden lg:inline">Account</span>
+          </TabsTrigger>
+          <TabsTrigger value="payments" className="flex items-center gap-2">
+            <CreditCard className="h-4 w-4" />
+            <span className="hidden lg:inline">Payments</span>
           </TabsTrigger>
         </TabsList>
 
@@ -53,6 +58,10 @@ export function SchoolSettingsManagement() {
 
         <TabsContent value="account" className="space-y-6">
           <ChangePasswordSection />
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-6">
+          <PlatformBankCard />
         </TabsContent>
       </Tabs>
     </div>

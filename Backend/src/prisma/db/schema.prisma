@@ -164,6 +164,8 @@ model Class {
 model Subject {
   id             String          @id @default(uuid())
   name           String
+  code           String?
+  description    String?
   schoolId       String          @map("school_id")
   createdBy      String          @map("created_by")
   updatedBy      String?         @map("updated_by")

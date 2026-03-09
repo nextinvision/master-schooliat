@@ -410,6 +410,10 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
     };
 
     // Get counts for the school
+    // Start tracking query performance
+    const queryStartTime = Date.now();
+    logger.info({ schoolId, userId: currentUser.id }, "Starting dashboard data fetch");
+
     const [
       totalStudents,
       totalStudentsBoys,
@@ -660,6 +664,8 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
         },
       }),
     ]);
+    const queryDuration = Date.now() - queryStartTime;
+    logger.info({ schoolId, duration: `${queryDuration}ms` }, "Dashboard data fetch complete");
 
     const totalIncome = Number(totalFeeIncome._sum?.paidAmount || 0);
     const totalSalary = Number(totalSalaryDistributed._sum?.totalAmount || 0);

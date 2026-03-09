@@ -24,6 +24,7 @@ export interface MySchool {
   bankIfscCode?: string | null;
   bankBranchName?: string | null;
   upiId?: string | null;
+  emergencyContacts?: string[] | null;
 }
 
 export type UpdateMySchoolPayload = Partial<{
@@ -45,6 +46,7 @@ export type UpdateMySchoolPayload = Partial<{
   bankIfscCode: string | null;
   bankBranchName: string | null;
   upiId: string | null;
+  emergencyContacts: string[] | null;
 }>;
 
 function fetchMySchool(): Promise<{ data: MySchool | null }> {

@@ -42,6 +42,7 @@ export const schoolProfileSchema = z.object({
   bankIfscCode: z.string().optional(),
   bankBranchName: z.string().optional(),
   upiId: z.string().optional(),
+  emergencyContacts: z.array(z.string()).optional(),
 });
 
 export type SchoolProfileFormData = z.infer<typeof schoolProfileSchema>;

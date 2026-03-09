@@ -16,6 +16,7 @@ router.get(
     withPermission([Permission.GET_CLASSES, Permission.GET_HOMEWORK]),
     validateRequest(getSubjectsSchema),
     async (req, res) => {
+        console.time("GET /subjects total");
         const currentUser = req.context.user;
         const { classId, page, limit } = req.query;
 
@@ -26,6 +27,7 @@ router.get(
                 limit,
             });
 
+            console.timeEnd("GET /subjects total");
             return res.json({
                 message: "Subjects fetched successfully",
                 data: result.subjects,
@@ -37,6 +39,7 @@ router.get(
                 },
             });
         } catch (error) {
+            console.timeEnd("GET /subjects total");
             logger.error({ error, query: req.query }, "Failed to fetch subjects");
             return res.status(500).json({
                 errorCode: "SUBJECTS_FETCH_FAILED",
@@ -51,6 +54,7 @@ router.post(
     withPermission([Permission.CREATE_CLASSES]),
     validateRequest(createSubjectSchema),
     async (req, res) => {
+        console.time("POST /subjects total");
         const currentUser = req.context.user;
         const { name, code, description } = req.body.request;
 
@@ -63,11 +67,13 @@ router.post(
                 createdBy: currentUser.id,
             });
 
+            console.timeEnd("POST /subjects total");
             return res.status(201).json({
                 message: "Subject created successfully",
                 data: subject,
             });
         } catch (error) {
+            console.timeEnd("POST /subjects total");
             logger.error({ error, body: req.body }, "Failed to create subject");
             return res.status(400).json({
                 errorCode: "SUBJECT_CREATION_FAILED",

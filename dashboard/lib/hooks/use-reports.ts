@@ -12,7 +12,7 @@ export function useDashboardSummary(params: { academicYear?: string } = {}) {
   const { academicYear } = params;
   return useQuery({
     queryKey: ["reports", "summary", academicYear],
-    queryFn: () => get("/statistics/dashboard", { academicYear }),
+    queryFn: () => get("/reports/dashboard-summary", { academicYear }),
     staleTime: 2 * 60 * 1000,
   });
 }

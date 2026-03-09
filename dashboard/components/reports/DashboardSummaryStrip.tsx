@@ -26,7 +26,15 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
     );
   }
 
-  if (!summary) return null;
+  if (!summary || !summary.attendance || !summary.fees || !summary.academic || !summary.salary) {
+    return (
+      <Card>
+        <CardContent className="py-4 text-center text-muted-foreground">
+          Some dashboard data is unavailable for the selected period.
+        </CardContent>
+      </Card>
+    );
+  }
 
   const { attendance, fees, academic, salary } = summary;
 
@@ -39,8 +47,8 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
               <Users className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Attendance ({attendance.periodLabel})</p>
-              <p className="text-lg font-semibold">{attendance.averageRate}% avg</p>
+              <p className="text-xs text-muted-foreground">Attendance ({attendance.periodLabel || "N/A"})</p>
+              <p className="text-lg font-semibold">{attendance.averageRate ?? 0}% avg</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -49,7 +57,7 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Fees</p>
-              <p className="text-lg font-semibold">{formatCurrency(fees.totalRevenue)} revenue</p>
+              <p className="text-lg font-semibold">{formatCurrency(fees.totalRevenue ?? 0)} revenue</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -58,7 +66,7 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Academic</p>
-              <p className="text-lg font-semibold">{academic.averageScore}% avg · {academic.passRate}% pass</p>
+              <p className="text-lg font-semibold">{academic.averageScore ?? 0}% avg · {academic.passRate ?? 0}% pass</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -67,7 +75,7 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
             </div>
             <div>
               <p className="text-xs text-muted-foreground">Salary</p>
-              <p className="text-lg font-semibold">{formatCurrency(salary.totalPaid)} · {salary.totalEmployees} staff</p>
+              <p className="text-lg font-semibold">{formatCurrency(salary.totalPaid ?? 0)} · {salary.totalEmployees ?? 0} staff</p>
             </div>
           </div>
         </div>
