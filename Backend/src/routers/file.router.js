@@ -54,15 +54,16 @@ router.post("/", fileUpload.single("file"), async (req, res, next) => {
   });
 });
 
-// Serve file from configured storage (local or MinIO). In production with cloud S3, URLs point to CDN; otherwise we stream here.
-if (config.ENVIRONMENT !== "production" || config.FILE_STORAGE === "minio" || config.MINIO_ENDPOINT) {
-  router.get("/:id", validateRequest(getFileSchema), async (req, res) => {
-    const file = await fileService.getFileById(req.params.id);
+// GET /files/:id – always registered for mobile API. Stream when storage allows; otherwise return metadata + URL.
+const canStream = config.ENVIRONMENT !== "production" || config.FILE_STORAGE === "minio" || config.MINIO_ENDPOINT;
 
-    if (!file) {
-      return res.status(404).json({ error: "File not found" });
-    }
+router.get("/:id", validateRequest(getFileSchema), async (req, res) => {
+  const file = await fileService.getFileById(req.params.id);
+  if (!file) {
+    return res.status(404).json({ error: "File not found" });
+  }
 
+  if (canStream) {
     const key = `${file.id}.${file.extension}`;
     let result;
     try {
@@ -70,19 +71,27 @@ if (config.ENVIRONMENT !== "production" || config.FILE_STORAGE === "minio" || co
     } catch (err) {
       return res.status(404).json({ error: "File not found" });
     }
-
-    if (!result || !result.stream) {
+    if (!result?.stream) {
       return res.status(404).json({ error: "File not found" });
     }
-
     res.setHeader("Content-Type", result.contentType || file.contentType || "application/octet-stream");
-    res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${file.name}.${file.extension}"`,
-    );
-
+    res.setHeader("Content-Disposition", `inline; filename="${file.name}.${file.extension}"`);
     result.stream.pipe(res);
+    return;
+  }
+
+  // Production with cloud S3: return metadata and URL (client uses URL to fetch)
+  const fileWithUrl = fileService.attachFileURL({ ...file });
+  return res.json({
+    message: "File metadata",
+    data: {
+      id: fileWithUrl.id,
+      filename: `${file.name}.${file.extension}`,
+      size: file.size,
+      mimeType: file.contentType,
+      url: fileWithUrl.url,
+    },
   });
-}
+});
 
 export default router;

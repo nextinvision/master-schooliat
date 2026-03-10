@@ -91,34 +91,43 @@ router.get(
 );
 
 // Send message
+const handleSendMessage = async (req, res) => {
+  const currentUser = req.context.user;
+  const { conversationId, content, attachments } = req.body.request;
+  try {
+    const message = await communicationService.sendMessage(
+      conversationId,
+      currentUser.id,
+      content,
+      attachments || [],
+    );
+    res.json({ message: "Message sent successfully", data: message });
+  } catch (error) {
+    logger.error({ error, conversationId }, "Failed to send message");
+    res.status(400).json({
+      errorCode: "MESSAGE_SEND_FAILED",
+      message: error.message || "Failed to send message",
+    });
+  }
+};
+
 router.post(
   "/messages",
   withPermission([Permission.SEND_MESSAGE]),
   validateRequest(sendMessageSchema),
-  async (req, res) => {
-    const currentUser = req.context.user;
-    const { conversationId, content, attachments } = req.body.request;
+  handleSendMessage,
+);
 
-    try {
-      const message = await communicationService.sendMessage(
-        conversationId,
-        currentUser.id,
-        content,
-        attachments || [],
-      );
-
-      res.json({
-        message: "Message sent successfully",
-        data: message,
-      });
-    } catch (error) {
-      logger.error({ error, conversationId }, "Failed to send message");
-      res.status(400).json({
-        errorCode: "MESSAGE_SEND_FAILED",
-        message: error.message || "Failed to send message",
-      });
-    }
+// Mobile API: POST /communication/conversations/:id/messages (conversationId in URL)
+router.post(
+  "/conversations/:id/messages",
+  withPermission([Permission.SEND_MESSAGE]),
+  (req, _res, next) => {
+    req.body.request = { ...(req.body?.request || {}), conversationId: req.params.id };
+    next();
   },
+  validateRequest(sendMessageSchema),
+  handleSendMessage,
 );
 
 // Get conversation messages
@@ -191,6 +200,34 @@ router.post(
       res.status(400).json({
         errorCode: "ANNOUNCEMENT_CREATION_FAILED",
         message: error.message || "Failed to create announcement",
+      });
+    }
+  },
+);
+
+// Mobile API: GET /communication/announcements (notifications with type ANNOUNCEMENT)
+router.get(
+  "/announcements",
+  withPermission([Permission.SEND_NOTIFICATION]),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { page = 1, limit = 20 } = req.query;
+    try {
+      const result = await notificationService.getUserNotifications(currentUser.id, {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        type: "ANNOUNCEMENT",
+      });
+      res.json({
+        message: "Announcements fetched successfully",
+        data: result.notifications ?? [],
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to get announcements");
+      res.status(500).json({
+        errorCode: "ANNOUNCEMENTS_FETCH_FAILED",
+        message: "Failed to retrieve announcements",
       });
     }
   },

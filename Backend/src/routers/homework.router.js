@@ -83,105 +83,133 @@ router.post(
   },
 );
 
+// Shared submit handler (used by POST /submit and POST /:id/submit for mobile API)
+const handleSubmitHomework = async (req, res) => {
+  const currentUser = req.context.user;
+  const { homeworkId, files, mcqAnswers } = req.body.request;
+
+  if (currentUser.role.name !== "STUDENT") {
+    return res.status(403).json({
+      errorCode: "FORBIDDEN",
+      message: "Only students can submit homework",
+    });
+  }
+
+  const homework = await prisma.homework.findUnique({
+    where: { id: homeworkId },
+  });
+
+  if (!homework) {
+    return res.status(404).json({
+      errorCode: "HOMEWORK_NOT_FOUND",
+      message: "Homework not found",
+    });
+  }
+
+  const student = await prisma.user.findUnique({
+    where: { id: currentUser.id },
+    include: {
+      studentProfile: {
+        select: { classId: true },
+      },
+    },
+  });
+
+  if (!student?.studentProfile || !homework.classIds.includes(student.studentProfile.classId)) {
+    return res.status(403).json({
+      errorCode: "FORBIDDEN",
+      message: "This homework is not assigned to your class",
+    });
+  }
+
+  if (homework.isMCQ) {
+    const questions = await prisma.mCQQuestion.findMany({
+      where: { homeworkId },
+    });
+    if ((mcqAnswers || []).length !== questions.length) {
+      return res.status(400).json({
+        errorCode: "INCOMPLETE_ANSWERS",
+        message: `Please answer all ${questions.length} questions`,
+      });
+    }
+    for (const answer of mcqAnswers || []) {
+      const question = questions.find((q) => q.id === answer.questionId);
+      if (!question) {
+        return res.status(400).json({
+          errorCode: "INVALID_QUESTION",
+          message: `Question ${answer.questionId} not found`,
+        });
+      }
+      if (answer.selectedAnswer < 0 || answer.selectedAnswer >= question.options.length) {
+        return res.status(400).json({
+          errorCode: "INVALID_ANSWER",
+          message: `Invalid answer index for question ${answer.questionId}`,
+        });
+      }
+    }
+  }
+
+  try {
+    const submission = await homeworkService.submitHomework(
+      homeworkId,
+      currentUser.id,
+      files || [],
+      mcqAnswers || [],
+    );
+    res.json({
+      message: homework.isMCQ ? "Homework submitted and graded successfully" : "Homework submitted successfully",
+      data: submission,
+    });
+  } catch (error) {
+    logger.error({ error, homeworkId, studentId: currentUser.id }, "Failed to submit homework");
+    res.status(400).json({
+      errorCode: "SUBMISSION_FAILED",
+      message: error.message || "Failed to submit homework",
+    });
+  }
+};
+
+// Shared grade handler (used by POST /grade and POST /:id/grade for mobile API)
+const handleGradeHomework = async (req, res) => {
+  const currentUser = req.context.user;
+  const { submissionId, feedback, grade, marksObtained, totalMarks } = req.body.request;
+  try {
+    const graded = await homeworkService.gradeHomework(
+      submissionId,
+      currentUser.id,
+      feedback || null,
+      grade || null,
+      marksObtained ?? null,
+      totalMarks ?? null,
+    );
+    res.json({ message: "Homework graded successfully", data: graded });
+  } catch (error) {
+    logger.error({ error, submissionId }, "Failed to grade homework");
+    res.status(400).json({
+      errorCode: "GRADING_FAILED",
+      message: error.message || "Failed to grade homework",
+    });
+  }
+};
+
 // Submit homework
 router.post(
   "/submit",
   withPermission([Permission.SUBMIT_HOMEWORK]),
   validateRequest(submitHomeworkSchema),
-  async (req, res) => {
-    const currentUser = req.context.user;
-    const { homeworkId, files, mcqAnswers } = req.body.request;
+  handleSubmitHomework,
+);
 
-    // Verify student is authorized to submit
-    if (currentUser.role.name !== "STUDENT") {
-      return res.status(403).json({
-        errorCode: "FORBIDDEN",
-        message: "Only students can submit homework",
-      });
-    }
-
-    // Get homework to verify it's assigned to student's class
-    const homework = await prisma.homework.findUnique({
-      where: { id: homeworkId },
-    });
-
-    if (!homework) {
-      return res.status(404).json({
-        errorCode: "HOMEWORK_NOT_FOUND",
-        message: "Homework not found",
-      });
-    }
-
-    // Verify student is in one of the assigned classes
-    const student = await prisma.user.findUnique({
-      where: { id: currentUser.id },
-      include: {
-        studentProfile: {
-          select: {
-            classId: true,
-          },
-        },
-      },
-    });
-
-    if (!student || !student.studentProfile || !homework.classIds.includes(student.studentProfile.classId)) {
-      return res.status(403).json({
-        errorCode: "FORBIDDEN",
-        message: "This homework is not assigned to your class",
-      });
-    }
-
-    // Validate MCQ answers if it's an MCQ homework
-    if (homework.isMCQ) {
-      const questions = await prisma.mCQQuestion.findMany({
-        where: { homeworkId },
-      });
-
-      if (mcqAnswers.length !== questions.length) {
-        return res.status(400).json({
-          errorCode: "INCOMPLETE_ANSWERS",
-          message: `Please answer all ${questions.length} questions`,
-        });
-      }
-
-      // Validate answer indices
-      for (const answer of mcqAnswers) {
-        const question = questions.find((q) => q.id === answer.questionId);
-        if (!question) {
-          return res.status(400).json({
-            errorCode: "INVALID_QUESTION",
-            message: `Question ${answer.questionId} not found`,
-          });
-        }
-        if (answer.selectedAnswer < 0 || answer.selectedAnswer >= question.options.length) {
-          return res.status(400).json({
-            errorCode: "INVALID_ANSWER",
-            message: `Invalid answer index for question ${answer.questionId}`,
-          });
-        }
-      }
-    }
-
-    try {
-      const submission = await homeworkService.submitHomework(
-        homeworkId,
-        currentUser.id,
-        files || [],
-        mcqAnswers || [],
-      );
-
-      res.json({
-        message: homework.isMCQ ? "Homework submitted and graded successfully" : "Homework submitted successfully",
-        data: submission,
-      });
-    } catch (error) {
-      logger.error({ error, homeworkId, studentId: currentUser.id }, "Failed to submit homework");
-      res.status(400).json({
-        errorCode: "SUBMISSION_FAILED",
-        message: error.message || "Failed to submit homework",
-      });
-    }
+// Mobile API: POST /homework/:id/submit (homeworkId in URL)
+router.post(
+  "/:id/submit",
+  withPermission([Permission.SUBMIT_HOMEWORK]),
+  (req, _res, next) => {
+    req.body.request = { ...(req.body?.request || {}), homeworkId: req.params.id };
+    next();
   },
+  validateRequest(submitHomeworkSchema),
+  handleSubmitHomework,
 );
 
 // Grade homework
@@ -189,32 +217,15 @@ router.post(
   "/grade",
   withPermission([Permission.GRADE_HOMEWORK]),
   validateRequest(gradeHomeworkSchema),
-  async (req, res) => {
-    const currentUser = req.context.user;
-    const { submissionId, feedback, grade, marksObtained, totalMarks } = req.body.request;
+  handleGradeHomework,
+);
 
-    try {
-      const graded = await homeworkService.gradeHomework(
-        submissionId,
-        currentUser.id,
-        feedback || null,
-        grade || null,
-        marksObtained || null,
-        totalMarks || null,
-      );
-
-      res.json({
-        message: "Homework graded successfully",
-        data: graded,
-      });
-    } catch (error) {
-      logger.error({ error, submissionId }, "Failed to grade homework");
-      res.status(400).json({
-        errorCode: "GRADING_FAILED",
-        message: error.message || "Failed to grade homework",
-      });
-    }
-  },
+// Mobile API: POST /homework/:id/grade (submissionId still in body)
+router.post(
+  "/:id/grade",
+  withPermission([Permission.GRADE_HOMEWORK]),
+  validateRequest(gradeHomeworkSchema),
+  handleGradeHomework,
 );
 
 // Get homework

@@ -160,49 +160,56 @@ router.post(
   },
 );
 
-// Publish results
+// Publish results (shared handler for /publish and /publish-results for mobile API)
+const handlePublishResults = async (req, res) => {
+  const currentUser = req.context.user;
+  const { examId, classId } = req.body.request;
+
+  const exam = await prisma.exam.findUnique({
+    where: { id: examId },
+  });
+
+  if (!exam || exam.schoolId !== currentUser.schoolId) {
+    return res.status(404).json({
+      errorCode: "EXAM_NOT_FOUND",
+      message: "Exam not found",
+    });
+  }
+
+  try {
+    const result = await marksService.publishResults(
+      examId,
+      classId || null,
+      currentUser.id,
+    );
+    res.json({
+      message: "Results published successfully",
+      data: {
+        published: result.published,
+        studentsNotified: result.results.length,
+      },
+    });
+  } catch (error) {
+    logger.error({ error, examId, classId }, "Failed to publish results");
+    res.status(400).json({
+      errorCode: "PUBLISH_RESULTS_FAILED",
+      message: error.message || "Failed to publish results",
+    });
+  }
+};
+
 router.post(
   "/publish",
   withPermission([Permission.PUBLISH_RESULTS]),
   validateRequest(publishResultsSchema),
-  async (req, res) => {
-    const currentUser = req.context.user;
-    const { examId, classId } = req.body.request;
+  handlePublishResults,
+);
 
-    // Verify exam exists
-    const exam = await prisma.exam.findUnique({
-      where: { id: examId },
-    });
-
-    if (!exam || exam.schoolId !== currentUser.schoolId) {
-      return res.status(404).json({
-        errorCode: "EXAM_NOT_FOUND",
-        message: "Exam not found",
-      });
-    }
-
-    try {
-      const result = await marksService.publishResults(
-        examId,
-        classId || null,
-        currentUser.id,
-      );
-
-      res.json({
-        message: "Results published successfully",
-        data: {
-          published: result.published,
-          studentsNotified: result.results.length,
-        },
-      });
-    } catch (error) {
-      logger.error({ error, examId, classId }, "Failed to publish results");
-      res.status(400).json({
-        errorCode: "PUBLISH_RESULTS_FAILED",
-        message: error.message || "Failed to publish results",
-      });
-    }
-  },
+router.post(
+  "/publish-results",
+  withPermission([Permission.PUBLISH_RESULTS]),
+  validateRequest(publishResultsSchema),
+  handlePublishResults,
 );
 
 // GET /marks/my-summary – current student's academic summary (authenticated)

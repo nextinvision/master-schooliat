@@ -151,6 +151,50 @@ router.get(
   },
 );
 
+// Mobile API: GET /timetables/:id – get timetable by ID
+router.get(
+  "/:id",
+  withPermission([Permission.GET_TIMETABLE]),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { id: timetableId } = req.params;
+    try {
+      const timetable = await prisma.timetable.findUnique({
+        where: { id: timetableId },
+        include: {
+          slots: {
+            include: {
+              subject: { select: { id: true, name: true } },
+              teacher: { select: { id: true, firstName: true, lastName: true } },
+            },
+            orderBy: [
+              { dayOfWeek: "asc" },
+              { periodNumber: "asc" },
+            ],
+          },
+          class: { select: { id: true, grade: true, division: true } },
+        },
+      });
+      if (!timetable || timetable.schoolId !== currentUser.schoolId) {
+        return res.status(404).json({
+          errorCode: "TIMETABLE_NOT_FOUND",
+          message: "Timetable not found",
+        });
+      }
+      return res.json({
+        message: "Timetable retrieved successfully",
+        data: timetable,
+      });
+    } catch (error) {
+      logger.error({ error, timetableId }, "Failed to get timetable by ID");
+      res.status(500).json({
+        errorCode: "TIMETABLE_FETCH_FAILED",
+        message: "Failed to retrieve timetable",
+      });
+    }
+  },
+);
+
 // Get timetable
 router.get(
   "/",

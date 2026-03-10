@@ -26,6 +26,42 @@ import createNoticeSchema from "../schemas/calendar/create-notice.schema.js";
 
 const router = Router();
 
+// Mobile API: GET /calendar (same as GET /calendar/events – calendar view)
+router.get(
+  "/",
+  withPermission(Permission.GET_EVENTS),
+  validateRequest(getEventsSchema),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const schoolId = currentUser.schoolId;
+    const { month, date } = req.query;
+    const where = {
+      schoolId: schoolId || null,
+      deletedAt: null,
+      deletedBy: null,
+    };
+    if (month) {
+      const { year, month: monthNum } = dateUtil.parseMonthFormat(month);
+      const firstDayOfMonth = dateUtil.getFirstDayOfMonth(monthNum, year);
+      const lastDayOfMonth = dateUtil.getLastDayOfMonth(monthNum, year);
+      where.from = { lte: lastDayOfMonth };
+      where.till = { gte: firstDayOfMonth };
+    }
+    if (date) {
+      const inputDate = new Date(date);
+      const startOfDay = dateUtil.getStartOfDay(inputDate);
+      const endOfDay = dateUtil.getEndOfDay(inputDate);
+      where.from = { lte: endOfDay };
+      where.till = { gte: startOfDay };
+    }
+    const events = await prisma.event.findMany({
+      where,
+      ...paginateUtil.getPaginationParams(req),
+    });
+    return res.json({ message: "Events fetched!", data: events });
+  },
+);
+
 // Event endpoints
 router.post(
   "/events",

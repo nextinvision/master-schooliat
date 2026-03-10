@@ -359,6 +359,73 @@ router.get(
   },
 );
 
+// Mobile API: GET /fees/status – fee status summary (totalAmount, paidAmount, pendingAmount, installments)
+router.get(
+  "/status",
+  withPermission(Permission.GET_FEES),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { studentId: queryStudentId, year } = req.query;
+
+    let studentId = queryStudentId || (currentUser.role?.name === "STUDENT" ? currentUser.id : null);
+    if (!studentId) {
+      return res.status(400).json({
+        message: "Provide studentId query or use a student account to get fee status",
+      });
+    }
+
+    let schoolId = currentUser.schoolId;
+    if (!schoolId && currentUser.role?.name === "STUDENT" && studentId === currentUser.id) {
+      const profile = await prisma.studentProfile.findUnique({
+        where: { userId: currentUser.id },
+        include: { class: { select: { schoolId: true } } },
+      });
+      if (profile?.class) schoolId = profile.class.schoolId;
+    }
+    if (!schoolId) {
+      return res.status(400).json({
+        message: "School context required for fee status",
+      });
+    }
+
+    const fee = await prisma.fee.findFirst({
+      where: {
+        studentId,
+        schoolId,
+        deletedAt: null,
+        ...(year ? { year: parseInt(year, 10) } : {}),
+      },
+    });
+    if (!fee) {
+      return res.status(404).json({
+        message: "Fee record not found for this student",
+      });
+    }
+    const installments = await prisma.feeInstallements.findMany({
+      where: { feeId: fee.id, deletedAt: null },
+      orderBy: { installementNumber: "asc" },
+    });
+    const installmentsWithUrls = installments.map(attachReceiptUrl);
+    return res.json({
+      message: "Fee status fetched successfully",
+      data: {
+        totalAmount: fee.totalAmount,
+        paidAmount: fee.totalPaidAmount ?? 0,
+        pendingAmount: fee.totalRemainingAmount ?? fee.totalAmount - (fee.totalPaidAmount ?? 0),
+        installments: installmentsWithUrls.map((i) => ({
+          installmentNumber: i.installementNumber,
+          amount: i.amount,
+          status: i.paymentStatus,
+          paymentDate: i.paidAt,
+          dueDate: i.dueDate,
+          paidAmount: i.paidAmount,
+          remainingAmount: i.remainingAmount,
+        })),
+      },
+    });
+  },
+);
+
 // GET fee installments by installment number (from URL param)
 router.get(
   "/installments/:installmentNumber",

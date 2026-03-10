@@ -185,74 +185,77 @@ router.get(
   },
 );
 
+// Shared handler for leave history / requests list
+const handleLeaveHistory = async (req, res) => {
+  const currentUser = req.context.user;
+  const { userId, status, startDate, endDate, page = 1, limit = 20 } = req.query;
+
+  let targetUserId = currentUser.id;
+  let targetSchoolId = null;
+
+  if (currentUser.role.name === "SCHOOL_ADMIN" || currentUser.role.name === "SUPER_ADMIN") {
+    if (userId === "all") {
+      targetUserId = null;
+      targetSchoolId = currentUser.schoolId;
+    } else if (userId) {
+      targetUserId = userId;
+    }
+  } else if (userId && currentUser.role.name === "PARENT") {
+    const link = await prisma.parentChildLink.findFirst({
+      where: {
+        parentId: currentUser.id,
+        childId: userId,
+        deletedAt: null,
+      },
+    });
+    if (!link) {
+      return res.status(403).json({
+        errorCode: "FORBIDDEN",
+        message: "You can only view your children's leave history",
+      });
+    }
+    targetUserId = userId;
+  }
+
+  try {
+    const result = await leaveService.getLeaveHistory(targetUserId, {
+      status: status || null,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      page: parseInt(page, 10) || 1,
+      limit: parseInt(limit, 10) || 20,
+      schoolId: targetSchoolId,
+    });
+    const mappedLeaves = result.leaves.map((leave) => ({
+      ...leave,
+      requesterName: leave.user ? `${leave.user.firstName} ${leave.user.lastName || ""}`.trim() : leave.userId,
+    }));
+    res.json({
+      message: "Leave history retrieved successfully",
+      data: mappedLeaves,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    logger.error({ error, userId: targetUserId }, "Failed to get leave history");
+    res.status(500).json({
+      errorCode: "LEAVE_HISTORY_FETCH_FAILED",
+      message: "Failed to retrieve leave history",
+    });
+  }
+};
+
+// Mobile API: GET /leave/requests (same as /leave/history)
+router.get(
+  "/requests",
+  withPermission([Permission.GET_LEAVE_REQUESTS]),
+  handleLeaveHistory,
+);
+
 // Get leave history
 router.get(
   "/history",
   withPermission([Permission.GET_LEAVE_REQUESTS]),
-  async (req, res) => {
-    const currentUser = req.context.user;
-    const { userId, status, startDate, endDate, page = 1, limit = 20 } = req.query;
-
-    // Role-based access
-    let targetUserId = currentUser.id;
-    let targetSchoolId = null;
-
-    if (currentUser.role.name === "SCHOOL_ADMIN" || currentUser.role.name === "SUPER_ADMIN") {
-      if (userId === "all") {
-        targetUserId = null;
-        targetSchoolId = currentUser.schoolId;
-      } else if (userId) {
-        targetUserId = userId;
-      }
-    } else if (userId && currentUser.role.name === "PARENT") {
-      // Verify parent-child relationship
-      const link = await prisma.parentChildLink.findFirst({
-        where: {
-          parentId: currentUser.id,
-          childId: userId,
-          deletedAt: null,
-        },
-      });
-
-      if (!link) {
-        return res.status(403).json({
-          errorCode: "FORBIDDEN",
-          message: "You can only view your children's leave history",
-        });
-      }
-
-      targetUserId = userId;
-    }
-
-    try {
-      const result = await leaveService.getLeaveHistory(targetUserId, {
-        status: status || null,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-        page: parseInt(page, 10) || 1,
-        limit: parseInt(limit, 10) || 20,
-        schoolId: targetSchoolId,
-      });
-
-      // Map requesterName for convenience if user relation exists
-      const mappedLeaves = result.leaves.map(leave => ({
-        ...leave,
-        requesterName: leave.user ? `${leave.user.firstName} ${leave.user.lastName || ""}`.trim() : leave.userId,
-      }));
-
-      res.json({
-        message: "Leave history retrieved successfully",
-        data: mappedLeaves,
-        pagination: result.pagination,
-      });
-    } catch (error) {
-      logger.error({ error, userId: targetUserId }, "Failed to get leave history");
-      res.status(500).json({
-        errorCode: "LEAVE_HISTORY_FETCH_FAILED",
-        message: "Failed to retrieve leave history",
-      });
-    }
-  },
+  handleLeaveHistory,
 );
 
 // Get leave calendar

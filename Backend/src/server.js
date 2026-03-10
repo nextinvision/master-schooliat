@@ -23,6 +23,8 @@ import addReponseStatusToBody from "./middlewares/add-response-status-to-body.mi
 import errorHandler from "./middlewares/error-handler.middleware.js";
 import authRouter from "./routers/auth.router.js";
 import userRouter from "./routers/user.router.js";
+import studentsRouter from "./routers/students.router.js";
+import employeesRouter from "./routers/employees.router.js";
 import schoolRouter from "./routers/school.router.js";
 import regionRouter from "./routers/region.router.js";
 import vendorRouter from "./routers/vendor.router.js";
@@ -51,8 +53,10 @@ import homeworkRouter from "./routers/homework.router.js";
 import marksRouter from "./routers/marks.router.js";
 import leaveRouter from "./routers/leave.router.js";
 import communicationRouter from "./routers/communication.router.js";
+import notificationsRouter from "./routers/notifications.router.js";
 import libraryRouter from "./routers/library.router.js";
 import notesRouter from "./routers/notes.router.js";
+import syllabusRouter from "./routers/syllabus.router.js";
 import galleryRouter from "./routers/gallery.router.js";
 import circularRouter from "./routers/circular.router.js";
 import parentRouter from "./routers/parent.router.js";
@@ -222,6 +226,8 @@ async function main() {
 
 function addRouters(app) {
   app.use("/users", userRouter);
+  app.use("/students", studentsRouter);
+  app.use("/employees", employeesRouter);
   app.use("/schools", schoolRouter);
   app.use("/regions", regionRouter);
   app.use("/vendors", vendorRouter);
@@ -249,9 +255,11 @@ function addRouters(app) {
   app.use("/marks", marksRouter);
   app.use("/leave", leaveRouter);
   app.use("/communication", communicationRouter);
+  app.use("/notifications", notificationsRouter);
   // Phase 2 Routers
   app.use("/library", libraryRouter);
   app.use("/notes", notesRouter);
+  app.use("/syllabus", syllabusRouter);
   app.use("/gallery", galleryRouter);
   app.use("/circulars", circularRouter);
   app.use("/parent", parentRouter);

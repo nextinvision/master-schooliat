@@ -1801,6 +1801,120 @@ JWT tokens expire after **48 hours** (configurable). When a token expires, the c
 
 ---
 
+---
+
+## Implementation Reference (Backend)
+
+This section is the **single source of truth** for backend route implementation. All paths below are supported under the base path `/api/v1` (and `/auth` for auth). The backend implements these exact paths so the mobile app can call them without path rewrites.
+
+### Auth (no prefix; mounted at `/auth`)
+| Method | Path | Implemented |
+|--------|------|-------------|
+| POST | `/auth/authenticate` | ✓ |
+| POST | `/auth/forgot-password` | ✓ |
+| POST | `/auth/reset-password` | ✓ |
+| POST | `/auth/change-password` | ✓ |
+| POST | `/auth/request-otp` | ✓ |
+| POST | `/auth/verify-otp` | ✓ |
+| GET  | `/auth/roles` | ✓ |
+| GET  | `/auth/me` | ✓ |
+| PATCH | `/auth/me` | ✓ |
+
+### Students (mobile path)
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/students` | List students (teacher/school admin). Also available at `/users/students`. |
+| GET | `/students/:id` | Student by ID. Also at `/users/students/:id`. |
+
+### Employees (mobile path)
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/employees` | List employees. Also at `/users/employees`. |
+| GET | `/employees/:id` | Employee by ID. Also at `/users/employees/:id`. |
+| POST | `/employees` | Create employee. Also at `/users/employees`. |
+| PUT / PATCH | `/employees/:id` | Update employee. Backend uses PATCH at `/users/employees/:id`. |
+| DELETE | `/employees/:id` | Soft delete. Also at `/users/employees/:id`. |
+
+### Homework
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/homework` | Create homework. |
+| GET | `/homework` | List homework (query: studentId, classId, status, etc.). |
+| POST | `/homework/:id/submit` | Submit homework (id = homeworkId). Body: `{ request: { files?, mcqAnswers? } }`. |
+| POST | `/homework/:id/grade` | Grade submission. Body: `{ request: { submissionId, grade?, feedback?, marksObtained?, totalMarks? } }`. Also at `/homework/grade` with submissionId in body. |
+
+### Marks
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/marks` | Enter marks. |
+| POST | `/marks/bulk` | Bulk enter marks. |
+| GET | `/marks` | Get marks (role-based). |
+| POST | `/marks/calculate-result` | Calculate result. |
+| POST | `/marks/publish-results` | Publish results. Same as `/marks/publish` (body: examId, classId?). |
+| GET | `/marks/my-summary` | Student academic summary. |
+| GET | `/marks/results` | Published results. |
+
+### Timetables
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/timetables` | List/filter (query: classId, teacherId, subjectId, timetableId, date). |
+| GET | `/timetables/my-classes` | Teacher’s classes. |
+| GET | `/timetables/:id` | Timetable by ID. |
+
+### Notes
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/notes` | Create note. Also at `/notes/notes`. |
+| GET | `/notes` | List notes (query: subjectId, classId, chapter). Also at `/notes/notes`. |
+| PUT | `/notes/:id` | Update note. Also at `/notes/notes/:id`. |
+| DELETE | `/notes/:id` | Delete note. Also at `/notes/notes/:id`. |
+
+### Syllabus
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/syllabus` | List syllabus (query: subjectId, classId, academicYear). Also at `/notes/syllabus`. |
+
+### Leave
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/leave/request` | Create leave request. |
+| GET | `/leave/requests` | List leave requests (same data as `/leave/history`). |
+| GET | `/leave/balance` | Leave balance. |
+| GET | `/leave/history` | Leave history (paginated). |
+
+### Fees
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/fees` | Fees overview / list. |
+| GET | `/fees/status` | Fee status summary (totalAmount, paidAmount, pendingAmount, installments). For current student or studentId. |
+| GET | `/fees/student/:studentId` | Installments for a student. |
+| GET | `/fees/installments/:installmentNumber` | Installments by number. |
+
+### Communication & Notifications
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/communication/conversations` | Create conversation. |
+| GET | `/communication/conversations` | List conversations. |
+| POST | `/communication/conversations/:id/messages` | Send message (id = conversationId). Body: `{ request: { content, attachments? } }`. Also at `/communication/messages` with conversationId in body. |
+| GET | `/communication/conversations/:id/messages` | Get messages. |
+| GET | `/communication/announcements` | List announcements (query: startDate, endDate). |
+| GET | `/notifications` | List notifications. Same as `/communication/notifications`. |
+| PUT | `/notifications/:id/read` | Mark read. Same as `/communication/notifications/:id/read`. |
+
+### Calendar & Files
+| Method | Path | Notes |
+|--------|------|--------|
+| GET | `/calendar` | Calendar view (aggregate). Same as `/calendar/events` or use `/calendar/:date` for day view. |
+| GET | `/calendar/events` | List events. |
+| GET | `/calendar/:date` | Calendar items for a date (YYYY-MM-DD). |
+| POST | `/files` | Upload file (multipart). |
+| GET | `/files/:id` | Get file by ID (stream or redirect). |
+
+### Other (schools, attendance, statistics, etc.)
+All other endpoints (schools, attendance, statistics, vendors, licenses, receipts, circulars, gallery, etc.) are implemented as documented in the sections above; paths match the table of contents.
+
+---
+
 **End of Mobile API Documentation**
 
 

@@ -253,5 +253,85 @@ router.delete(
   },
 );
 
+// --- Mobile API: GET/POST /notes and PUT/DELETE /notes/:id (same as /notes/notes) ---
+router.get(
+  "/",
+  withPermission(Permission.GET_NOTES),
+  validateRequest(getNotesSchema),
+  async (req, res) => {
+    try {
+      const query = req.query;
+      const currentUser = req.context.user;
+      const result = await notesService.getNotes(
+        currentUser.schoolId,
+        { subjectId: query.subjectId, classId: query.classId, chapter: query.chapter, topic: query.topic },
+        { page: query.page, limit: query.limit },
+      );
+      return res.status(200).json({
+        message: "Notes fetched successfully",
+        data: result.notes,
+        pagination: result.pagination,
+      });
+    } catch (error) {
+      return res.status(400).json({ message: error.message || "Failed to fetch notes" });
+    }
+  },
+);
+
+router.post(
+  "/",
+  withPermission(Permission.CREATE_NOTE),
+  validateRequest(createNoteSchema),
+  async (req, res) => {
+    try {
+      const request = req.body.request;
+      const currentUser = req.context.user;
+      const note = await notesService.createNote({
+        ...request,
+        schoolId: currentUser.schoolId,
+        createdBy: currentUser.id,
+      });
+      return res.status(201).json({ message: "Note created successfully", data: note });
+    } catch (error) {
+      return res.status(400).json({ message: error.message || "Failed to create note" });
+    }
+  },
+);
+
+router.put(
+  "/:id",
+  withPermission(Permission.EDIT_NOTE),
+  validateRequest(updateNoteSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const request = req.body.request;
+      const currentUser = req.context.user;
+      const note = await notesService.updateNote(id, { ...request, updatedBy: currentUser.id });
+      return res.status(200).json({ message: "Note updated successfully", data: note });
+    } catch (error) {
+      return res.status(400).json({ message: error.message || "Failed to update note" });
+    }
+  },
+);
+
+router.delete(
+  "/:id",
+  withPermission(Permission.DELETE_NOTE),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+      await prisma.note.update({
+        where: { id },
+        data: { deletedAt: new Date(), deletedBy: currentUser.id },
+      });
+      return res.status(200).json({ message: "Note deleted successfully" });
+    } catch (error) {
+      return res.status(400).json({ message: error.message || "Failed to delete note" });
+    }
+  },
+);
+
 export default router;
 
