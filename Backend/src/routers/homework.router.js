@@ -237,6 +237,9 @@ router.get(
     const currentUser = req.context.user;
     const { homeworkId, studentId, classId, subjectId, status, page, limit } = req.query;
 
+    const pageNumber = Number(page) || 1;
+    const limitNumber = Number(limit) || 20;
+
     try {
       // Get specific homework
       if (homeworkId) {
@@ -367,8 +370,8 @@ router.get(
           orderBy: {
             dueDate: "desc",
           },
-          skip: (page - 1) * limit,
-          take: limit,
+          skip: (pageNumber - 1) * limitNumber,
+          take: limitNumber,
         });
 
         const total = await prisma.homework.count({
@@ -385,10 +388,68 @@ router.get(
           data: {
             homeworks,
             pagination: {
-              page,
-              limit,
+              page: pageNumber,
+              limit: limitNumber,
               total,
-              totalPages: Math.ceil(total / limit),
+              totalPages: Math.ceil(total / limitNumber),
+            },
+          },
+        });
+      }
+
+      // Get all homeworks for a school (for admins)
+      if (
+        (currentUser.role.name === "SCHOOL_ADMIN" || currentUser.role.name === "SUPER_ADMIN") &&
+        !homeworkId &&
+        !studentId &&
+        !classId
+      ) {
+        const adminWhere = {
+          schoolId: currentUser.schoolId,
+          deletedAt: null,
+          ...(subjectId ? { subjectId } : {}),
+        };
+
+        const homeworks = await prisma.homework.findMany({
+          where: adminWhere,
+          include: {
+            subject: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            _count: {
+              select: {
+                submissions: {
+                  where: {
+                    deletedAt: null,
+                    ...(status ? { status } : {}),
+                  },
+                },
+              },
+            },
+          },
+          orderBy: {
+            dueDate: "desc",
+          },
+          skip: (pageNumber - 1) * limitNumber,
+          take: limitNumber,
+        });
+
+        const total = await prisma.homework.count({
+          where: adminWhere,
+        });
+
+        return res.json({
+          message: "Homeworks retrieved successfully",
+          data: {
+            homeworks,
+            pagination: {
+              page: pageNumber,
+              limit: limitNumber,
+              total,
+              totalPages: Math.ceil(total / limitNumber),
             },
           },
         });
@@ -421,8 +482,8 @@ router.get(
         const result = await homeworkService.getStudentHomework(targetStudentId, {
           status: status || null,
           subjectId: subjectId || null,
-          page,
-          limit,
+          page: pageNumber,
+          limit: limitNumber,
         });
 
         return res.json({

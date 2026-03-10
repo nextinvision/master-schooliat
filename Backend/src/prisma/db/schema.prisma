@@ -132,6 +132,7 @@ model School {
   syllabi                 Syllabus[]
   schoolTCs               TransferCertificate[] @relation("SchoolTCs")
   users                   User[]
+  inventoryItems          InventoryItem[]
 
   @@map("schools")
 }
@@ -241,6 +242,7 @@ model User {
   role                       Role                  @relation(fields: [roleId], references: [id])
   school                     School?               @relation(fields: [schoolId], references: [id])
   assignedVendors            Vendor[]              @relation("EmployeeVendors")
+  salaryPayments             SalaryPayments[]
 
   @@index([schoolId, deletedAt])
   @@index([roleId, userType, deletedAt])
@@ -780,6 +782,8 @@ model SalaryPayments {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime? @updatedAt @map("updated_at")
   deletedAt        DateTime? @map("deleted_at")
+
+  user             User      @relation(fields: [userId], references: [id])
 
   @@map("salary_payments")
 }
@@ -1368,6 +1372,32 @@ model LibraryReservation {
   @@index([bookId, isActive, deletedAt], map: "library_reservations_book_active_deleted_at_idx")
   @@index([userId, deletedAt])
   @@map("library_reservations")
+}
+
+model InventoryItem {
+  id             String    @id @default(uuid())
+  schoolId       String    @map("school_id")
+  itemName       String    @map("item_name")
+  itemCode       String    @map("item_code")
+  category       String
+  unit           String
+  type           String
+  totalStock     Int       @map("total_stock")
+  issuedQty      Int?      @map("issued_qty")
+  issuedTo       String?   @map("issued_to")
+  lastIssuedDate DateTime? @map("last_issued_date")
+  condition      String
+  createdBy      String    @map("created_by")
+  updatedBy      String?   @map("updated_by")
+  deletedBy      String?   @map("deleted_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime? @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  school         School    @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, deletedAt])
+  @@unique([schoolId, itemCode], name: "inventory_items_unique_school_item_code")
+  @@map("inventory_items")
 }
 
 model Note {

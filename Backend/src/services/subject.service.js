@@ -9,7 +9,10 @@ import logger from "../config/logger.js";
  */
 const getSubjects = async (schoolId, options = {}) => {
     const { classId, page = 1, limit = 20 } = options;
-    const skip = (page - 1) * limit;
+
+    const pageNumber = Number(page) || 1;
+    const limitNumber = Number(limit) || 20;
+    const skip = (pageNumber - 1) * limitNumber;
 
     const where = {
         schoolId,
@@ -21,7 +24,7 @@ const getSubjects = async (schoolId, options = {}) => {
         prisma.subject.findMany({
             where,
             skip,
-            take: limit,
+            take: limitNumber,
             orderBy: { name: "asc" },
         }),
         prisma.subject.count({ where }),
@@ -31,7 +34,7 @@ const getSubjects = async (schoolId, options = {}) => {
     return {
         subjects,
         total,
-        totalPages: Math.ceil(total / limit),
+        totalPages: Math.ceil(total / limitNumber),
     };
 };
 

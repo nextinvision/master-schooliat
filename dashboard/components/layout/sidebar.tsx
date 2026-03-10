@@ -159,7 +159,7 @@ export function Sidebar() {
       )}
     >
       {/* Logo Container */}
-      <div className="flex items-center px-4 py-6 gap-3 border-b border-gray-800/50 justify-center lg:justify-start">
+      <div className="flex items-center px-4 py-6 gap-3 border-b border-gray-800/50 justify-center lg:justify-start mt-3">
         <div className="w-10 h-10 flex-shrink-0 bg-white rounded-xl flex items-center justify-center p-1">
           <Image
             src="/logo.png"
