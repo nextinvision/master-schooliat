@@ -646,7 +646,6 @@ paymentRouter.get("/", async (req, res) => {
           firstName: true,
           lastName: true,
           publicUserId: true,
-          photoLink: true,
           role: {
             select: {
               name: true,
@@ -654,12 +653,16 @@ paymentRouter.get("/", async (req, res) => {
           },
           teacherProfile: {
             select: {
-              employeeId: true,
+              id: true,
+              userId: true,
+              basicSalary: true,
             },
           },
           staffProfile: {
             select: {
-              employeeId: true,
+              id: true,
+              userId: true,
+              basicSalary: true,
             },
           },
         },
