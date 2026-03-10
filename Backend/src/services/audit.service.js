@@ -22,10 +22,10 @@ const logAuditEvent = async (data) => {
   try {
     const auditLog = await prisma.auditLog.create({
       data: {
-        userId,
+        user: { connect: { id: userId } },
         action,
         entityType,
-        entityId,
+        entityId: entityId ?? "",
         ipAddress,
         userAgent,
         changes,

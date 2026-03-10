@@ -39,6 +39,16 @@ const MONTH_OPTIONS = [
   "December",
 ];
 
+/** Convert month name to YYYY-MM for API (backend expects YYYY-MM). */
+function monthNameToYYYYMM(monthName: string, year?: number): string {
+  const y = year ?? new Date().getFullYear();
+  const monthNames = MONTH_OPTIONS;
+  const i = monthNames.indexOf(monthName);
+  if (i === -1) return `${y}-01`;
+  const month = String(i + 1).padStart(2, "0");
+  return `${y}-${month}`;
+}
+
 const STATUS_OPTIONS = ["All Status", "Paid", "Pending"];
 
 function formatCurrency(num: number | string | null | undefined): string {
@@ -59,7 +69,8 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
   );
   const [statusFilter, setStatusFilter] = useState("All Status");
 
-  const { data: salaryData, isLoading, refetch } = useSalaryPayments(monthFilter);
+  const monthApi = monthNameToYYYYMM(monthFilter);
+  const { data: salaryData, isLoading, refetch } = useSalaryPayments(monthApi);
   const { mutateAsync: generatePayments, isPending: isGenerating } =
     useGenerateSalaryPayments();
 
@@ -67,7 +78,9 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
 
   // Stats
   const salaryStats = useMemo(() => {
-    const paid = payments.filter((p: any) => p.status === "PAID" || p.status === "Paid").length;
+    const paid = payments.filter(
+      (p: any) => p.status === "PAID" || p.status === "Paid"
+    ).length;
     const pending = payments.filter(
       (p: any) => p.status === "PENDING" || p.status === "Pending"
     ).length;
@@ -79,8 +92,12 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
       .reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
 
     return {
-      teacherCount: payments.filter((p: any) => p.user?.role === "TEACHER").length,
-      staffCount: payments.filter((p: any) => p.user?.role === "STAFF").length,
+      teacherCount: payments.filter(
+        (p: any) => p.user?.role?.name === "TEACHER"
+      ).length,
+      staffCount: payments.filter(
+        (p: any) => p.user?.role?.name === "STAFF"
+      ).length,
       paidAmount: formatCurrency(totalPaid),
       pendingAmount: formatCurrency(totalPending),
       paid,
@@ -119,7 +136,7 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
     }
 
     try {
-      await generatePayments(monthFilter);
+      await generatePayments(monthApi);
       toast.success("Salary payments generated successfully!");
       refetch();
     } catch (error: any) {
@@ -255,7 +272,11 @@ export function SalaryDistribution({ onEdit, onDelete }: SalaryDistributionProps
                         </div>
                       </TableCell>
                       <TableCell>{item.employeeId || "—"}</TableCell>
-                      <TableCell>{item.user?.role || "—"}</TableCell>
+                      <TableCell>
+                        {item.user?.role?.name
+                          ? item.user.role.name.replace("_", " ")
+                          : "—"}
+                      </TableCell>
                       <TableCell>{formatCurrency(item.amount)}</TableCell>
                       <TableCell>
                         <Badge
