@@ -71,6 +71,9 @@ router.post(
     if (user === null || user.deletedAt !== null) {
       throw ApiErrors.USER_NOT_FOUND;
     }
+    if (!user.password) {
+      throw ApiErrors.USER_NOT_FOUND;
+    }
 
     const passwordMatched = await bcryptjs.compare(
       password,

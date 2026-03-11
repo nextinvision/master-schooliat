@@ -57,6 +57,27 @@ Use when the DB already has roles (e.g. after a previous full seed or deploy) an
 
 ---
 
+## Option C: Only teacher and student credentials (safe, no data loss)
+
+Use when the DB already has schools, roles, and classes and you only need **teacher1** and **student1** login accounts for mobile API testing. **Does not delete or overwrite any existing data**; only creates users that do not already exist.
+
+1. Ensure `DATABASE_URL` is set in `Backend/.env`.
+2. Roles **TEACHER** and **STUDENT** must exist (run full seed once if needed).
+3. Run:
+   ```bash
+   cd Backend
+   npm run seed:mobile-credentials
+   ```
+   Or: `node scripts/seed-mobile-credentials.js`
+
+For each school in the DB, the script ensures:
+- **teacher1@\<schoolCode\>.edu** / **Teacher@123** (with TeacherProfile), only if not present.
+- **student1@\<schoolCode\>.edu** / **Student@123** (with StudentProfile), only if not present and the school has at least one class.
+
+Example: for schools with codes GIS001, SPS002, BFA003 you get teacher1@gis001.edu, teacher1@sps002.edu, teacher1@bfa003.edu and student1@gis001.edu, etc.
+
+---
+
 ## Troubleshooting
 
 - **"DATABASE_URL is not set"**  
