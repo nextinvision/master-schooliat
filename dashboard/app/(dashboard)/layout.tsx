@@ -26,10 +26,10 @@ export default function DashboardLayout({
   if (isLoading) {
     return (
       <div className="flex h-screen">
-        <Skeleton className="w-[220px] lg:w-[300px] fixed left-0 top-0 bottom-0" />
-        <div className="flex-1 flex flex-col ml-[220px] lg:ml-[300px]">
-          <Skeleton className="h-16 lg:h-20 fixed top-0 left-[220px] lg:left-[300px] right-0" />
-          <Skeleton className="flex-1 mt-16 lg:mt-20" />
+        <Skeleton className="w-[var(--sidebar-width)] lg:w-[var(--sidebar-width-lg)] fixed left-0 top-[var(--navbar-height)] bottom-0" />
+        <div className="flex-1 flex flex-col ml-[var(--sidebar-width)] lg:ml-[var(--sidebar-width-lg)]">
+          <Skeleton className="h-[var(--navbar-height)] fixed top-0 left-0 right-0" />
+          <Skeleton className="flex-1 mt-[var(--navbar-height)]" />
         </div>
       </div>
     );

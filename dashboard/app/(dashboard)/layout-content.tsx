@@ -20,15 +20,12 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
       <div
         className={cn(
           "flex-1 flex flex-col min-w-0 transition-all duration-300 ease-in-out",
-          isOpen ? "ml-[200px] lg:ml-[240px]" : "ml-[60px] lg:ml-[64px]"
+          isOpen ? "ml-[var(--sidebar-width)] lg:ml-[var(--sidebar-width-lg)]" : "ml-[var(--sidebar-width-collapsed)] lg:ml-[var(--sidebar-width-collapsed-lg)]"
         )}
       >
         <EnhancedNavbar />
         <main
-          className={cn(
-            "flex-1 overflow-y-auto p-3 min-h-[calc(100vh-3rem)]",
-            "mt-12"
-          )}
+          className="flex-1 overflow-y-auto p-3 min-h-[calc(100vh-var(--navbar-height))] mt-[var(--navbar-height)]"
         >
           {children}
         </main>

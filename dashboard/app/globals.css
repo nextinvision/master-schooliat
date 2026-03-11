@@ -86,6 +86,12 @@
 
 :root {
   --radius: 0.625rem;
+  /* Dashboard layout (sidebar + navbar) – single source of truth */
+  --navbar-height: 3rem;
+  --sidebar-width: 200px;
+  --sidebar-width-lg: 240px;
+  --sidebar-width-collapsed: 60px;
+  --sidebar-width-collapsed-lg: 64px;
   /* SchooliAT brand (landing parity) */
   --schooliat-primary: #6f8f3e;
   --schooliat-primary-dark: #5a752f;
