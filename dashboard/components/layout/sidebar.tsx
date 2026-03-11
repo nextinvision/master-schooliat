@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -158,26 +157,8 @@ export function Sidebar() {
         isOpen ? "w-[200px] lg:w-[240px]" : "w-[60px] lg:w-[64px]"
       )}
     >
-      {/* Logo Container */}
-      <div className="flex items-center px-4 py-6 gap-3 border-b border-gray-800/50 justify-center lg:justify-start mt-3">
-        <div className="w-10 h-10 flex-shrink-0 bg-white rounded-xl flex items-center justify-center p-1">
-          <Image
-            src="/logo.png"
-            alt="Schooliat Logo"
-            width={32}
-            height={32}
-            className="w-full h-full object-contain rounded-md"
-          />
-        </div>
-        {isOpen && (
-          <span className="text-xl font-bold text-white ml-1 tracking-wide whitespace-nowrap">
-            SchooliAT
-          </span>
-        )}
-      </div>
-
       {/* Menu Container */}
-      <div className="flex-1 overflow-y-auto pb-2 lg:pb-4 scrollbar-none scrollbar-thumb-gray-700 scrollbar-track-transparent">
+      <div className="flex-1 overflow-y-auto pt-4 pb-2 lg:pb-4 scrollbar-none scrollbar-thumb-gray-700 scrollbar-track-transparent">
         {menuItems.map((item) => {
           const active = isActive(item.route);
           const hasSubmenu = item.hasSubmenu;

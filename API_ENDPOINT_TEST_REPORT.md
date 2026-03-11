@@ -1,7 +1,7 @@
 # Mobile API Endpoint Test Report
 
 **Base URL:** https://api.schooliat.com
-**Tested at:** 2026-03-11T07:29:23.693Z
+**Tested at:** 2026-03-11T12:55:48.924Z
 **Authenticated:** No (protected endpoints returned 401)
 
 ## Summary
@@ -70,35 +70,7 @@
 | users | 26 | 26 | 0 |
 | vendors | 6 | 6 | 0 |
 
-## Which endpoints returned 2xx (without auth)
-
-| Method | Path | Status | Notes |
-|--------|------|--------|--------|
-| POST | /auth/request-otp | 200 | OTP sent (or email not found – same 200) |
-| POST | /auth/forgot-password | 200 | Reset email sent (or same 200) |
-| GET | /auth/roles | 200 | Returns list of mobile roles (EMPLOYEE, STUDENT, TEACHER, STAFF) |
-
-All other endpoints either require authentication (290 returned **401 Unauthorized**) or returned **400** (validation), which confirms the route and server are working.
-
 ## Conclusion
 
-- **All 295 endpoints are reachable** – no 5xx server errors and no network failures.
-- **292** returned expected client responses (401 for protected routes without token, 400 for invalid body).
-- **3** public auth endpoints returned 200 without a token.
-- To test with authentication and get 2xx on protected endpoints, run:
-  ```bash
-  BASE_URL=https://api.schooliat.com MOBILE_API_EMAIL=<valid_email> MOBILE_API_PASSWORD=<password> node scripts/test-mobile-api-report.js
-  ```
-  (Use credentials provided by your team; seeded test users may not exist on production.)
-
----
-
-## Analysis for app developer
-
-| Aspect | Result |
-|--------|--------|
-| **API availability** | All 295 endpoints respond; no downtime or 5xx from the test. |
-| **Authentication** | Login (`POST /auth/authenticate`) and protected routes enforce Bearer token; 401 without it. |
-| **Public endpoints** | `GET /auth/roles`, `POST /auth/request-otp`, `POST /auth/forgot-password` work without auth. |
-| **Protected endpoints** | Require `Authorization: Bearer <token>` and `x-platform: android` or `ios`. |
-| **Recommendation** | Use the Postman collection with a valid token; run this report script with valid credentials to get a 2xx breakdown per endpoint. |
+- **295** endpoints are **reachable** (returned 2xx or expected 4xx).
+- Run with `MOBILE_API_EMAIL` and `MOBILE_API_PASSWORD` (e.g. teacher1@gis001.edu / Teacher@123) to test with auth and get more 2xx responses.

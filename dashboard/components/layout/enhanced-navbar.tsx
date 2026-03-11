@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
   Settings,
@@ -136,7 +137,7 @@ export function EnhancedNavbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 h-12 bg-white border-b border-gray-200 z-40 flex items-center justify-between px-3 shadow-sm">
-      {/* Left Section */}
+      {/* Left Section: sidebar toggle + branding */}
       <div className="flex items-center gap-2 flex-shrink-0">
         <Button
           variant="ghost"
@@ -151,6 +152,20 @@ export function EnhancedNavbar() {
             <Menu className="h-3.5 w-3.5 text-gray-600" />
           )}
         </Button>
+        <div className="hidden sm:flex items-center gap-2">
+          <div className="w-8 h-8 flex-shrink-0 bg-primary/10 rounded-lg flex items-center justify-center p-1">
+            <Image
+              src="/logo.png"
+              alt="SchooliAT"
+              width={24}
+              height={24}
+              className="w-full h-full object-contain"
+            />
+          </div>
+          <span className="text-sm font-semibold text-gray-800 tracking-wide">
+            SchooliAT
+          </span>
+        </div>
       </div>
 
       {/* Center: Quick navigation search */}
