@@ -382,6 +382,7 @@ const roleService = {
   getRoleByName,
   createDefaultRoles,
   updateRolePermissions,
+  defaultRolePermissionsMap,
 };
 
 export default roleService;

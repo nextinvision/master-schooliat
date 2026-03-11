@@ -24,6 +24,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema=src/prisma/db/schema.prisma",
     "prisma:format": "prisma format --schema=src/prisma/db/schema.prisma",
     "seed": "node prisma/seed-run.js",
+    "deploy:seed": "npm run prisma:migrate:deploy && npm run seed",
     "test:phase1": "node test-phase1-apis.js",
     "test:all": "node test-all-apis.js",
     "test:comprehensive": "node test-comprehensive-apis.js",

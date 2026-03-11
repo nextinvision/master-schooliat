@@ -1,0 +1,72 @@
+# Seeding Dummy Credentials for Postman / API Testing
+
+Dummy login credentials are created by the seed so you can test the Postman collection and mobile API against a real database.
+
+## Credentials (after seeding)
+
+| Role         | Email                    | Password      |
+|-------------|--------------------------|---------------|
+| Super Admin | `admin@schooliat.com`    | `Admin@123`   |
+| Employee    | `john.doe@schooliat.com` | `Employee@123` |
+| School Admin| `admin@gis001.edu`       | `Admin@123`   |
+| Teacher     | `teacher1@gis001.edu`    | `Teacher@123` |
+| Student     | `student1@gis001.edu`    | `Student@123` |
+
+(Full list with all schools: GIS001, SPS002, BFA003 is in `repo/POSTMAN_TESTING.md`.)
+
+---
+
+## Option A: Full seed (recommended for local dev)
+
+Creates roles, regions, schools, classes, and all dummy users (admin, employees, school admins, teachers, students, staff).
+
+1. **Database**
+   - **Docker:** From `Backend/`: `docker compose up -d postgres` (or `docker-compose up -d postgres`).
+   - **Existing Postgres:** Ensure your DB is running and you have a connection URL.
+
+2. **Backend/.env**
+   - Copy from `.env.example` if needed.
+   - Set `DATABASE_URL` (and `DATABASE_DIRECT_URL` if required):
+     - Docker: `postgresql://schooliat:schooliat_dev_password@localhost:5432/schooliat_db`
+     - Or your own: `postgresql://user:password@host:5432/dbname`
+
+3. **Migrations**
+   ```bash
+   cd Backend
+   npm run prisma:migrate:deploy
+   ```
+
+4. **Seed**
+   ```bash
+   npm run seed
+   ```
+
+---
+
+## Option B: Only Super Admin (minimal)
+
+Use when the DB already has roles (e.g. after a previous full seed or deploy) and you only need the dummy admin user.
+
+1. Set `DATABASE_URL` in `Backend/.env` (or in env).
+2. Run:
+   ```bash
+   cd Backend
+   node scripts/reseed-all.js
+   ```
+   This creates/updates default roles and ensures **admin@schooliat.com** / **Admin@123** exists (recreates the user if already present).
+
+---
+
+## Troubleshooting
+
+- **"DATABASE_URL is not set"**  
+  Create `Backend/.env` with `DATABASE_URL=postgresql://...` or export it before running.
+
+- **"Authentication failed" (P1000)**  
+  Check user, password, and host in `DATABASE_URL`. For Docker, use user `schooliat`, password `schooliat_dev_password`, db `schooliat_db`.
+
+- **"Relation does not exist"**  
+  Run migrations first: `npm run prisma:migrate:deploy`.
+
+- **Postman / API**  
+  After seeding, use the credentials above with `POST {{base_url}}/auth/authenticate`, then set `{{auth_token}}` from the response. See `repo/POSTMAN_TESTING.md`.
