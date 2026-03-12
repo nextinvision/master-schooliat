@@ -143,13 +143,13 @@ export function EnhancedNavbar() {
         isOpen ? "pl-[var(--sidebar-width)] lg:pl-[var(--sidebar-width-lg)]" : "pl-[var(--sidebar-width-collapsed)] lg:pl-[var(--sidebar-width-collapsed-lg)]"
       )}
     >
-      {/* Left Section: sidebar toggle + branding */}
-      <div className="flex items-center gap-2 flex-shrink-0">
+      {/* Left Section: sidebar toggle + logo & title (left-aligned) */}
+      <div className="flex items-center gap-2 flex-shrink-0 justify-start min-w-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={toggle}
-          className="rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8"
+          className="rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8 shrink-0"
           title={isOpen ? "Close Sidebar" : "Open Sidebar"}
         >
           {isOpen ? (
@@ -158,7 +158,7 @@ export function EnhancedNavbar() {
             <Menu className="h-3.5 w-3.5 text-gray-600" />
           )}
         </Button>
-        <div className="hidden sm:flex items-center gap-2">
+        <div className="flex items-center gap-2 justify-start text-left min-w-0">
           <div className="w-8 h-8 flex-shrink-0 bg-primary/10 rounded-lg flex items-center justify-center p-1">
             <Image
               src="/logo.png"
@@ -168,7 +168,7 @@ export function EnhancedNavbar() {
               className="w-full h-full object-contain"
             />
           </div>
-          <span className="text-sm font-semibold text-gray-800 tracking-wide">
+          <span className="text-sm font-semibold text-gray-800 tracking-wide text-left truncate">
             SchooliAT
           </span>
         </div>
