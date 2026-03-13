@@ -27,7 +27,9 @@ const config = {
     /^\/$/,
     /^\/docs/,
     /^\/health/,
+    /^\/api\/v1\/health/,
     /^\/files\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
+    /^\/api\/v1\/files\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
   ],
 
   // File Storage Config: "local" (filesystem), "minio" (local MinIO), "aws-s3" (AWS cloud)

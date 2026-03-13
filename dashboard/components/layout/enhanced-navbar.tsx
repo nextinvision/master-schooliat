@@ -137,14 +137,30 @@ export function EnhancedNavbar() {
   };
 
   return (
-    <nav
-      className={cn(
-        "fixed top-0 left-0 right-0 h-[var(--navbar-height)] bg-white border-b border-gray-200 z-40 flex items-center justify-between px-3 shadow-sm transition-[padding] duration-300 ease-in-out",
-        isOpen ? "pl-[var(--sidebar-width)] lg:pl-[var(--sidebar-width-lg)]" : "pl-[var(--sidebar-width-collapsed)] lg:pl-[var(--sidebar-width-collapsed-lg)]"
-      )}
-    >
-      {/* Left Section: sidebar toggle + logo & title (left-aligned) */}
-      <div className="flex items-center gap-2 flex-shrink-0 justify-start min-w-0">
+    <nav className="fixed top-0 left-0 right-0 h-[var(--navbar-height)] bg-white border-b border-gray-200 z-40 flex items-center px-0 shadow-sm">
+      {/* Logo + title: always at viewport left, never moves with sidebar */}
+      <div className="flex items-center gap-2 flex-shrink-0 pl-3 pr-2 h-full">
+        <div className="w-8 h-8 flex-shrink-0 bg-primary/10 rounded-lg flex items-center justify-center p-1">
+          <Image
+            src="/logo.png"
+            alt="SchooliAT"
+            width={24}
+            height={24}
+            className="w-full h-full object-contain"
+          />
+        </div>
+        <span className="text-sm font-semibold text-gray-800 tracking-wide text-left whitespace-nowrap">
+          SchooliAT
+        </span>
+      </div>
+
+      {/* Rest of navbar: starts after sidebar (margin shifts with open/closed) */}
+      <div
+        className={cn(
+          "flex flex-1 items-center justify-between min-w-0 pr-3 pl-2 transition-[margin] duration-300 ease-in-out",
+          isOpen ? "ml-[var(--sidebar-width)] lg:ml-[var(--sidebar-width-lg)]" : "ml-[var(--sidebar-width-collapsed)] lg:ml-[var(--sidebar-width-collapsed-lg)]"
+        )}
+      >
         <Button
           variant="ghost"
           size="icon"
@@ -158,24 +174,9 @@ export function EnhancedNavbar() {
             <Menu className="h-3.5 w-3.5 text-gray-600" />
           )}
         </Button>
-        <div className="flex items-center gap-2 justify-start text-left min-w-0">
-          <div className="w-8 h-8 flex-shrink-0 bg-primary/10 rounded-lg flex items-center justify-center p-1">
-            <Image
-              src="/logo.png"
-              alt="SchooliAT"
-              width={24}
-              height={24}
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <span className="text-sm font-semibold text-gray-800 tracking-wide text-left truncate">
-            SchooliAT
-          </span>
-        </div>
-      </div>
 
-      {/* Center: Quick navigation search */}
-      <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-xl mx-2">
+        {/* Center: Quick navigation search */}
+        <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-xl mx-2">
         <DropdownMenu open={searchOpen} onOpenChange={setSearchOpen}>
           <DropdownMenuTrigger asChild>
             <div className="relative w-full max-w-md">
@@ -360,6 +361,7 @@ export function EnhancedNavbar() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      </div>
       </div>
     </nav>
   );

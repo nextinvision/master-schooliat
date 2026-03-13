@@ -8,7 +8,7 @@ const getFileSchema = z
       .object({
         id: z.string().uuid("ID must be a valid UUID"),
       })
-      ,
+      .passthrough(),
   })
   ;
 

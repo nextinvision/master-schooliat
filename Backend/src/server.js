@@ -170,8 +170,13 @@ async function main() {
   // General API rate limiting (applies to all routes below)
   app.use(apiRateLimit);
 
-  // File upload rate limiting
-  app.use("/files", uploadRateLimit);
+  // File upload rate limiting (apply only to POST)
+  app.use("/files", (req, res, next) => {
+    if (req.method === "POST") {
+      return uploadRateLimit(req, res, next);
+    }
+    next();
+  });
 
   // Authorization middleware for all protected routes
   app.use(authorize);
