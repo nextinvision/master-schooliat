@@ -20,7 +20,11 @@ const helpQuerySchema = z.object({
 
 type HelpQueryFormData = z.infer<typeof helpQuerySchema>;
 
-export function HelpCenter() {
+interface HelpCenterProps {
+  showQueryForm?: boolean;
+}
+
+export function HelpCenter({ showQueryForm = true }: HelpCenterProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -86,7 +90,9 @@ export function HelpCenter() {
       <div>
         <h1 className="text-2xl font-semibold">Help Center</h1>
         <p className="text-gray-600 mt-2">
-          Find answers to common questions or submit a query
+          {showQueryForm
+            ? "Find answers to common questions or submit a query"
+            : "Find answers to common questions"}
         </p>
       </div>
 
@@ -126,35 +132,36 @@ export function HelpCenter() {
             </div>
           </FormCard>
 
-          {/* Submit Query */}
-          <FormCard title="Submit a Query">
-            <form onSubmit={onSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="subject">Subject</Label>
-                <Input
-                  id="subject"
-                  placeholder="What do you need help with?"
-                  {...form.register("subject")}
-                  error={form.formState.errors.subject?.message}
-                />
-              </div>
+          {showQueryForm && (
+            <FormCard title="Submit a Query">
+              <form onSubmit={onSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="subject">Subject</Label>
+                  <Input
+                    id="subject"
+                    placeholder="What do you need help with?"
+                    {...form.register("subject")}
+                    error={form.formState.errors.subject?.message}
+                  />
+                </div>
 
-              <div>
-                <Label htmlFor="message">Message</Label>
-                <Textarea
-                  id="message"
-                  placeholder="Describe your issue or question..."
-                  rows={6}
-                  {...form.register("message")}
-                  error={form.formState.errors.message?.message}
-                />
-              </div>
+                <div>
+                  <Label htmlFor="message">Message</Label>
+                  <Textarea
+                    id="message"
+                    placeholder="Describe your issue or question..."
+                    rows={6}
+                    {...form.register("message")}
+                    error={form.formState.errors.message?.message}
+                  />
+                </div>
 
-              <Button type="submit" disabled={isSubmitting} className="w-full">
-                {isSubmitting ? "Submitting..." : "Submit Query"}
-              </Button>
-            </form>
-          </FormCard>
+                <Button type="submit" disabled={isSubmitting} className="w-full">
+                  {isSubmitting ? "Submitting..." : "Submit Query"}
+                </Button>
+              </form>
+            </FormCard>
+          )}
         </div>
       </div>
     </div>
