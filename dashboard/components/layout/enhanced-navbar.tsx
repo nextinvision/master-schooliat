@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { useState, useMemo, useRef, useEffect } from "react";
@@ -138,8 +137,24 @@ export function EnhancedNavbar() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 h-[var(--navbar-height)] bg-white border-b border-gray-200 z-40 flex items-center px-0 shadow-sm">
-      {/* Logo + title: always at viewport left, never moves with sidebar */}
+      {/* Left: toggle + logo — always pinned to viewport left, never shifts */}
       <div className="flex items-center gap-2 flex-shrink-0 pl-3 pr-2 h-full">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggle();
+          }}
+          className="rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8 shrink-0"
+          title={isOpen ? "Close Sidebar" : "Open Sidebar"}
+        >
+          {isOpen ? (
+            <X className="h-3.5 w-3.5 text-gray-600" />
+          ) : (
+            <Menu className="h-3.5 w-3.5 text-gray-600" />
+          )}
+        </Button>
         <div className="w-8 h-8 flex-shrink-0 bg-primary/10 rounded-lg flex items-center justify-center p-1">
           <Image
             src="/logo.png"
@@ -154,26 +169,8 @@ export function EnhancedNavbar() {
         </span>
       </div>
 
-      {/* Rest of navbar: starts after sidebar (margin shifts with open/closed) */}
-      <div
-        className={cn(
-          "flex flex-1 items-center justify-between min-w-0 pr-3 pl-2 transition-[margin] duration-300 ease-in-out",
-          isOpen ? "ml-[var(--sidebar-width)] lg:ml-[var(--sidebar-width-lg)]" : "ml-[var(--sidebar-width-collapsed)] lg:ml-[var(--sidebar-width-collapsed-lg)]"
-        )}
-      >
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggle}
-          className="rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8 shrink-0"
-          title={isOpen ? "Close Sidebar" : "Open Sidebar"}
-        >
-          {isOpen ? (
-            <X className="h-3.5 w-3.5 text-gray-600" />
-          ) : (
-            <Menu className="h-3.5 w-3.5 text-gray-600" />
-          )}
-        </Button>
+      {/* Rest of navbar — static, no margin shift on sidebar toggle */}
+      <div className="flex flex-1 items-center justify-between min-w-0 pr-3 pl-2">
 
         {/* Center: Quick navigation search */}
         <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-xl mx-2">
