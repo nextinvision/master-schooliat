@@ -1207,7 +1207,7 @@ async function seedIdCards() {
     template = await prisma.template.create({
       data: {
         type: TemplateType.ID_CARD,
-        path: "id-card/default",
+        path: "id-cards/1",
         title: "Default ID Card",
       },
     });

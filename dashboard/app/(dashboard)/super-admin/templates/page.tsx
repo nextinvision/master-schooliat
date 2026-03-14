@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,40 +19,154 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { FileText, Search, Eye, Download } from "lucide-react";
+import { FileText, Search, Eye, Download, Loader2 } from "lucide-react";
 import {
   useTemplates,
   useTemplateDefaults,
   type Template,
 } from "@/lib/hooks/use-super-admin";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
+import { downloadFromApi } from "@/lib/api/client";
+
+interface TemplateWithUrls extends Template {
+  previewUrl?: string;
+  downloadUrl?: string;
+}
+
+function TemplatePreviewFrame({ templateId }: { templateId: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (!templateId) return;
+
+    const fetchPreview = async () => {
+      try {
+        const blob = await downloadFromApi(`/templates/${templateId}/preview`);
+        const text = await blob.text();
+        setHtml(text);
+        setError(false);
+      } catch {
+        setError(true);
+      }
+    };
+
+    fetchPreview();
+  }, [templateId]);
+
+  if (error || !html) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <FileText className="w-16 h-16 text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      srcDoc={html}
+      title="Template Preview"
+      className="w-full h-full border-0 pointer-events-none"
+      style={{ transform: "scale(0.5)", transformOrigin: "top left", width: "200%", height: "200%" }}
+      sandbox="allow-same-origin"
+    />
+  );
+}
+
+function TemplateFullPreview({ templateId }: { templateId: string }) {
+  const [html, setHtml] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!templateId) return;
+
+    const fetchPreview = async () => {
+      setLoading(true);
+      try {
+        const blob = await downloadFromApi(`/templates/${templateId}/preview`);
+        const text = await blob.text();
+        setHtml(text);
+      } catch {
+        setHtml(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPreview();
+  }, [templateId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (!html) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        Preview not available
+      </div>
+    );
+  }
+
+  return (
+    <iframe
+      srcDoc={html}
+      title="Template Preview"
+      className="w-full h-full border-0"
+      sandbox="allow-same-origin"
+    />
+  );
+}
 
 export default function TemplatesPage() {
   const [filterType, setFilterType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<TemplateWithUrls | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const { toast } = useToast();
 
   const { data, isLoading } = useTemplates(filterType === "all" ? undefined : filterType);
   const { data: defaultsData } = useTemplateDefaults(
     selectedTemplate?.id || ""
   );
 
-  const templates = (data?.data || []) as Template[];
-  const filteredTemplates = templates.filter((template: Template) =>
+  const templates = (data?.data || []) as TemplateWithUrls[];
+  const filteredTemplates = templates.filter((template: TemplateWithUrls) =>
     template.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const templateTypes = Array.from(new Set(templates.map((t: Template) => t.type)));
+  const templateTypes = Array.from(new Set(templates.map((t: TemplateWithUrls) => t.type)));
 
-  // next/image requires a valid URL: absolute (http/https) or path starting with /
-  const isValidImageUrl = (url: string | null | undefined) =>
-    typeof url === "string" &&
-    url.length > 0 &&
-    !url.startsWith("undefined") &&
-    (url.startsWith("/") || url.startsWith("http://") || url.startsWith("https://"));
+  const handleDownload = async (template: TemplateWithUrls) => {
+    setIsDownloading(true);
+    try {
+      const blob = await downloadFromApi(`/templates/${template.id}/download`);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${template.title || "template"}-sample.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({
+        title: "Error",
+        description: "Failed to download template sample",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
 
-  const openPreview = (template: Template) => {
+  const openPreview = (template: TemplateWithUrls) => {
     setSelectedTemplate(template);
     setIsPreviewOpen(true);
   };
@@ -111,20 +225,10 @@ export default function TemplatesPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredTemplates.map((template: Template) => (
+              {filteredTemplates.map((template: TemplateWithUrls) => (
                 <Card key={template.id} className="overflow-hidden">
-                  <div className="relative h-48 bg-gray-100">
-                    {isValidImageUrl(template.imageUrl) ? (
-                      <img
-                        src={template.imageUrl!}
-                        alt={template.title || "Template Preview"}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full">
-                        <FileText className="w-16 h-16 text-gray-400" />
-                      </div>
-                    )}
+                  <div className="relative h-48 bg-gray-100 overflow-hidden">
+                    <TemplatePreviewFrame templateId={template.id} />
                   </div>
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between mb-2">
@@ -148,15 +252,18 @@ export default function TemplatesPage() {
                         <Eye className="w-4 h-4 mr-1" />
                         Preview
                       </Button>
-                      {template.sampleUrl && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.open(template.sampleUrl, "_blank")}
-                        >
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownload(template)}
+                        disabled={isDownloading}
+                      >
+                        {isDownloading ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
                           <Download className="w-4 h-4" />
-                        </Button>
-                      )}
+                        )}
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -176,13 +283,9 @@ export default function TemplatesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            {isValidImageUrl(selectedTemplate?.imageUrl) && (
-              <div className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
-                <img
-                  src={selectedTemplate!.imageUrl!}
-                  alt={selectedTemplate!.title || "Selected Template"}
-                  className="w-full h-full object-contain"
-                />
+            {selectedTemplate && (
+              <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden" style={{ height: "500px" }}>
+                <TemplateFullPreview templateId={selectedTemplate.id} />
               </div>
             )}
             {selectedTemplate?.description && (
@@ -191,17 +294,22 @@ export default function TemplatesPage() {
             {defaultsData?.data && (
               <div className="space-y-2">
                 <h4 className="font-semibold text-sm">Default Configuration</h4>
-                <pre className="text-xs bg-gray-100 p-3 rounded overflow-auto">
+                <pre className="text-xs bg-gray-100 p-3 rounded overflow-auto max-h-48">
                   {JSON.stringify(defaultsData.data, null, 2)}
                 </pre>
               </div>
             )}
-            {selectedTemplate?.sampleUrl && (
+            {selectedTemplate && (
               <Button
                 className="w-full"
-                onClick={() => window.open(selectedTemplate.sampleUrl, "_blank")}
+                onClick={() => handleDownload(selectedTemplate)}
+                disabled={isDownloading}
               >
-                <Download className="w-4 h-4 mr-2" />
+                {isDownloading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4 mr-2" />
+                )}
                 Download Sample PDF
               </Button>
             )}
@@ -211,4 +319,3 @@ export default function TemplatesPage() {
     </div>
   );
 }
-

@@ -782,6 +782,8 @@ export interface Template {
   imageUrl?: string;
   sampleId?: string;
   sampleUrl?: string;
+  previewUrl?: string;
+  downloadUrl?: string;
 }
 
 export interface AuditLog {
