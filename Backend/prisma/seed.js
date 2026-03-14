@@ -1195,24 +1195,32 @@ async function seedSettings() {
  * Seed ID Card template, config, and collections (so ID Cards page has rows per class).
  */
 async function seedIdCards() {
-  logger.info("Seeding ID Card template, config, and collections...");
+  logger.info("Seeding templates, ID card config, and collections...");
 
   const currentYear = new Date().getFullYear();
 
-  // 1. Ensure one ID_CARD template exists (required for IdCardConfig)
+  const allTemplates = [
+    ...Array.from({ length: 14 }, (_, i) => ({
+      type: TemplateType.ID_CARD,
+      path: `id-cards/${i + 1}`,
+      title: `ID Card Template ${i + 1}`,
+    })),
+    { type: TemplateType.FEE_RECEIPT, path: "receipts/fee/1", title: "Fee Receipt Template 1" },
+  ];
+
+  for (const tpl of allTemplates) {
+    const existing = await prisma.template.findFirst({
+      where: { type: tpl.type, path: tpl.path },
+    });
+    if (!existing) {
+      await prisma.template.create({ data: tpl });
+      logger.info(`Created template: ${tpl.title} (${tpl.type})`);
+    }
+  }
+
   let template = await prisma.template.findFirst({
     where: { type: TemplateType.ID_CARD },
   });
-  if (!template) {
-    template = await prisma.template.create({
-      data: {
-        type: TemplateType.ID_CARD,
-        path: "id-cards/1",
-        title: "Default ID Card",
-      },
-    });
-    logger.info("Created ID_CARD template");
-  }
 
   for (const schoolId of seedData.schools) {
     const schoolAdminId = seedData.users.schoolAdmins[schoolId] || "seed";

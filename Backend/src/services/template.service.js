@@ -241,12 +241,63 @@ const getTemplateDefaults = async (templateId) => {
   }
 };
 
+const PATH_TO_TYPE = {
+  "id-cards": "ID_CARD",
+  "receipts/fee": "FEE_RECEIPT",
+};
+
+const syncTemplatesFromDisk = async () => {
+  try {
+    const existingTemplates = await prisma.template.findMany({
+      select: { path: true },
+    });
+    const existingPaths = new Set(existingTemplates.map((t) => t.path));
+
+    const created = [];
+    for (const [dirPrefix, templateType] of Object.entries(PATH_TO_TYPE)) {
+      const baseDir = path.join(TEMPLATES_BASE_DIR, dirPrefix);
+      if (!fs.existsSync(baseDir)) continue;
+
+      const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const templatePath = `${dirPrefix}/${entry.name}`;
+        if (existingPaths.has(templatePath)) continue;
+
+        const htmlPath = path.join(baseDir, entry.name, "template.html");
+        if (!fs.existsSync(htmlPath)) continue;
+
+        let title = `${templateType.replace(/_/g, " ")} Template ${entry.name}`;
+        const metaPath = path.join(baseDir, entry.name, "metadata.json");
+        if (fs.existsSync(metaPath)) {
+          try {
+            const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+            if (meta.title) title = meta.title;
+          } catch { /* use default title */ }
+        }
+
+        await prisma.template.create({
+          data: { type: templateType, path: templatePath, title },
+        });
+        created.push(templatePath);
+      }
+    }
+
+    if (created.length > 0) {
+      logger.info({ count: created.length, paths: created }, "Auto-synced templates from disk");
+    }
+  } catch (error) {
+    logger.warn({ error: error.message }, "Failed to sync templates from disk");
+  }
+};
+
 const templateService = {
   generateFiles,
   loadTemplate,
   getTemplates,
   getTemplateDefaults,
   getTemplateById,
+  syncTemplatesFromDisk,
 };
 
 export default templateService;

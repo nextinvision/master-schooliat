@@ -102,6 +102,7 @@ router.get(
   validateRequest(getTemplatesSchema),
   async (req, res) => {
     try {
+      await templateService.syncTemplatesFromDisk();
       const { type } = req.query;
       const templates = await templateService.getTemplates(type);
 
