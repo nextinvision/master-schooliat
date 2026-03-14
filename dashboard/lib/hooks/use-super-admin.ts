@@ -89,7 +89,7 @@ export function useUpdateSchool() {
   return useMutation({
     mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateSchoolData>) =>
       patch(`/schools/${id}`, { request: formData }),
-    onSuccess: (_, variables) => {
+    onSuccess: (_: unknown, variables: { id: string }) => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
       queryClient.invalidateQueries({ queryKey: ["school", variables.id] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
@@ -146,7 +146,7 @@ export function useUpdateEmployee() {
   return useMutation({
     mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateEmployeeData>) =>
       patch(`/users/employees/${id}`, { request: formData }),
-    onSuccess: (_, variables) => {
+    onSuccess: (_: unknown, variables: { id: string }) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       queryClient.invalidateQueries({ queryKey: ["employee", variables.id] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
@@ -159,7 +159,7 @@ export function useUpdateEmployeePermissions() {
   return useMutation({
     mutationFn: ({ id, permissions }: { id: string; permissions: string[] }) =>
       patch(`/users/employees/${id}/permissions`, { permissions }),
-    onSuccess: (_, variables) => {
+    onSuccess: (_: unknown, variables: { id: string }) => {
       queryClient.invalidateQueries({ queryKey: ["employee", variables.id] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
@@ -208,7 +208,7 @@ export function useUpdateReceipt() {
   return useMutation({
     mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateReceiptData & { amount?: number }>) =>
       patch(`/receipts/${id}`, { request: formData }),
-    onSuccess: (_, variables) => {
+    onSuccess: (_: unknown, variables: { id: string }) => {
       queryClient.invalidateQueries({ queryKey: ["receipts"] });
       queryClient.invalidateQueries({ queryKey: ["receipt", variables.id] });
     },
@@ -254,9 +254,9 @@ export function useInvoice(id: string) {
 export function useUpdateInvoice() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...formData }: { id: string } & any) =>
+    mutationFn: ({ id, ...formData }: { id: string } & Record<string, unknown>) =>
       patch(`/invoices/${id}`, { request: formData }),
-    onSuccess: (_, variables) => {
+    onSuccess: (_: unknown, variables: { id: string }) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", variables.id] });
     },
