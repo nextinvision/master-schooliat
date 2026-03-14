@@ -30,7 +30,7 @@ import { PaymentInfoCard } from "./payment-info-card";
 import { toast } from "sonner";
 import { BASE_URL } from "@/lib/api/config";
 
-const STATUS_OPTIONS = ["All Status", "Paid", "Pending"];
+const STATUS_OPTIONS = ["All Status", "Paid", "Partially Paid", "Pending"];
 const YEAR_OPTIONS = ["2023-2024", "2024-2025", "2025-2026"];
 const PERIOD_OPTIONS = ["Annual", "Monthly", "Quarterly"];
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
@@ -55,9 +55,11 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
-function normalizeStatus(s: string | null | undefined): "Paid" | "Pending" {
+function normalizeStatus(s: string | null | undefined): "Paid" | "Partially Paid" | "Pending" {
   if (!s) return "Pending";
-  return s === "PAID" ? "Paid" : "Pending";
+  if (s === "PAID") return "Paid";
+  if (s === "PARTIALLY_PAID") return "Partially Paid";
+  return "Pending";
 }
 
 // Mock chart data - replace with real data
@@ -388,7 +390,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                   return (
                     <TableRow key={item.id} className="hover:bg-gray-50">
                       <TableCell className="font-medium">
-                        {String(index + 1).padStart(2, "0")}
+                        {String(from + index + 1).padStart(2, "0")}
                       </TableCell>
                       <TableCell>{name}</TableCell>
                       <TableCell>{formatCurrency(item.amount)}</TableCell>
@@ -401,7 +403,9 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                           className={
                             status === "Paid"
                               ? "bg-schooliat-tint text-primary"
-                              : "bg-orange-100 text-orange-800"
+                              : status === "Partially Paid"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-orange-100 text-orange-800"
                           }
                         >
                           {status}
@@ -423,7 +427,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                             onClick={() => handleRecordPayment(item)}
                             disabled={status === "Paid" || isRecordingPayment}
                             className="h-8 w-8"
-                            title="Record Payment"
+                            title={status === "Paid" ? "Fully paid" : "Record Payment"}
                           >
                             <IndianRupee className="w-4 h-4" />
                           </Button>
@@ -473,9 +477,9 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
 
       {/* Pagination */}
       {numberOfPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between border rounded-lg p-3 bg-gray-50">
           <div className="text-sm text-gray-600">
-            Page {page + 1} of {numberOfPages}
+            Showing {from + 1}–{to} of {filteredData.length} records &middot; Page {page + 1} of {numberOfPages}
           </div>
           <div className="flex gap-2">
             <Button

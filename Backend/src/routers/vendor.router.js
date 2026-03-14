@@ -133,14 +133,7 @@ router.get(
     } else {
       // For super admin, allow filtering by employeeId or regionId
       if (employeeId) {
-        // Find the employee's assigned region and filter by that
-        const employee = await prisma.user.findUnique({
-          where: { id: employeeId },
-          select: { assignedRegionId: true },
-        });
-        if (employee?.assignedRegionId) {
-          whereClause.regionId = employee.assignedRegionId;
-        }
+        whereClause.employeeId = employeeId;
       } else if (regionId) {
         whereClause.regionId = regionId;
       }

@@ -403,9 +403,44 @@ router.get(
         });
       }
 
+      if (examId) {
+        const results = await prisma.result.findMany({
+          where: {
+            examId,
+            schoolId: currentUser.schoolId,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            examId: true,
+            studentId: true,
+            classId: true,
+            totalMarks: true,
+            maxTotalMarks: true,
+            percentage: true,
+            grade: true,
+            rank: true,
+            isPass: true,
+            publishedAt: true,
+            createdAt: true,
+          },
+          orderBy: { percentage: "desc" },
+        });
+
+        const mapped = results.map((r) => ({
+          ...r,
+          isPublished: !!r.publishedAt,
+        }));
+
+        return res.json({
+          message: "Exam results retrieved successfully",
+          data: mapped,
+        });
+      }
+
       res.status(400).json({
         errorCode: "INVALID_QUERY",
-        message: "Please specify studentId",
+        message: "Please specify examId or studentId",
       });
     } catch (error) {
       logger.error({ error, query: req.query }, "Failed to get results");
@@ -482,7 +517,7 @@ router.get(
         r.totalMarks,
         r.percentage,
         r.grade || "N/A",
-        r.status || "N/A"
+        r.isPass ? "Pass" : "Fail"
       ]);
 
       const csvContent = [

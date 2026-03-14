@@ -133,10 +133,12 @@ export function SuperAdminGrievanceDetailView({
   }
 
   if (error || !grievance) {
+    const errorMessage = (error as any)?.message || "Grievance not found or you don't have permission to view it.";
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
-          <p className="text-red-600">Grievance Not Found</p>
+          <p className="text-red-600 font-semibold">Unable to Load Grievance</p>
+          <p className="text-gray-500 text-sm mt-1">{errorMessage}</p>
           <Button onClick={() => router.back()} className="mt-4">
             Go Back
           </Button>

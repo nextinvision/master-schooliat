@@ -254,7 +254,14 @@ const generateFeeReceiptHTML = async (
     /\{\{payment\.amountInWords\}\}/g,
     isWaiver ? "Waived" : numberToWords(paymentAmount),
   );
-  html = html.replace(/\{\{payment\.method\}\}/g, isWaiver ? "Fee Waiver" : paymentMethod || "System");
+  const methodLabels = {
+    CASH: "Cash (Offline)",
+    CHEQUE: "Cheque (Offline)",
+    UPI: "UPI (Online)",
+    BANK_TRANSFER: "Bank Transfer (Online)",
+  };
+  const methodLabel = isWaiver ? "Fee Waiver" : (methodLabels[paymentMethod] || paymentMethod || "System");
+  html = html.replace(/\{\{payment\.method\}\}/g, methodLabel);
 
   return html;
 };
@@ -613,7 +620,14 @@ router.post(
     const currentUser = req.context.user;
     try {
       await otpService.createAndSendOTP(currentUser.email, "fee-payment");
-      return res.json({ message: "OTP sent to your registered email." });
+      const maskedEmail = currentUser.email.replace(
+        /^(.{2})(.*)(@.*)$/,
+        (_, start, middle, domain) => start + "*".repeat(Math.min(middle.length, 6)) + domain
+      );
+      return res.json({
+        message: "OTP sent to your registered email.",
+        data: { email: maskedEmail },
+      });
     } catch (error) {
       logger.error({ error, userId: currentUser.id }, "Failed to send fee payment OTP");
       return res.status(500).json({ message: "Failed to send OTP. Please try again." });
@@ -710,6 +724,8 @@ router.patch(
         school,
         appliedAmount,
         previousPaidAmount,
+        paymentMethod || "System",
+        isWaiver || false,
       );
 
       receiptFileId = await uploadAndCreateFileEntry(

@@ -186,6 +186,22 @@ const getTCs = async (filters = {}, options = {}) => {
     };
   }
 
+  if (filters.search) {
+    where.OR = [
+      { tcNumber: { contains: filters.search, mode: "insensitive" } },
+      {
+        student: {
+          firstName: { contains: filters.search, mode: "insensitive" },
+        },
+      },
+      {
+        student: {
+          lastName: { contains: filters.search, mode: "insensitive" },
+        },
+      },
+    ];
+  }
+
   try {
     const [tcs, total] = await Promise.all([
       prisma.transferCertificate.findMany({

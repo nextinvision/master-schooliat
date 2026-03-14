@@ -73,6 +73,62 @@ router.get("/", withPermission(Permission.GET_LOCATIONS), async (req, res) => {
   });
 });
 
+router.patch(
+  "/:id",
+  withPermission(Permission.CREATE_LOCATION),
+  async (req, res) => {
+    const { id } = req.params;
+    const request = req.body.request;
+    const currentUser = req.context.user;
+
+    const existing = await prisma.location.findUnique({
+      where: { id, deletedAt: null },
+    });
+
+    if (!existing) {
+      return res.status(404).json({ message: "Location not found!" });
+    }
+
+    const updateData = {};
+
+    if (request.name !== undefined) updateData.name = request.name;
+
+    if (request.regionId !== undefined) {
+      await prisma.region.findUniqueOrThrow({
+        where: { id: request.regionId },
+      });
+      updateData.regionId = request.regionId;
+    }
+
+    if (request.employeeId !== undefined) {
+      await prisma.user.findUniqueOrThrow({
+        where: { id: request.employeeId },
+      });
+      updateData.employeeId = request.employeeId;
+    }
+
+    updateData.updatedBy = currentUser.id;
+
+    const updatedLocation = await prisma.location.update({
+      where: { id },
+      data: updateData,
+      include: {
+        region: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return res.json({
+      message: "Location updated!",
+      data: updatedLocation,
+    });
+  },
+);
+
 router.delete(
   "/:id",
   withPermission(Permission.DELETE_LOCATION),

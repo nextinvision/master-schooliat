@@ -104,6 +104,29 @@ export function ReceiptsManagement() {
     }
   };
 
+  const handleDownloadReceipt = async (receiptId: string) => {
+    try {
+      const response = await generateReceipt.mutateAsync({ receiptId });
+      if (response?.data?.html && typeof window !== "undefined") {
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(response.data.html);
+          printWindow.document.close();
+          setTimeout(() => {
+            printWindow.focus();
+            printWindow.print();
+          }, 250);
+        }
+      }
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err?.message || "Failed to download receipt",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -229,7 +252,12 @@ export function ReceiptsManagement() {
                         >
                           <Eye className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleDownloadReceipt(receipt.id)}
+                        >
                           <Download className="w-4 h-4" />
                         </Button>
                       </div>

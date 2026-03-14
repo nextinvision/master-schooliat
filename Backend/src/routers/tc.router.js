@@ -19,13 +19,13 @@ const createTCSchema = z.object({
   }),
 });
 
-// Get TCs schema (request/params required by validateRequest shape)
 const getTCsSchema = z.object({
   request: z.object({}),
   query: z.object({
     studentId: z.string().uuid().optional(),
     status: z.enum(["ISSUED", "COLLECTED", "CANCELLED"]).optional(),
     tcNumber: z.string().optional(),
+    search: z.string().optional(),
     page: z.string().optional(),
     limit: z.string().optional(),
   }),
@@ -94,6 +94,7 @@ router.get(
           studentId: q.studentId || undefined,
           status: q.status || undefined,
           tcNumber: q.tcNumber || undefined,
+          search: q.search || undefined,
         },
         { page, limit, skip },
       );

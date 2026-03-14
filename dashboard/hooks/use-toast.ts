@@ -11,10 +11,14 @@ export function useToast() {
     }: {
       title: string;
       description?: string;
-      variant?: "default" | "destructive";
+      variant?: "default" | "destructive" | "warning";
     }) => {
       if (variant === "destructive") {
         sonnerToast.error(title, {
+          description,
+        });
+      } else if (variant === "warning") {
+        sonnerToast.warning(title, {
           description,
         });
       } else {

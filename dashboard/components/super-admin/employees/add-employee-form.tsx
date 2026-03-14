@@ -17,7 +17,7 @@ import {
   Region,
 } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, User, Plus } from "lucide-react";
+import { ArrowLeft, User, Plus, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +48,7 @@ export function AddEmployeeForm() {
   const [newRegionName, setNewRegionName] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [credentials, setCredentials] = useState<{ loginId: string; password: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { data: regionsData } = useRegions();
   const createEmployee = useCreateEmployee();
@@ -367,7 +368,27 @@ export function AddEmployeeForm() {
               <div>
                 <Label>Password</Label>
                 <div className="flex items-center gap-2 mt-1">
-                  <Input value={credentials.password} readOnly type="password" />
+                  <div className="relative flex-1">
+                    <Input
+                      value={credentials.password}
+                      readOnly
+                      type={showPassword ? "text" : "password"}
+                      className="pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
+                  </div>
                   <Button
                     variant="outline"
                     onClick={() => {

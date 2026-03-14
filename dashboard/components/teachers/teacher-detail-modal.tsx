@@ -3,8 +3,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { useFile, getFileUrl } from "@/lib/hooks/use-file-upload";
-import { User } from "lucide-react";
+import { User, FileDown, Loader2 } from "lucide-react";
+import { BASE_URL } from "@/lib/api/config";
+import { toast } from "sonner";
+import { useState } from "react";
 import Image from "next/image";
 
 interface TeacherDetailModalProps {
@@ -25,6 +29,37 @@ export function TeacherDetailModal({ visible, onClose, teacher }: TeacherDetailM
   });
 
   const userImageUrl = getFileUrl(userFile);
+
+  const [downloadingCert, setDownloadingCert] = useState(false);
+
+  const handleDownloadExperienceCertificate = async () => {
+    if (!teacher?.id) return;
+    setDownloadingCert(true);
+    try {
+      const token = window.sessionStorage.getItem("accessToken");
+      const resp = await fetch(`${BASE_URL}/users/experience-certificate/${teacher.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "x-platform": "web",
+        },
+      });
+      if (!resp.ok) throw new Error("Download failed");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Experience_Certificate_${teacher.firstName || ""}_${teacher.lastName || ""}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Experience certificate downloaded!");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to download experience certificate");
+    } finally {
+      setDownloadingCert(false);
+    }
+  };
 
   if (!teacher) return null;
 
@@ -234,6 +269,23 @@ export function TeacherDetailModal({ visible, onClose, teacher }: TeacherDetailM
                   </AvatarFallback>
                 </Avatar>
               )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={handleDownloadExperienceCertificate}
+                disabled={downloadingCert}
+              >
+                {downloadingCert ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4" />
+                )}
+                {downloadingCert ? "Generating..." : "Download Experience Certificate"}
+              </Button>
             </div>
 
             {/* Details Grid */}

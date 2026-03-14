@@ -7,6 +7,7 @@ import createHomeworkSchema from "../schemas/homework/create-homework.schema.js"
 import submitHomeworkSchema from "../schemas/homework/submit-homework.schema.js";
 import gradeHomeworkSchema from "../schemas/homework/grade-homework.schema.js";
 import getHomeworkSchema from "../schemas/homework/get-homework.schema.js";
+import updateHomeworkSchema from "../schemas/homework/update-homework.schema.js";
 import homeworkService from "../services/homework.service.js";
 import logger from "../config/logger.js";
 
@@ -515,6 +516,100 @@ router.get(
       res.status(500).json({
         errorCode: "HOMEWORK_FETCH_FAILED",
         message: "Failed to retrieve homework",
+      });
+    }
+  },
+);
+
+// Update homework
+router.patch(
+  "/:id",
+  withPermission([Permission.EDIT_HOMEWORK]),
+  validateRequest(updateHomeworkSchema),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { id } = req.params;
+    const updateData = req.body.request;
+
+    const homework = await prisma.homework.findUnique({ where: { id } });
+    if (!homework || homework.schoolId !== currentUser.schoolId) {
+      return res.status(404).json({
+        errorCode: "HOMEWORK_NOT_FOUND",
+        message: "Homework not found",
+      });
+    }
+
+    if (currentUser.role.name === "TEACHER" && homework.teacherId !== currentUser.id) {
+      return res.status(403).json({
+        errorCode: "FORBIDDEN",
+        message: "You can only edit your own homework",
+      });
+    }
+
+    try {
+      const data = {};
+      if (updateData.title !== undefined) data.title = updateData.title;
+      if (updateData.description !== undefined) data.description = updateData.description;
+      if (updateData.classIds !== undefined) data.classIds = updateData.classIds;
+      if (updateData.subjectId !== undefined) data.subjectId = updateData.subjectId;
+      if (updateData.dueDate !== undefined) data.dueDate = new Date(updateData.dueDate);
+      if (updateData.attachments !== undefined) data.attachments = updateData.attachments;
+      data.updatedBy = currentUser.id;
+
+      const updated = await prisma.homework.update({
+        where: { id },
+        data,
+        include: {
+          subject: { select: { id: true, name: true } },
+          teacher: { select: { id: true, firstName: true, lastName: true } },
+        },
+      });
+
+      res.json({ message: "Homework updated successfully", data: updated });
+    } catch (error) {
+      logger.error({ error, homeworkId: id }, "Failed to update homework");
+      res.status(400).json({
+        errorCode: "HOMEWORK_UPDATE_FAILED",
+        message: error.message || "Failed to update homework",
+      });
+    }
+  },
+);
+
+// Delete homework (soft delete)
+router.delete(
+  "/:id",
+  withPermission([Permission.DELETE_HOMEWORK]),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { id } = req.params;
+
+    const homework = await prisma.homework.findUnique({ where: { id } });
+    if (!homework || homework.schoolId !== currentUser.schoolId) {
+      return res.status(404).json({
+        errorCode: "HOMEWORK_NOT_FOUND",
+        message: "Homework not found",
+      });
+    }
+
+    if (currentUser.role.name === "TEACHER" && homework.teacherId !== currentUser.id) {
+      return res.status(403).json({
+        errorCode: "FORBIDDEN",
+        message: "You can only delete your own homework",
+      });
+    }
+
+    try {
+      await prisma.homework.update({
+        where: { id },
+        data: { deletedAt: new Date(), deletedBy: currentUser.id },
+      });
+      res.json({ message: "Homework deleted successfully" });
+    } catch (error) {
+      logger.error({ error, homeworkId: id }, "Failed to delete homework");
+      res.status(400).json({
+        errorCode: "HOMEWORK_DELETE_FAILED",
+        message: error.message || "Failed to delete homework",
       });
     }
   },

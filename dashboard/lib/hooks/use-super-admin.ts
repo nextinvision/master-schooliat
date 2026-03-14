@@ -522,7 +522,7 @@ export interface CreateLicenseData {
   issueDate: string;
   expiryDate: string;
   certificateNumber: string;
-  documentId?: string;
+  documentUrl?: string;
 }
 
 export interface Region {

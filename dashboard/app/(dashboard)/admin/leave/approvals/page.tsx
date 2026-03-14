@@ -31,8 +31,10 @@ import { toast } from "sonner";
 import { CheckCircle2, XCircle, ArrowLeft, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function LeaveApprovalsPage() {
+  const router = useRouter();
   const { data: pendingLeaves, isLoading, refetch } = usePendingLeaveRequestsForApproval();
   const approveLeave = useApproveLeave();
   const rejectLeave = useRejectLeave();
@@ -43,13 +45,18 @@ export default function LeaveApprovalsPage() {
 
   const list = Array.isArray(pendingLeaves) ? pendingLeaves : [];
 
+  const [approvingId, setApprovingId] = useState<string | null>(null);
+
   const handleApprove = async (leaveRequestId: string) => {
+    setApprovingId(leaveRequestId);
     try {
       await approveLeave.mutateAsync(leaveRequestId);
       toast.success("Leave request approved");
-      refetch();
+      await refetch();
     } catch (error: any) {
       toast.error(error?.message || "Failed to approve leave");
+    } finally {
+      setApprovingId(null);
     }
   };
 
@@ -80,11 +87,9 @@ export default function LeaveApprovalsPage() {
     <div className="space-y-6 pb-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/admin/leave">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push("/admin/leave")}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
           <div>
             <h1 className="text-2xl font-semibold">Leave Approvals</h1>
             <p className="text-sm text-gray-600 mt-0.5">
@@ -160,10 +165,10 @@ export default function LeaveApprovalsPage() {
                               size="sm"
                               className="bg-green-600 hover:bg-green-700"
                               onClick={() => handleApprove(leave.id)}
-                              disabled={approveLeave.isPending}
+                              disabled={approvingId === leave.id || approveLeave.isPending}
                             >
                               <CheckCircle2 className="h-4 w-4 mr-1" />
-                              Approve
+                              {approvingId === leave.id ? "Approving..." : "Approve"}
                             </Button>
                             <Button
                               size="sm"
@@ -215,7 +220,10 @@ export default function LeaveApprovalsPage() {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialogOpen(false)}>
+            <Button variant="outline" onClick={() => {
+              setRejectDialogOpen(false);
+              setSelectedLeave(null);
+            }}>
               Cancel
             </Button>
             <Button variant="destructive" onClick={handleReject} disabled={rejectLeave.isPending}>

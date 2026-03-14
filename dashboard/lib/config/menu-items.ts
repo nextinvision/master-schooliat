@@ -164,6 +164,11 @@ export const MENU_ITEMS: MenuItem[] = [
     route: "/admin/courier",
   },
   {
+    name: "Referral",
+    icon: "Gift",
+    route: "/admin/referral",
+  },
+  {
     name: "Settings",
     icon: "ShieldCheck",
     route: "/admin/settings",

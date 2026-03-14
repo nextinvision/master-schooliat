@@ -24,6 +24,7 @@ import { useClassFilters } from "@/lib/hooks/use-class-filters";
 import {
   useExams,
   useMarks,
+  useResults,
   useCalculateResults,
   usePublishResults,
 } from "@/lib/hooks/use-marks";
@@ -77,6 +78,10 @@ export function ResultManagement() {
     classId: selectedClassId,
   });
 
+  const { data: resultsData } = useResults({
+    examId: examFilter || undefined,
+  });
+
   const calculateResults = useCalculateResults();
   const publishResults = usePublishResults();
 
@@ -106,7 +111,19 @@ export function ResultManagement() {
           ? marks.filter((m: any) => m.classId === cls.id)
           : [];
         const hasMarks = classMarks.length > 0;
+
+        const results = resultsData?.data || [];
+        const classResults = Array.isArray(results)
+          ? results.filter((r: any) => r.classId === cls.id)
+          : [];
+        const hasResults = classResults.length > 0;
+        const isPublished = classResults.some((r: any) => r.isPublished);
         const examName = exams.find((e: any) => e.id === examFilter)?.name || "";
+
+        let status = "No marks";
+        if (isPublished) status = "Published";
+        else if (hasResults) status = "Generated";
+        else if (hasMarks) status = "Marks entered";
 
         return {
           id: cls.id,
@@ -114,11 +131,13 @@ export function ResultManagement() {
           class: cls.grade,
           division: cls.division || "-",
           exam: examName,
-          status: hasMarks ? "Generated" : "Not generated",
+          status,
           marksCount: classMarks.length,
+          hasResults,
+          isPublished,
         };
       });
-  }, [classes, classFilterValue, divisionFilterValue, marksData, examFilter, exams, classFilter, divisionFilter]);
+  }, [classes, classFilterValue, divisionFilterValue, marksData, resultsData, examFilter, exams, classFilter, divisionFilter]);
 
   const from = page * itemsPerPage;
   const to = Math.min((page + 1) * itemsPerPage, classRows.length);
@@ -404,11 +423,15 @@ export function ResultManagement() {
                     <TableCell>{item.exam}</TableCell>
                     <TableCell>
                       <Badge
-                        variant={item.status === "Generated" ? "default" : "secondary"}
+                        variant={item.status === "Generated" || item.status === "Published" ? "default" : "secondary"}
                         className={
-                          item.status === "Generated"
-                            ? "bg-schooliat-tint text-primary"
-                            : "bg-gray-100 text-gray-800"
+                          item.status === "Published"
+                            ? "bg-blue-100 text-blue-800"
+                            : item.status === "Generated"
+                              ? "bg-schooliat-tint text-primary"
+                              : item.status === "Marks entered"
+                                ? "bg-amber-100 text-amber-800"
+                                : "bg-gray-100 text-gray-800"
                         }
                       >
                         {item.status}
@@ -417,17 +440,19 @@ export function ResultManagement() {
                     <TableCell>{item.marksCount}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleGenerate(item.id)}
-                          disabled={isProcessing}
-                          className="gap-1"
-                          title="Calculate results"
-                        >
-                          <Download className="w-4 h-4" />
-                          Generate
-                        </Button>
+                        {item.marksCount > 0 && !item.isPublished && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleGenerate(item.id)}
+                            disabled={isProcessing}
+                            className="gap-1"
+                            title={item.hasResults ? "Recalculate results" : "Calculate results"}
+                          >
+                            <Download className="w-4 h-4" />
+                            {item.hasResults ? "Recalculate" : "Generate"}
+                          </Button>
+                        )}
                         {item.marksCount > 0 && (
                           <>
                             <Button

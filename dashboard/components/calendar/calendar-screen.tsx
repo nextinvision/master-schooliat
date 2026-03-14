@@ -144,20 +144,24 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
   // Get events/holidays for selected date
   const selectedDateItems = useMemo(() => {
     if (!selectedDate) return [];
-    return currentData.filter((item: any) => {
-      if (calendarType === "Events") {
-        const fromDate = item.from ? new Date(item.from) : null;
-        const tillDate = item.till ? new Date(item.till) : null;
-        if (!fromDate || !tillDate) return false;
-        return selectedDate >= fromDate && selectedDate <= tillDate;
-      } else {
-        const fromDate = item.from ? new Date(item.from) : null;
-        const tillDate = item.till ? new Date(item.till) : null;
-        if (!fromDate || !tillDate) return false;
-        return selectedDate >= fromDate && selectedDate <= tillDate;
-      }
-    });
-  }, [selectedDate, currentData, calendarType]);
+    const dayStart = new Date(selectedDate);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(selectedDate);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const inRange = (item: any) => {
+      const fromDate = item.from ? new Date(item.from) : null;
+      const tillDate = item.till ? new Date(item.till) : null;
+      if (!fromDate || !tillDate) return false;
+      fromDate.setHours(0, 0, 0, 0);
+      tillDate.setHours(23, 59, 59, 999);
+      return dayStart <= tillDate && dayEnd >= fromDate;
+    };
+
+    const matchedEvents = events.filter(inRange).map((e: any) => ({ ...e, _type: "event" }));
+    const matchedHolidays = holidays.filter(inRange).map((h: any) => ({ ...h, _type: "holiday" }));
+    return [...matchedHolidays, ...matchedEvents];
+  }, [selectedDate, events, holidays]);
 
   return (
     <div className="space-y-6">
@@ -226,7 +230,7 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
                 tillDate.setHours(23, 59, 59, 999);
                 return day >= fromDate && day <= tillDate;
               });
-              const isHoliday = holidays.some((holiday: any) => {
+              const matchingHolidays = holidays.filter((holiday: any) => {
                 if (!holiday.from || !holiday.till) return false;
                 const fromDate = new Date(holiday.from);
                 fromDate.setHours(0, 0, 0, 0);
@@ -234,12 +238,21 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
                 tillDate.setHours(23, 59, 59, 999);
                 return day >= fromDate && day <= tillDate;
               });
+              const isHoliday = matchingHolidays.length > 0;
+              const holidayTitle = matchingHolidays.map((h: any) => h.title).join(", ");
 
               return (
                 <button
                   key={day.toISOString()}
                   id={`calendar-day-${format(day, "yyyy-MM-dd")}`}
                   onClick={() => handleDayClick(day)}
+                  title={
+                    isHoliday
+                      ? `Holiday: ${holidayTitle}`
+                      : isWeekend
+                        ? day.getDay() === 0 ? "Sunday" : "Saturday"
+                        : undefined
+                  }
                   className={`
                     aspect-square p-2 text-sm rounded-md relative transition-all duration-200
                     flex flex-col items-center justify-center
@@ -273,14 +286,34 @@ export function CalendarScreen({ onEdit, onDelete }: CalendarScreenProps) {
           <div className="space-y-2 max-h-[400px] overflow-y-auto">
             {selectedDateItems.length === 0 ? (
               <p className="text-gray-500 text-sm">
-                No {calendarType.toLowerCase()} on this date
+                No events or holidays on this date
               </p>
             ) : (
               selectedDateItems.map((item: any) => (
-                <div key={item.id} className="p-3 bg-gray-50 rounded-lg">
-                  <h4 className="font-semibold text-sm">{item.name}</h4>
-                  {item.description && (
-                    <p className="text-xs text-gray-600 mt-1">{item.description}</p>
+                <div
+                  key={item.id}
+                  className={`p-3 rounded-lg ${
+                    item._type === "holiday"
+                      ? "bg-red-50 border border-red-200"
+                      : "bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                      item._type === "holiday"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-primary/10 text-primary"
+                    }`}>
+                      {item._type === "holiday" ? "Holiday" : "Event"}
+                    </span>
+                    <h4 className="font-semibold text-sm">{item.name || item.title}</h4>
+                  </div>
+                  {(item.description || item.from) && (
+                    <p className="text-xs text-gray-600 mt-1">
+                      {item.description || (
+                        `${format(new Date(item.from), "MMM dd")} – ${format(new Date(item.till), "MMM dd, yyyy")}`
+                      )}
+                    </p>
                   )}
                 </div>
               ))

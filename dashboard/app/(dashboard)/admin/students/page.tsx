@@ -107,12 +107,11 @@ export default function StudentsPage() {
   const students = studentsData?.data || [];
   const studentsTotalPages = studentsData?.pagination?.totalPages || 1;
 
-  // Transfer Certificates data
   const { data: tcsData, isLoading: tcsLoading, refetch: refetchTCs } = useTCs({
     page: tcPage,
     limit,
     status: statusFilter && statusFilter !== "all" ? statusFilter : undefined,
-    tcNumber: tcSearchQuery || undefined,
+    search: tcSearchQuery || undefined,
   });
   const tcs = tcsData?.data || [];
   const tcsTotalPages = tcsData?.pagination?.totalPages || 1;
@@ -390,7 +389,7 @@ export default function StudentsPage() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <Input
-                        placeholder="Search by TC number..."
+                        placeholder="Search by TC number or student name..."
                         value={tcSearchQuery}
                         onChange={(e) => {
                           setTcSearchQuery(e.target.value);

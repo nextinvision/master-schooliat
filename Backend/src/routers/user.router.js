@@ -10,6 +10,7 @@ import stringUtil from "../utils/string.util.js";
 import fileService from "../services/file.service.js";
 import roleService from "../services/role.service.js";
 import csvUtil from "../utils/csv.util.js";
+import experienceCertificateService from "../services/experience-certificate.service.js";
 
 const router = Router();
 
@@ -2038,6 +2039,41 @@ router.patch(
       });
     }
   }
+);
+
+// Download experience certificate for a teacher or staff member
+router.get(
+  "/experience-certificate/:userId",
+  withPermission(Permission.GET_TEACHERS),
+  async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const currentUser = req.context.user;
+
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, firstName: true, lastName: true, schoolId: true },
+      });
+
+      if (!user || user.schoolId !== currentUser.schoolId) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const pdfBuffer = await experienceCertificateService.generateExperienceCertificatePdf(
+        userId,
+        currentUser.schoolId,
+      );
+
+      const filename = `Experience_Certificate_${user.firstName}_${user.lastName}.pdf`;
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      return res.send(pdfBuffer);
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to generate experience certificate",
+      });
+    }
+  },
 );
 
 export default router;

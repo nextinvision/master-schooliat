@@ -15,11 +15,11 @@ function createTC(data: {
   return post("/transfer-certificates", { request: data });
 }
 
-// Get TCs
 function fetchTCs(params: {
   studentId?: string;
   status?: "ISSUED" | "COLLECTED" | "CANCELLED";
   tcNumber?: string;
+  search?: string;
   page?: number;
   limit?: number;
 } = {}) {
@@ -41,6 +41,7 @@ export function useTCs(params: {
   studentId?: string;
   status?: "ISSUED" | "COLLECTED" | "CANCELLED";
   tcNumber?: string;
+  search?: string;
   page?: number;
   limit?: number;
 } = {}) {

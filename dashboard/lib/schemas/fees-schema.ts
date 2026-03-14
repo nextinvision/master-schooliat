@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const paymentSchema = z.object({
   amount: z.number().min(0).optional(),
-  paymentMethod: z.enum(["BANK_TRANSFER", "CASH", "CHEQUE", "UPI", "CREDIT_CARD", "DEBIT_CARD"]).optional(),
+  paymentMethod: z.enum(["BANK_TRANSFER", "CASH", "CHEQUE", "UPI"]).optional(),
   isWaiver: z.boolean().optional(),
   transactionId: z.string().optional(),
   remarks: z.string().optional(),

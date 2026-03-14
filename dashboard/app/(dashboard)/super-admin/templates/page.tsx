@@ -26,7 +26,6 @@ import {
   type Template,
 } from "@/lib/hooks/use-super-admin";
 import { Skeleton } from "@/components/ui/skeleton";
-import Image from "next/image";
 
 export default function TemplatesPage() {
   const [filterType, setFilterType] = useState<string>("all");
@@ -116,11 +115,10 @@ export default function TemplatesPage() {
                 <Card key={template.id} className="overflow-hidden">
                   <div className="relative h-48 bg-gray-100">
                     {isValidImageUrl(template.imageUrl) ? (
-                      <Image
+                      <img
                         src={template.imageUrl!}
                         alt={template.title || "Template Preview"}
-                        fill
-                        className="object-cover"
+                        className="w-full h-full object-cover"
                       />
                     ) : (
                       <div className="flex items-center justify-center h-full">
@@ -180,11 +178,10 @@ export default function TemplatesPage() {
           <div className="space-y-4">
             {isValidImageUrl(selectedTemplate?.imageUrl) && (
               <div className="relative w-full h-96 bg-gray-100 rounded-lg overflow-hidden">
-                <Image
+                <img
                   src={selectedTemplate!.imageUrl!}
                   alt={selectedTemplate!.title || "Selected Template"}
-                  fill
-                  className="object-contain"
+                  className="w-full h-full object-contain"
                 />
               </div>
             )}

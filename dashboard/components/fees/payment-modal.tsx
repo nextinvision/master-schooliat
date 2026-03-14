@@ -61,13 +61,19 @@ export function PaymentModal({
 
   const isWaiver = watch("isWaiver");
 
+  const [otpEmail, setOtpEmail] = useState<string | null>(null);
+
   const handleRequestOTP = async () => {
     try {
-      await requestOTP.mutateAsync();
+      const res = await requestOTP.mutateAsync();
       setOtpRequested(true);
+      const email = res?.data?.email || res?.email || null;
+      setOtpEmail(email);
       toast({
         title: "OTP Sent",
-        description: "Verification code has been sent to your email.",
+        description: email
+          ? `A 6-digit verification code has been sent to ${email}`
+          : "Verification code has been sent to your registered email.",
       });
     } catch (error: any) {
       toast({
@@ -125,12 +131,10 @@ export function PaymentModal({
                         <SelectValue placeholder="Method" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="CASH">Cash</SelectItem>
-                        <SelectItem value="BANK_TRANSFER">Bank Transfer</SelectItem>
-                        <SelectItem value="UPI">UPI</SelectItem>
-                        <SelectItem value="CREDIT_CARD">Credit Card</SelectItem>
-                        <SelectItem value="DEBIT_CARD">Debit Card</SelectItem>
-                        <SelectItem value="CHEQUE">Cheque</SelectItem>
+                        <SelectItem value="CASH">Cash (Offline)</SelectItem>
+                        <SelectItem value="CHEQUE">Cheque (Offline)</SelectItem>
+                        <SelectItem value="UPI">UPI (Online)</SelectItem>
+                        <SelectItem value="BANK_TRANSFER">Bank Transfer (Online)</SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -181,7 +185,7 @@ export function PaymentModal({
 
           <div className="pt-4 border-t space-y-4">
             <div className="flex flex-col space-y-2">
-              <Label htmlFor="otp">Security Verification (Mandatory)</Label>
+              <Label htmlFor="otp">Fee Payment Verification (Mandatory)</Label>
               <div className="flex gap-2">
                 <Input
                   id="otp"
@@ -202,8 +206,20 @@ export function PaymentModal({
               {errors.otp && (
                 <p className="text-sm text-red-500">{errors.otp.message}</p>
               )}
+              {otpRequested && otpEmail && (
+                <p className="text-xs text-muted-foreground">
+                  OTP sent to <strong>{otpEmail}</strong>. Valid for 10 minutes.
+                </p>
+              )}
+              {otpRequested && !otpEmail && (
+                <p className="text-xs text-muted-foreground">
+                  OTP sent to your registered email. Valid for 10 minutes.
+                </p>
+              )}
               {!otpRequested && (
-                <p className="text-xs text-muted-foreground">Click "Get OTP" to verify this change.</p>
+                <p className="text-xs text-muted-foreground">
+                  Click &quot;Get OTP&quot; to receive a verification code on your registered email for recording this fee payment.
+                </p>
               )}
             </div>
 

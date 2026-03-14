@@ -51,7 +51,7 @@ export function AddLicenseDialog({ isOpen, onOpenChange }: AddLicenseDialogProps
                 issueDate: formData.issueDate,
                 expiryDate: formData.expiryDate,
                 certificateNumber: formData.certificateNumber,
-                documentId: formData.documentUrl || undefined,
+                documentUrl: formData.documentUrl || undefined,
             });
             toast({
                 title: "Success",

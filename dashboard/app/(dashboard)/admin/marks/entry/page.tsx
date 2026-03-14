@@ -130,9 +130,19 @@ export default function MarksEntryPage() {
     }
     try {
       const res = (await enterBulk.mutateAsync({ marks: payload })) as any;
-      const created = res?.data?.created ?? 0;
-      const updated = res?.data?.updated ?? 0;
-      toast.success(`Saved: ${created} created, ${updated} updated`);
+      const data = res?.data ?? res ?? {};
+      const created = data.created ?? 0;
+      const updated = data.updated ?? 0;
+      const errors = data.errors ?? [];
+      if (created + updated > 0) {
+        toast.success(`Saved: ${created} created, ${updated} updated`);
+      }
+      if (errors.length > 0) {
+        toast.error(`${errors.length} mark(s) failed to save. Check student/subject assignments.`);
+      }
+      if (created + updated === 0 && errors.length === 0) {
+        toast.info("No changes detected. Marks are already up to date.");
+      }
     } catch (e: any) {
       toast.error(e?.message ?? "Failed to save marks");
     }

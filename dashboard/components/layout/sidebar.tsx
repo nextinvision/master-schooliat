@@ -39,6 +39,7 @@ import {
   Bell,
   SquareUser,
   Book,
+  Gift,
 } from "lucide-react";
 import { clearToken } from "@/lib/auth/storage";
 import {
@@ -88,6 +89,7 @@ const iconMap: Record<string, LucideIcon> = {
   Bell,
   SquareUser,
   Book,
+  Gift,
 };
 
 export function Sidebar() {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { BASE_URL } from "@/lib/api/config";
 import { useAttendanceReports } from "@/lib/hooks/use-reports";
 import { useClasses } from "@/lib/hooks/use-classes";
@@ -554,19 +554,92 @@ export default function AttendanceReportsPage() {
       )}
 
       {/* Attendance Records Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Attendance Records</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {reportsLoading ? (
-            <Skeleton className="h-64 w-full" />
-          ) : sortedAttendanceRecords.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
-              <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-              <p>No attendance records found for the selected filters</p>
+      <AttendanceRecordsTable
+        records={sortedAttendanceRecords}
+        isLoading={reportsLoading}
+        getStatusBadge={getStatusBadge}
+      />
+    </div>
+  );
+}
+
+function AttendanceRecordsTable({
+  records,
+  isLoading,
+  getStatusBadge,
+}: {
+  records: any[];
+  isLoading: boolean;
+  getStatusBadge: (status: string) => React.ReactNode;
+}) {
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [recordsPage, setRecordsPage] = useState(0);
+  const pageSize = 25;
+
+  const filtered = useMemo(() => {
+    let list = records;
+    if (statusFilter !== "ALL") {
+      list = list.filter((r: any) => r.status === statusFilter);
+    }
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((r: any) => {
+        const name = `${r.student?.firstName || ""} ${r.student?.lastName || ""}`.toLowerCase();
+        const roll = String(r.student?.studentProfile?.rollNumber ?? "");
+        const userId = (r.student?.publicUserId || "").toLowerCase();
+        return name.includes(q) || roll.includes(q) || userId.includes(q);
+      });
+    }
+    return list;
+  }, [records, search, statusFilter]);
+
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginated = filtered.slice(recordsPage * pageSize, (recordsPage + 1) * pageSize);
+
+  useEffect(() => {
+    setRecordsPage(0);
+  }, [search, statusFilter]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <CardTitle>Attendance Records ({filtered.length})</CardTitle>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+              <Input
+                placeholder="Search student name, roll..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-8 h-9"
+              />
             </div>
-          ) : (
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full sm:w-[140px] h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Status</SelectItem>
+                <SelectItem value="PRESENT">Present</SelectItem>
+                <SelectItem value="ABSENT">Absent</SelectItem>
+                <SelectItem value="LATE">Late</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <Skeleton className="h-64 w-full" />
+        ) : paginated.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+            <p>No attendance records found{search ? " matching your search" : ""}</p>
+          </div>
+        ) : (
+          <>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -581,7 +654,7 @@ export default function AttendanceReportsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedAttendanceRecords.map((record: any, index: number) => (
+                  {paginated.map((record: any, index: number) => (
                     <TableRow key={record.id || index}>
                       <TableCell className="font-medium">
                         {record.student?.studentProfile?.rollNumber ?? "—"}
@@ -617,10 +690,25 @@ export default function AttendanceReportsPage() {
                 </TableBody>
               </Table>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between mt-4">
+                <div className="text-sm text-gray-600">
+                  Page {recordsPage + 1} of {totalPages} ({filtered.length} records)
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setRecordsPage((p) => Math.max(0, p - 1))} disabled={recordsPage === 0}>
+                    Previous
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setRecordsPage((p) => Math.min(totalPages - 1, p + 1))} disabled={recordsPage >= totalPages - 1}>
+                    Next
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

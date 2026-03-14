@@ -75,7 +75,7 @@ export function EditLicenseDialog({ license, isOpen, onOpenChange }: EditLicense
                 issueDate: formData.issueDate,
                 expiryDate: formData.expiryDate,
                 certificateNumber: formData.certificateNumber,
-                documentId: formData.documentUrl || undefined,
+                documentUrl: formData.documentUrl || undefined,
             });
             toast({
                 title: "Success",

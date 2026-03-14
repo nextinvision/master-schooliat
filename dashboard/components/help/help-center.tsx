@@ -35,7 +35,13 @@ export function HelpCenter() {
   const onSubmit = form.handleSubmit(async (values) => {
     setIsSubmitting(true);
     try {
-      await post("/admin/query", { request: values });
+      await post("/grievances", {
+        request: {
+          title: `[Support] ${values.subject}`,
+          description: values.message,
+          priority: "MEDIUM",
+        },
+      });
       form.reset();
       toast({
         title: "Success",

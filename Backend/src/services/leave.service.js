@@ -124,9 +124,10 @@ const approveLeave = async (leaveRequestId, approvedBy) => {
       },
     });
 
-    // Update leave balance
     const currentYear = new Date().getFullYear();
-    await tx.leaveBalance.update({
+    const maxLeaves = leaveRequest.leaveType?.maxLeaves ?? 12;
+
+    await tx.leaveBalance.upsert({
       where: {
         userId_leaveTypeId_year: {
           userId: leaveRequest.userId,
@@ -134,7 +135,7 @@ const approveLeave = async (leaveRequestId, approvedBy) => {
           year: currentYear,
         },
       },
-      data: {
+      update: {
         usedLeaves: {
           increment: days,
         },
@@ -142,6 +143,16 @@ const approveLeave = async (leaveRequestId, approvedBy) => {
           decrement: days,
         },
         updatedBy: approvedBy,
+      },
+      create: {
+        userId: leaveRequest.userId,
+        leaveTypeId: leaveRequest.leaveTypeId,
+        year: currentYear,
+        totalLeaves: maxLeaves,
+        usedLeaves: days,
+        remainingLeaves: maxLeaves - days,
+        schoolId: leaveRequest.schoolId,
+        createdBy: approvedBy,
       },
     });
 
