@@ -86,10 +86,11 @@ export function useCreateSchool() {
 
 export function useUpdateSchool() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateSchoolData>) =>
+  type Vars = { id: string } & Partial<CreateSchoolData>;
+  return useMutation<unknown, Error, Vars>({
+    mutationFn: ({ id, ...formData }) =>
       patch(`/schools/${id}`, { request: formData }),
-    onSuccess: (_: unknown, variables: { id: string }) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
       queryClient.invalidateQueries({ queryKey: ["school", variables.id] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
@@ -143,10 +144,11 @@ export function useCreateEmployee() {
 
 export function useUpdateEmployee() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateEmployeeData>) =>
+  type Vars = { id: string } & Partial<CreateEmployeeData>;
+  return useMutation<unknown, Error, Vars>({
+    mutationFn: ({ id, ...formData }) =>
       patch(`/users/employees/${id}`, { request: formData }),
-    onSuccess: (_: unknown, variables: { id: string }) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
       queryClient.invalidateQueries({ queryKey: ["employee", variables.id] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
@@ -156,10 +158,11 @@ export function useUpdateEmployee() {
 
 export function useUpdateEmployeePermissions() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, permissions }: { id: string; permissions: string[] }) =>
+  type Vars = { id: string; permissions: string[] };
+  return useMutation<unknown, Error, Vars>({
+    mutationFn: ({ id, permissions }) =>
       patch(`/users/employees/${id}/permissions`, { permissions }),
-    onSuccess: (_: unknown, variables: { id: string }) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["employee", variables.id] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
     },
@@ -205,10 +208,11 @@ export function useReceipt(id: string) {
 
 export function useUpdateReceipt() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...formData }: { id: string } & Partial<CreateReceiptData & { amount?: number }>) =>
+  type Vars = { id: string } & Partial<CreateReceiptData & { amount?: number }>;
+  return useMutation<unknown, Error, Vars>({
+    mutationFn: ({ id, ...formData }) =>
       patch(`/receipts/${id}`, { request: formData }),
-    onSuccess: (_: unknown, variables: { id: string }) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["receipts"] });
       queryClient.invalidateQueries({ queryKey: ["receipt", variables.id] });
     },
@@ -253,10 +257,11 @@ export function useInvoice(id: string) {
 
 export function useUpdateInvoice() {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, ...formData }: { id: string } & Record<string, unknown>) =>
+  type Vars = { id: string } & Record<string, unknown>;
+  return useMutation<unknown, Error, Vars>({
+    mutationFn: ({ id, ...formData }) =>
       patch(`/invoices/${id}`, { request: formData }),
-    onSuccess: (_: unknown, variables: { id: string }) => {
+    onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
       queryClient.invalidateQueries({ queryKey: ["invoice", variables.id] });
     },
