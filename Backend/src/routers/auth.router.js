@@ -99,6 +99,13 @@ router.post(
       throw ApiErrors.UNAUTHORIZED;
     }
 
+    let school = null;
+    if (user.schoolId) {
+      school = await prisma.school.findUnique({
+        where: { id: user.schoolId },
+        select: { id: true, name: true, code: true },
+      });
+    }
     const safeUser = {
       id: user.id,
       email: user.email,
@@ -110,6 +117,7 @@ router.post(
       roleId: user.roleId,
       schoolId: user.schoolId ?? null,
       role,
+      school: school ?? undefined,
     };
     const jwtToken = jwt.sign(
       { data: { user: safeUser } },
@@ -117,7 +125,7 @@ router.post(
       { expiresIn: `${config.JWT_EXPIRATION_TIME}h`, issuer: "SchooliAT" },
     );
 
-    res.json({ message: "User authenticated!", token: jwtToken });
+    res.json({ message: "User authenticated!", token: jwtToken, user: safeUser });
   },
 );
 
