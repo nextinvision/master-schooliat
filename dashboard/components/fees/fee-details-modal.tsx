@@ -2,8 +2,10 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { useStudentFees } from "@/lib/hooks/use-fees";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DownloadCloud } from "lucide-react";
 
 function formatCurrency(num: number | string | null | undefined): string {
   return `₹${Number(num || 0).toLocaleString("en-IN")}`;
@@ -69,35 +71,65 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
               <div className="border rounded-lg p-4">
                 <h3 className="font-semibold mb-4">Installments</h3>
                 <div className="space-y-2">
-                  {fees.installments?.map((installment: any, index: number) => (
-                    <div
-                      key={installment.id}
-                      className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div>
-                        <div className="font-medium">Installment {index + 1}</div>
-                        <div className="text-sm text-gray-600">
-                          Amount: {formatCurrency(installment.amount)} | Paid:{" "}
-                          {formatCurrency(installment.paidAmount)} | Remaining:{" "}
-                          {formatCurrency(installment.remainingAmount)}
-                        </div>
-                        {installment.paidAt && (
-                          <div className="text-xs text-gray-500">
-                            Paid at: {formatDate(installment.paidAt)}
-                          </div>
-                        )}
-                      </div>
+                  {fees.installments?.map((installment: any, index: number) => {
+                    const statusLabel =
+                      installment.paymentStatus === "PAID"
+                        ? "Paid"
+                        : installment.paymentStatus === "PARTIALLY_PAID"
+                          ? "Partially Paid"
+                          : installment.paymentStatus === "WAIVED"
+                            ? "Waived"
+                            : "Pending";
+                    const statusClass =
+                      installment.paymentStatus === "PAID"
+                        ? "bg-schooliat-tint text-primary"
+                        : installment.paymentStatus === "PARTIALLY_PAID"
+                          ? "bg-amber-100 text-amber-800"
+                          : installment.paymentStatus === "WAIVED"
+                            ? "bg-slate-100 text-slate-700"
+                            : "bg-orange-100 text-orange-800";
+                    return (
                       <div
-                        className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          installment.paymentStatus === "PAID"
-                            ? "bg-schooliat-tint text-primary"
-                            : "bg-orange-100 text-orange-800"
-                        }`}
+                        key={installment.id}
+                        className="flex justify-between items-center p-3 bg-gray-50 rounded-lg gap-3"
                       >
-                        {installment.paymentStatus === "PAID" ? "Paid" : "Pending"}
+                        <div className="min-w-0 flex-1">
+                          <div className="font-medium">Installment {index + 1}</div>
+                          <div className="text-sm text-gray-600">
+                            Amount: {formatCurrency(installment.amount)} | Paid:{" "}
+                            {formatCurrency(installment.paidAmount)} | Remaining:{" "}
+                            {formatCurrency(installment.remainingAmount)}
+                          </div>
+                          {installment.paidAt && (
+                            <div className="text-xs text-gray-500">
+                              Paid at: {formatDate(installment.paidAt)}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span
+                            className={`px-3 py-1 rounded-full text-xs font-medium ${statusClass}`}
+                          >
+                            {statusLabel}
+                          </span>
+                          {installment.receiptFileUrl && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 gap-1 text-primary"
+                              onClick={() =>
+                                window.open(installment.receiptFileUrl, "_blank")
+                              }
+                              title="Download receipt"
+                            >
+                              <DownloadCloud className="h-4 w-4" />
+                              Receipt
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

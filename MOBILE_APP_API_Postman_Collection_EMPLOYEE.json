@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "schooliat-mobile-api-employee",
     "name": "SchooliAt Mobile App API - EMPLOYEE",
-    "description": "Mobile app API only – EMPLOYEE role. Run \"Login as EMPLOYEE\" first, then run the rest.\n\nAll endpoints in this collection are for the mobile app (Android/iOS) and this role only. No web/admin endpoints.\n\nCredentials: mike.johnson@schooliat.com | x_platform: android | Base URL: https://api.schooliat.com",
+    "description": "Mobile app API only – EMPLOYEE role. Run \"Login as EMPLOYEE\" first, then run the rest.\n\nAll endpoints in this collection are for the mobile app (Android/iOS) and this role only. No web/admin endpoints.\n\nCredentials: john.doe@schooliat.com | x_platform: android | Base URL: https://api.schooliat.com",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -36,7 +36,7 @@
         "description": "Login as EMPLOYEE. Saves token to {{auth_token}}. Run this first when testing this folder.",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"password\": \"Employee@123\"\n  }\n}",
+          "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"password\": \"Employee@123\"\n  }\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -249,7 +249,7 @@
         "response": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"password\": \"Employee@123\"\n  }\n}",
+          "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"password\": \"Employee@123\"\n  }\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -280,7 +280,7 @@
         "response": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+          "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -311,7 +311,7 @@
         "response": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"otp\": \"123456\",\n    \"purpose\": \"verification\"\n  }\n}",
+          "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"otp\": \"123456\",\n    \"purpose\": \"verification\"\n  }\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -342,7 +342,7 @@
         "response": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+          "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -373,7 +373,7 @@
         "response": [],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"otp\": \"123456\",\n    \"newPassword\": \"NewPass123!\"\n  }\n}",
+          "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"otp\": \"123456\",\n    \"newPassword\": \"NewPass123!\"\n  }\n}",
           "options": {
             "raw": {
               "language": "json"
@@ -2416,7 +2416,7 @@
         },
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+          "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
           "options": {
             "raw": {
               "language": "json"

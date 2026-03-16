@@ -21,14 +21,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, Filter, Calendar as CalendarIcon, FileDown, Loader2, DownloadCloud, Eye, IndianRupee } from "lucide-react";
 import { useInstallments, useRecordPayment } from "@/lib/hooks/use-fees";
-import { get } from "@/lib/api/client";
+import { get, downloadFromApi } from "@/lib/api/client";
 import { FeeDetailsModal } from "./fee-details-modal";
 import { PaymentModal } from "./payment-modal";
 import { PaymentFormData } from "@/lib/schemas/fees-schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PaymentInfoCard } from "./payment-info-card";
 import { toast } from "sonner";
-import { BASE_URL } from "@/lib/api/config";
 
 const STATUS_OPTIONS = ["All Status", "Paid", "Partially Paid", "Pending"];
 const YEAR_OPTIONS = ["2023-2024", "2024-2025", "2025-2026"];
@@ -134,7 +133,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     try {
       await recordPayment({
         installmentId: selectedInstallment.id,
-        amount: data.amount,
+        amount: data.isWaiver ? undefined : Math.round(Number(data.amount) || 0),
         paymentMethod: data.paymentMethod,
         isWaiver: data.isWaiver,
         transactionId: data.transactionId,
@@ -152,16 +151,9 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const token = window.sessionStorage.getItem("accessToken");
-      const baseUrl = BASE_URL;
-      const resp = await fetch(`${baseUrl}/fees/export?academicYear=${yearFilter}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "x-platform": "web",
-        },
-      });
-      if (!resp.ok) throw new Error("Export failed");
-      const blob = await resp.blob();
+      const blob = await downloadFromApi(
+        `/fees/export?academicYear=${encodeURIComponent(yearFilter)}`
+      );
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

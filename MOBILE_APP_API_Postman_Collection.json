@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "schooliat-mobile-api-complete",
     "name": "SchooliAt Mobile App API (all roles)",
-    "description": "Mobile app API only – all three roles in one collection. Each folder is one role (Teacher, Student, Employee). No web/admin endpoints.\n\nFor a single-role collection, use the generated role-based files instead:\n  MOBILE_APP_API_Postman_Collection_Teacher.json, _Student.json, _Employee.json\n\nHow to use: Open a role folder → Run 'Login as [Role]' first → Run the rest.\n\nCredentials: Teacher: teacher4@gis001.edu | Student: student3@gis001.edu | Employee: mike.johnson@schooliat.com\nx_platform: android | Base URL: https://api.schooliat.com",
+    "description": "Mobile app API only – all three roles in one collection. Each folder is one role (Teacher, Student, Employee). No web/admin endpoints.\n\nFor a single-role collection, use the generated role-based files instead:\n  MOBILE_APP_API_Postman_Collection_Teacher.json, _Student.json, _Employee.json\n\nHow to use: Open a role folder → Run 'Login as [Role]' first → Run the rest.\n\nCredentials: Teacher: teacher6@gis001.edu | Student: student5@gis001.edu | Employee: john.doe@schooliat.com\nx_platform: android | Base URL: https://api.schooliat.com",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -18,7 +18,7 @@
   "item": [
     {
       "name": "1 - TEACHER APIs",
-      "description": "APIs for TEACHER role. Run \"Login as TEACHER\" first (or run folder); then run other requests. Credentials: teacher4@gis001.edu",
+      "description": "APIs for TEACHER role. Run \"Login as TEACHER\" first (or run folder); then run other requests. Credentials: teacher6@gis001.edu",
       "item": [
         {
           "name": "Login as TEACHER",
@@ -40,7 +40,7 @@
             "description": "Login as TEACHER. Saves token to {{auth_token}}. Run this first when testing this folder.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"teacher4@gis001.edu\",\n    \"password\": \"Teacher@123\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"teacher6@gis001.edu\",\n    \"password\": \"Teacher@123\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -295,7 +295,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"teacher4@gis001.edu\",\n    \"password\": \"Teacher@123\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"teacher6@gis001.edu\",\n    \"password\": \"Teacher@123\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -326,7 +326,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"teacher4@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"teacher6@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -357,7 +357,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"teacher4@gis001.edu\",\n    \"otp\": \"123456\",\n    \"purpose\": \"verification\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"teacher6@gis001.edu\",\n    \"otp\": \"123456\",\n    \"purpose\": \"verification\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -388,7 +388,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"teacher4@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"teacher6@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -419,7 +419,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"teacher4@gis001.edu\",\n    \"otp\": \"123456\",\n    \"newPassword\": \"NewPass123!\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"teacher6@gis001.edu\",\n    \"otp\": \"123456\",\n    \"newPassword\": \"NewPass123!\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2964,7 +2964,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"teacher4@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"teacher6@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5413,7 +5413,7 @@
     },
     {
       "name": "2 - STUDENT APIs",
-      "description": "APIs for STUDENT role. Run \"Login as STUDENT\" first (or run folder); then run other requests. Credentials: student3@gis001.edu",
+      "description": "APIs for STUDENT role. Run \"Login as STUDENT\" first (or run folder); then run other requests. Credentials: student5@gis001.edu",
       "item": [
         {
           "name": "Login as STUDENT",
@@ -5435,7 +5435,7 @@
             "description": "Login as STUDENT. Saves token to {{auth_token}}. Run this first when testing this folder.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"student3@gis001.edu\",\n    \"password\": \"Student@123\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"student5@gis001.edu\",\n    \"password\": \"Student@123\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5565,7 +5565,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"student3@gis001.edu\",\n    \"password\": \"Student@123\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"student5@gis001.edu\",\n    \"password\": \"Student@123\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5596,7 +5596,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"student3@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"student5@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5627,7 +5627,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"student3@gis001.edu\",\n    \"otp\": \"123456\",\n    \"purpose\": \"verification\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"student5@gis001.edu\",\n    \"otp\": \"123456\",\n    \"purpose\": \"verification\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5658,7 +5658,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"student3@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"student5@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5689,7 +5689,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"student3@gis001.edu\",\n    \"otp\": \"123456\",\n    \"newPassword\": \"NewPass123!\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"student5@gis001.edu\",\n    \"otp\": \"123456\",\n    \"newPassword\": \"NewPass123!\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -7924,7 +7924,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"student3@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"student5@gis001.edu\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10186,7 +10186,7 @@
     },
     {
       "name": "3 - EMPLOYEE APIs",
-      "description": "APIs for EMPLOYEE role. Run \"Login as EMPLOYEE\" first (or run folder); then run other requests. Credentials: mike.johnson@schooliat.com",
+      "description": "APIs for EMPLOYEE role. Run \"Login as EMPLOYEE\" first (or run folder); then run other requests. Credentials: john.doe@schooliat.com",
       "item": [
         {
           "name": "Login as EMPLOYEE",
@@ -10208,7 +10208,7 @@
             "description": "Login as EMPLOYEE. Saves token to {{auth_token}}. Run this first when testing this folder.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"password\": \"Employee@123\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"password\": \"Employee@123\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10421,7 +10421,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"password\": \"Employee@123\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"password\": \"Employee@123\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10452,7 +10452,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10483,7 +10483,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"otp\": \"123456\",\n    \"purpose\": \"verification\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"otp\": \"123456\",\n    \"purpose\": \"verification\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10514,7 +10514,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -10545,7 +10545,7 @@
             "response": [],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"otp\": \"123456\",\n    \"newPassword\": \"NewPass123!\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"otp\": \"123456\",\n    \"newPassword\": \"NewPass123!\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -12588,7 +12588,7 @@
             },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"request\": {\n    \"email\": \"mike.johnson@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
+              "raw": "{\n  \"request\": {\n    \"email\": \"john.doe@schooliat.com\",\n    \"purpose\": \"password-reset\"\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"

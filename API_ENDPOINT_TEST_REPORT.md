@@ -18,6 +18,25 @@ Each role collection was run with Newman against production. Login runs first an
 - **403 / 404:** Backend permissions or missing resources (e.g. placeholder IDs); not collection/auth issues.
 - **Run:** `npx newman run MOBILE_APP_API_Postman_Collection_TEACHER.json --env-var "base_url=https://api.schooliat.com"` (same for _STUDENT.json, _EMPLOYEE.json).
 
+### Latest run – local API after seeding credentials (reset passwords + Newman)
+
+Credentials were reset for all Teacher, Student, and Employee users to defaults (`Teacher@123`, `Student@123`, `Employee@123`) via `Backend/scripts/reset-mobile-login-passwords.js`. Postman collections were regenerated. Backend was started locally; all three role collections were run against **http://localhost:4000**.
+
+| Collection | Requests | 200 OK | 403 | 404 | 400 | 401 | Duration |
+|------------|----------|--------|-----|-----|-----|-----|----------|
+| **TEACHER**  | 147 | 58 | 15 | 36 | 37 | 0 | ~17s |
+| **STUDENT**  | 131 | 42 | 47 | 32 | 9 | 0 | ~15s |
+| **EMPLOYEE** | 237 | 30 | 120 | 75 | 11 | 0 | ~26s |
+
+- **Login:** 200 for all three roles (no 401).
+- **200s:** Auth, dashboard, students, my-school, classes, homework, timetables (some), marks, grievances, exams, subjects, etc., where the role has permission and data exists.
+- **403:** Endpoints the role is not allowed to call (e.g. some settings, parent, or admin-only routes).
+- **404:** Missing resource or empty/invalid path param (e.g. `:id` not set).
+- **400:** Invalid body (e.g. reset-password without valid OTP, or validation errors).
+
+**Commands used:**  
+`cd Backend && npm run reset:mobile-passwords` → `cd repo && node scripts/generate-postman-from-mobile-api.js` → start backend → `npx newman run MOBILE_APP_API_Postman_Collection_<ROLE>.json --env-var "base_url=http://localhost:4000"`.
+
 ---
 
 ## Legacy summary (unauthenticated)

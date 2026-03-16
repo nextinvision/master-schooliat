@@ -127,6 +127,7 @@ const recordPayment = async (installmentId, amount, paymentMethod, receiptFileId
         paidAmount: newPaidAmount,
         remainingAmount: newRemainingAmount,
         paymentStatus: newPaymentStatus,
+        paymentMethod: paymentMethod || undefined,
         paidAt: newRemainingAmount <= 0 ? new Date() : (installment.paidAt || new Date()),
         receiptFileId: receiptFileId || installment.receiptFileId,
         updatedBy: recordedBy,

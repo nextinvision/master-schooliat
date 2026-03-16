@@ -6,7 +6,7 @@ const recordPaymentSchema = z
   .object({
     request: z
       .object({
-        amount: z.number().int().min(1, "Payment amount must be at least 1").optional(),
+        amount: z.coerce.number().int().min(1, "Payment amount must be at least 1").optional(),
         paymentMethod: z.nativeEnum(PaymentMethod).optional(),
         isWaiver: z.boolean().optional(),
         transactionId: z.string().optional(),
