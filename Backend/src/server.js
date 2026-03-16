@@ -161,11 +161,13 @@ async function main() {
     res.status(200).end();
   });
 
-  // Rate limiting for authentication endpoints
+  // Rate limiting for authentication endpoints (legacy and v1)
   app.use("/auth/authenticate", authRateLimit);
+  app.use("/api/v1/auth/authenticate", authRateLimit);
 
-  // Auth router (no authorization required)
+  // Auth router (no authorization required) - both legacy and v1 paths
   app.use("/auth", authRouter);
+  app.use("/api/v1/auth", authRouter);
 
   // General API rate limiting (applies to all routes below)
   app.use(apiRateLimit);
