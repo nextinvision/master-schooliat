@@ -10,14 +10,15 @@
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Authentication](#authentication)
-3. [Common Headers](#common-headers)
-4. [Teacher APIs](#teacher-apis)
-5. [Student APIs](#student-apis)
-6. [Employee (Company) APIs](#employee-company-apis)
-7. [Shared APIs](#shared-apis)
-8. [Error Handling](#error-handling)
-9. [Response Format](#response-format)
+2. [How the mobile app works](#how-the-mobile-app-works)
+3. [Authentication](#authentication)
+4. [Common Headers](#common-headers)
+5. [Teacher APIs](#teacher-apis)
+6. [Student APIs](#student-apis)
+7. [Employee (Company) APIs](#employee-company-apis)
+8. [Shared APIs](#shared-apis)
+9. [Error Handling](#error-handling)
+10. [Response Format](#response-format)
 
 ---
 
@@ -33,6 +34,41 @@ This documentation covers all API endpoints available for the SchooliAt mobile a
 - **Android** - All three user types
 - **iOS** - All three user types
 - **Web** - Not supported for these roles (only SUPER_ADMIN and SCHOOL_ADMIN use web)
+
+---
+
+## How the mobile app works
+
+The mobile app works by **role**: each user logs in once, and the app only calls APIs that their role is allowed to use. The backend enforces this; calling an API your role cannot use returns **403 Forbidden**.
+
+### Flow
+
+1. **Login**  
+   - User enters email/password; app sends `POST /auth/authenticate` with header `x-platform: android` or `x-platform: ios`.  
+   - Backend returns `token` and `user` (including `user.role.name`: `TEACHER`, `STUDENT`, or `EMPLOYEE`).
+
+2. **Use the role to drive the UI and API calls**  
+   - **TEACHER** → Show Teacher screens only; call only [Teacher APIs](#teacher-apis) (dashboard, students, attendance, homework, marks, timetables, etc.). Do **not** call Employee APIs (e.g. `GET /employees`, `GET /schools`) or Student-only endpoints that require student context.  
+   - **STUDENT** → Show Student screens only; call only [Student APIs](#student-apis) (dashboard, own profile, attendance, homework, marks, timetable, fees, etc.). Do **not** call Teacher or Employee management APIs.  
+   - **EMPLOYEE** → Show Employee screens only; call only [Employee (Company) APIs](#employee-company-apis) (dashboard, schools, employees, vendors, licenses, etc.). Do **not** call Teacher-only or Student-only APIs.
+
+3. **Store and send the token**  
+   - Save the JWT from login. Send it on every authenticated request as `Authorization: Bearer <token>`.  
+   - If any request returns **401 Unauthorized**, treat the token as invalid/expired and redirect to login.
+
+4. **Handle 403 and 503**  
+   - **403 Forbidden** = the current role is not allowed to use this endpoint. The app should not offer this action for this role (e.g. do not show “Manage employees” to a Teacher). If the app only calls APIs documented for the logged-in role, 403 should not occur in normal use.  
+   - **503 Service Unavailable** = backend or a dependent service is temporarily unavailable. Show a retry/offline message; do not assume the API is “forbidden” for the role.
+
+### Quick reference: which APIs by role
+
+| Role     | Use only these sections |
+|----------|--------------------------|
+| TEACHER  | [Teacher APIs](#teacher-apis), [Shared APIs](#shared-apis) (auth, profile, files, etc.) |
+| STUDENT  | [Student APIs](#student-apis), [Shared APIs](#shared-apis) |
+| EMPLOYEE | [Employee (Company) APIs](#employee-company-apis), [Shared APIs](#shared-apis) |
+
+If the app follows this (one login → one role → only that role’s APIs), the APIs documented here will work for the mobile app. The Postman collection runs **all** endpoints with a single account (e.g. Teacher); 403 there is expected for endpoints that are not for that role.
 
 ---
 
@@ -1698,8 +1734,8 @@ All errors follow this format:
 
 ### Common Error Codes
 
-- `UNAUTHORIZED` (401) - Authentication required or invalid token
-- `FORBIDDEN` (403) - Insufficient permissions
+- `UNAUTHORIZED` (401) - Authentication required or invalid token. Redirect to login (see [How the mobile app works](#how-the-mobile-app-works)).
+- `FORBIDDEN` (403) - Insufficient permissions. The current role cannot call this API; the app should only call APIs for the logged-in role (see [How the mobile app works](#how-the-mobile-app-works)).
 - `NOT_FOUND` (404) - Resource not found
 - `VALIDATION_ERROR` (400) - Request validation failed
 - `OTP_INVALID` (400) - Invalid OTP
@@ -1719,6 +1755,7 @@ All errors follow this format:
 - `404 Not Found` - Resource not found
 - `429 Too Many Requests` - Rate limit exceeded
 - `500 Internal Server Error` - Server error
+- `503 Service Unavailable` - Backend or a dependent service is temporarily down; show retry/offline message
 
 ---
 

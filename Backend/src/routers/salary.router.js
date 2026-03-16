@@ -295,11 +295,11 @@ router.get("/", async (req, res) => {
 router.get("/:id", async (req, res) => {
   const { id } = req.params;
 
-  const salaryStructure = await prisma.salaryStructure.findUniqueOrThrow({
+  const salaryStructure = await prisma.salaryStructure.findUnique({
     where: { id },
   });
 
-  if (salaryStructure.deletedAt) {
+  if (!salaryStructure || salaryStructure.deletedAt) {
     return res.status(404).json({
       message: "Salary structure not found",
     });
@@ -324,13 +324,24 @@ router.get("/:id", async (req, res) => {
 
 // POST /salary-structures - Create salary structure
 router.post("/", async (req, res) => {
-  const request = req.body.request;
+  const request = req.body?.request;
   const currentUser = req.context.user;
 
+  if (!request || !request.schoolId || !request.components || !Array.isArray(request.components)) {
+    return res.status(400).json({
+      message: "Request must include request.schoolId and request.components (array). See API docs for structure.",
+    });
+  }
+
   // Validate school exists
-  await prisma.school.findUniqueOrThrow({
+  const school = await prisma.school.findUnique({
     where: { id: request.schoolId },
   });
+  if (!school) {
+    return res.status(404).json({
+      message: "School not found",
+    });
+  }
 
   // Validate base pay component exists and has correct constraints
   const basePayComponent = request.components.find(
@@ -411,9 +422,15 @@ router.patch("/:id", async (req, res) => {
   const currentUser = req.context.user;
 
   // Fetch existing salary structure
-  const existingStructure = await prisma.salaryStructure.findUniqueOrThrow({
+  const existingStructure = await prisma.salaryStructure.findUnique({
     where: { id },
   });
+
+  if (!existingStructure || existingStructure.deletedAt) {
+    return res.status(404).json({
+      message: "Salary structure not found",
+    });
+  }
 
   // Fetch existing components
   const existingComponents = await prisma.salaryStructureComponent.findMany({
@@ -422,12 +439,6 @@ router.patch("/:id", async (req, res) => {
       deletedAt: null,
     },
   });
-
-  if (existingStructure.deletedAt) {
-    return res.status(404).json({
-      message: "Salary structure not found",
-    });
-  }
 
   const updateData = {
     updatedBy: currentUser.id,
@@ -957,11 +968,11 @@ salaryAssignmentRouter.get("/", async (req, res) => {
 salaryAssignmentRouter.get("/:id", async (req, res) => {
   const { id } = req.params;
 
-  const salary = await prisma.salary.findUniqueOrThrow({
+  const salary = await prisma.salary.findUnique({
     where: { id },
   });
 
-  if (salary.deletedAt) {
+  if (!salary || salary.deletedAt) {
     return res.status(404).json({
       message: "Salary assignment not found",
     });
@@ -1001,18 +1012,34 @@ salaryAssignmentRouter.get("/:id", async (req, res) => {
 
 // POST /salaries - Create salary assignment
 salaryAssignmentRouter.post("/", async (req, res) => {
-  const request = req.body.request;
+  const request = req.body?.request;
   const currentUser = req.context.user;
 
+  if (!request || !request.schoolId || !request.userId || !request.salaryStructureId || !request.from || !request.till) {
+    return res.status(400).json({
+      message: "Request must include request.schoolId, request.userId, request.salaryStructureId, request.from, request.till. See API docs.",
+    });
+  }
+
   // Validate school exists
-  await prisma.school.findUniqueOrThrow({
+  const school = await prisma.school.findUnique({
     where: { id: request.schoolId },
   });
+  if (!school) {
+    return res.status(404).json({
+      message: "School not found",
+    });
+  }
 
   // Validate user exists and is a teacher or staff
-  const user = await prisma.user.findUniqueOrThrow({
+  const user = await prisma.user.findUnique({
     where: { id: request.userId },
   });
+  if (!user) {
+    return res.status(404).json({
+      message: "User not found",
+    });
+  }
 
   // Validate user belongs to the school
   if (user.schoolId !== request.schoolId) {
@@ -1031,19 +1058,14 @@ salaryAssignmentRouter.post("/", async (req, res) => {
     });
   }
 
-  // Validate salary structure exists
-  await prisma.salaryStructure.findUniqueOrThrow({
-    where: { id: request.salaryStructureId },
-  });
-
-  // Validate salary structure belongs to the school
+  // Validate salary structure exists and belongs to the school
   const salaryStructure = await prisma.salaryStructure.findUnique({
     where: { id: request.salaryStructureId },
   });
 
-  if (salaryStructure.schoolId !== request.schoolId) {
+  if (!salaryStructure || salaryStructure.schoolId !== request.schoolId) {
     return res.status(400).json({
-      message: "Salary structure does not belong to the specified school",
+      message: "Salary structure not found or does not belong to the specified school",
     });
   }
 
@@ -1105,11 +1127,11 @@ salaryAssignmentRouter.patch("/:id", async (req, res) => {
   const currentUser = req.context.user;
 
   // Fetch existing salary assignment
-  const existingSalary = await prisma.salary.findUniqueOrThrow({
+  const existingSalary = await prisma.salary.findUnique({
     where: { id },
   });
 
-  if (existingSalary.deletedAt) {
+  if (!existingSalary || existingSalary.deletedAt) {
     return res.status(404).json({
       message: "Salary assignment not found",
     });

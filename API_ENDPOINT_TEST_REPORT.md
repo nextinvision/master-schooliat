@@ -1,6 +1,26 @@
 # Mobile API Endpoint Test Report
 
 **Base URL:** https://api.schooliat.com
+
+---
+
+## Role-based Postman collection tests (Newman)
+
+Each role collection was run with Newman against production. Login runs first and sets `{{auth_token}}`; all requests use that role’s token.
+
+| Collection | Requests | Failed (scripts) | 200 OK | 403 | 404 | 400 | 401 | Duration |
+|------------|----------|-------------------|--------|-----|-----|-----|-----|----------|
+| **TEACHER**  | 147 | 0 | 33 | 73 | 36 | 4 | 0 | ~18s |
+| **STUDENT**  | 131 | 0 | 25 | 69 | 32 | 4 | 0 | ~17s |
+| **EMPLOYEE** | 237 | 0 | 30 | 120 | 75 | 9 | 0 | ~30s |
+
+- **401:** None – login succeeded for all three roles.
+- **403 / 404:** Backend permissions or missing resources (e.g. placeholder IDs); not collection/auth issues.
+- **Run:** `npx newman run MOBILE_APP_API_Postman_Collection_TEACHER.json --env-var "base_url=https://api.schooliat.com"` (same for _STUDENT.json, _EMPLOYEE.json).
+
+---
+
+## Legacy summary (unauthenticated)
 **Tested at:** 2026-03-11T12:55:48.924Z
 **Authenticated:** No (protected endpoints returned 401)
 
