@@ -11,6 +11,8 @@ const updateClassSchema = z
           .uuid("Class teacher ID must be a valid UUID")
           .optional()
           .nullable(),
+        defaultAnnualFee: z.coerce.number().int().min(0).optional().nullable(),
+        defaultMonthlyFee: z.coerce.number().int().min(0).optional().nullable(),
       })
       ,
     query: z.object({}),

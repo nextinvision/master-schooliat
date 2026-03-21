@@ -90,8 +90,10 @@ export function useLeaveHistory(params: {
 /**
  * Fetches all pending leave requests for the school by using the updated global endpoint.
  */
-async function fetchPendingLeaveRequestsForApproval(): Promise<any[]> {
-  const res = await get("/leave/history", { userId: "all", status: "PENDING", limit: 200 });
+async function fetchPendingLeaveRequestsForApproval(classId: string | null): Promise<any[]> {
+  const query: Record<string, string> = { userId: "all", status: "PENDING", limit: "200" };
+  if (classId) query.classId = classId;
+  const res = await get("/leave/history", query);
   const allLeaves = res?.data ?? [];
   allLeaves.sort(
     (a: any, b: any) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()
@@ -99,10 +101,10 @@ async function fetchPendingLeaveRequestsForApproval(): Promise<any[]> {
   return allLeaves;
 }
 
-export function usePendingLeaveRequestsForApproval() {
+export function usePendingLeaveRequestsForApproval(classId: string | null = null) {
   return useQuery({
-    queryKey: ["leave-pending-approvals"],
-    queryFn: fetchPendingLeaveRequestsForApproval,
+    queryKey: ["leave-pending-approvals", classId],
+    queryFn: () => fetchPendingLeaveRequestsForApproval(classId),
     staleTime: 30 * 1000,
   });
 }

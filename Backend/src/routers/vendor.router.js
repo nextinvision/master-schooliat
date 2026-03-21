@@ -13,6 +13,7 @@ import updateVendorSchema from "../schemas/vendor/update-vendor.schema.js";
 import getVendorsSchema from "../schemas/vendor/get-vendors.schema.js";
 import deleteVendorSchema from "../schemas/vendor/delete-vendor.schema.js";
 import roleService from "../services/role.service.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -271,6 +272,7 @@ router.delete(
   "/:id",
   withPermission(Permission.DELETE_VENDOR),
   validateRequest(deleteVendorSchema),
+  requireDeletionOTP({ entityType: "Vendor" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;

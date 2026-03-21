@@ -14,7 +14,7 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Eye, Edit, Trash2, Key, Plus, SlidersHorizontal } from "lucide-react";
+import { Eye, Edit, Trash2, Key, SlidersHorizontal } from "lucide-react";
 import { useClassFilters } from "@/lib/hooks/use-class-filters";
 import { searchTeachersByName } from "@/lib/utils/search-utils";
 import {
@@ -51,7 +51,6 @@ const SUBJECT_OPTIONS = [
 
 interface TeachersTableProps {
   teachers: any[];
-  onAddNew: () => void;
   onEdit: (teacher: any) => void;
   onDelete: (teacherId: string) => void;
   onBulkDelete: (ids: string[]) => void;
@@ -83,7 +82,6 @@ const getInitials = (firstName: string, lastName?: string): string => {
 
 export function TeachersTable({
   teachers,
-  onAddNew,
   onEdit,
   onDelete,
   onBulkDelete,
@@ -187,18 +185,6 @@ export function TeachersTable({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Teachers</h1>
-          <p className="text-sm text-gray-600 mt-1">All Teachers List</p>
-        </div>
-        <Button onClick={onAddNew} className="gap-2">
-          <Plus className="w-4 h-4" />
-          Add New
-        </Button>
-      </div>
-
       {/* Filters and Search */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-end">
         <div className="flex items-center gap-2">

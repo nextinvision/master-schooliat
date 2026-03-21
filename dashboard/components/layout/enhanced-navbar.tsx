@@ -40,6 +40,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { AcademicYearSelector } from "./academic-year-selector";
+import { PortalMonthSelector } from "./portal-month-selector";
 
 export function EnhancedNavbar() {
   const router = useRouter();
@@ -224,6 +225,7 @@ export function EnhancedNavbar() {
       <div className="flex items-center gap-1.5 flex-shrink-0">
         {/* Academic Year Selector */}
         <AcademicYearSelector variant="navbar" className="mr-1" />
+        <PortalMonthSelector className="mr-1" />
 
         {/* Notifications */}
         <DropdownMenu open={notificationsOpen} onOpenChange={setNotificationsOpen}>

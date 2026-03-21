@@ -17,6 +17,7 @@ import updateMySchoolSchema from "../schemas/school/update-my-school.schema.js";
 import getClassesSchema from "../schemas/school/get-classes.schema.js";
 import deleteSchoolSchema from "../schemas/school/delete-school.schema.js";
 import deleteClassSchema from "../schemas/school/delete-class.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -477,6 +478,8 @@ router.post(
             grade: cls.grade,
             division: cls.division || null,
             classTeacherId: cls.classTeacherId || null,
+            defaultAnnualFee: cls.defaultAnnualFee ?? null,
+            defaultMonthlyFee: cls.defaultMonthlyFee ?? null,
             schoolId,
             createdBy: currentUser.id,
           })),
@@ -487,14 +490,21 @@ router.post(
 
       // Update existing classes sequentially (no Promise.all)
       for (const cls of classesToUpdate) {
+        const updatePayload = {
+          grade: cls.grade,
+          division: cls.division || null,
+          classTeacherId: cls.classTeacherId || null,
+          updatedBy: currentUser.id,
+        };
+        if (cls.defaultAnnualFee !== undefined) {
+          updatePayload.defaultAnnualFee = cls.defaultAnnualFee ?? null;
+        }
+        if (cls.defaultMonthlyFee !== undefined) {
+          updatePayload.defaultMonthlyFee = cls.defaultMonthlyFee ?? null;
+        }
         const updatedClass = await tx.class.update({
           where: { id: cls.id },
-          data: {
-            grade: cls.grade,
-            division: cls.division || null,
-            classTeacherId: cls.classTeacherId || null,
-            updatedBy: currentUser.id,
-          },
+          data: updatePayload,
         });
         allResults.push(updatedClass);
       }
@@ -625,6 +635,10 @@ router.patch(
       classUpdateData.division = updateData.division;
     if (updateData.classTeacherId !== undefined)
       classUpdateData.classTeacherId = updateData.classTeacherId;
+    if (updateData.defaultAnnualFee !== undefined)
+      classUpdateData.defaultAnnualFee = updateData.defaultAnnualFee ?? null;
+    if (updateData.defaultMonthlyFee !== undefined)
+      classUpdateData.defaultMonthlyFee = updateData.defaultMonthlyFee ?? null;
 
     classUpdateData.updatedBy = currentUser.id;
 
@@ -642,6 +656,7 @@ router.delete(
   "/:id",
   withPermission(Permission.DELETE_SCHOOL),
   validateRequest(deleteSchoolSchema),
+  requireDeletionOTP({ entityType: "School" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;

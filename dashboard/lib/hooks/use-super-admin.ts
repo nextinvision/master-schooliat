@@ -5,6 +5,9 @@ import {
 } from "@tanstack/react-query";
 import { get, post, patch, put, del } from "@/lib/api/client";
 
+/** Super-admin DELETE routes require `{ request: { otp } }` after email verification. */
+export type SuperAdminDeleteWithOtpInput = { id: string; otp: string };
+
 // Statistics
 export function useSchoolStatistics(search?: string, academicYear?: string) {
   return useQuery({
@@ -102,7 +105,8 @@ export function useUpdateSchool() {
 export function useDeleteSchool() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => del(`/schools/${id}`),
+    mutationFn: ({ id, otp }: SuperAdminDeleteWithOtpInput) =>
+      del(`/schools/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
@@ -271,7 +275,8 @@ export function useUpdateInvoice() {
 export function useDeleteInvoice() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => del(`/invoices/${id}`),
+    mutationFn: ({ id, otp }: SuperAdminDeleteWithOtpInput) =>
+      del(`/invoices/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
@@ -312,7 +317,8 @@ export function useUpdateLicense() {
 export function useDeleteLicense() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => del(`/licenses/${id}`),
+    mutationFn: ({ id, otp }: SuperAdminDeleteWithOtpInput) =>
+      del(`/licenses/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["licenses"] });
     },
@@ -383,7 +389,8 @@ export function useUpdateVendor() {
 export function useDeleteVendor() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => del(`/vendors/${id}`),
+    mutationFn: ({ id, otp }: SuperAdminDeleteWithOtpInput) =>
+      del(`/vendors/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
       queryClient.invalidateQueries({ queryKey: ["vendorStats"] });
@@ -675,7 +682,8 @@ export function useUpdateLocation() {
 export function useDeleteLocation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => del(`/locations/${id}`),
+    mutationFn: ({ id, otp }: SuperAdminDeleteWithOtpInput) =>
+      del(`/locations/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["locations"] });
     },
@@ -696,7 +704,8 @@ export function useUpdateRegion() {
 export function useDeleteRegion() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => del(`/regions/${id}`),
+    mutationFn: ({ id, otp }: SuperAdminDeleteWithOtpInput) =>
+      del(`/regions/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["regions"] });
     },

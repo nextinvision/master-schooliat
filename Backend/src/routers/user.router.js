@@ -11,6 +11,8 @@ import fileService from "../services/file.service.js";
 import roleService from "../services/role.service.js";
 import csvUtil from "../utils/csv.util.js";
 import experienceCertificateService from "../services/experience-certificate.service.js";
+import feeService from "../services/fee.service.js";
+import logger from "../config/logger.js";
 
 const router = Router();
 
@@ -845,6 +847,19 @@ router.post(
         },
       });
 
+      try {
+        await feeService.createFeeInstallementsForStudent(
+          user.id,
+          currentUser.schoolId,
+          currentUser.id,
+        );
+      } catch (feeErr) {
+        logger.warn(
+          { err: feeErr, studentId: user.id },
+          "Fee installments not created after student create",
+        );
+      }
+
       // Attach file URLs
       const usersWithUrls = await userService.attachFileURLs([user]);
 
@@ -1114,6 +1129,24 @@ router.patch(
         });
       }
 
+      const prevClassId = existingStudent.studentProfile?.classId;
+      const classChanged =
+        request.classId !== undefined && request.classId !== prevClassId;
+      if (classChanged) {
+        try {
+          await feeService.rebuildUnpaidFeePlanForStudent(
+            id,
+            currentUser.schoolId,
+            currentUser.id,
+          );
+        } catch (feeErr) {
+          logger.warn(
+            { err: feeErr, studentId: id },
+            "Fee plan not rebuilt after class change",
+          );
+        }
+      }
+
       // Attach file URLs
       const usersWithUrls = await userService.attachFileURLs([updatedUser]);
 
@@ -1208,11 +1241,21 @@ router.patch(
 
       // Update all students in a transaction
       await prisma.$transaction(
-        studentIds.map((id) =>
+        studentIds.map((sid) =>
           prisma.studentProfile.update({
-            where: { userId: id },
+            where: { userId: sid },
             data: { classId },
           })
+        )
+      );
+
+      await Promise.allSettled(
+        studentIds.map((sid) =>
+          feeService.rebuildUnpaidFeePlanForStudent(
+            sid,
+            currentUser.schoolId,
+            currentUser.id,
+          )
         )
       );
 
@@ -1380,6 +1423,7 @@ router.post(
           const publicUserId = `${school.code}S${String(++currentStudentCount).padStart(4, "0")}`;
           const generatedPassword = stringUtil.generateRandomString(15);
 
+          let newStudentId;
           await prisma.$transaction(async (tx) => {
             const user = await tx.user.create({
               data: {
@@ -1397,6 +1441,7 @@ router.post(
                 createdBy: currentUser.id,
               },
             });
+            newStudentId = user.id;
 
             await tx.studentProfile.create({
               data: {
@@ -1412,6 +1457,19 @@ router.post(
               },
             });
           });
+
+          try {
+            await feeService.createFeeInstallementsForStudent(
+              newStudentId,
+              currentUser.schoolId,
+              currentUser.id,
+            );
+          } catch (feeErr) {
+            logger.warn(
+              { err: feeErr, studentId: newStudentId },
+              "Fee installments not created after bulk student create",
+            );
+          }
 
           results.success++;
         } catch (error) {

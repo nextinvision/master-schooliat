@@ -5,15 +5,6 @@ import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -53,6 +44,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { format } from "date-fns";
 import { EditSchoolDialog } from "./edit-school-dialog";
+import { SuperAdminDeletionOtpDialog } from "@/components/super-admin/deletion-otp-dialog";
+import { SUPER_ADMIN_DELETION_ENTITY } from "@/lib/super-admin/deletion-entity-types";
 
 interface SchoolDetailsViewProps {
   schoolId: string;
@@ -75,23 +68,6 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
   const schoolStats = statisticsData?.data?.schools?.find(
     (s: any) => s.id === schoolId
   );
-
-  const handleDelete = async () => {
-    try {
-      await deleteSchool.mutateAsync(schoolId);
-      toast({
-        title: "Success",
-        description: "School deleted successfully",
-      });
-      router.push("/super-admin/schools");
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete school",
-        variant: "destructive",
-      });
-    }
-  };
 
   if (isLoading) {
     return (
@@ -145,38 +121,31 @@ export function SchoolDetailsView({ schoolId }: SchoolDetailsViewProps) {
             onOpenChange={setIsEditOpen}
           />
 
-          <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-            <DialogTrigger asChild>
-              <Button variant="destructive" size="sm">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Delete School</DialogTitle>
-                <DialogDescription>
-                  Are you sure you want to delete "{school.name}"? This action
-                  cannot be undone.
-                </DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDeleteOpen(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDelete}
-                  disabled={deleteSchool.isPending}
-                >
-                  {deleteSchool.isPending ? "Deleting..." : "Delete"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setIsDeleteOpen(true)}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete
+          </Button>
+          <SuperAdminDeletionOtpDialog
+            open={isDeleteOpen}
+            onOpenChange={setIsDeleteOpen}
+            title="Delete school"
+            description={`You are about to delete "${school.name}" (${school.code}). This cannot be undone.`}
+            entityType={SUPER_ADMIN_DELETION_ENTITY.SCHOOL}
+            entityId={schoolId}
+            isDeleting={deleteSchool.isPending}
+            onDeleteWithOtp={async (otp) => {
+              await deleteSchool.mutateAsync({ id: schoolId, otp });
+              toast({
+                title: "Success",
+                description: "School deleted successfully",
+              });
+              router.push("/super-admin/schools");
+            }}
+          />
         </div>
       </div>
 

@@ -43,10 +43,21 @@ export default function UpdateClassesPage() {
           grade: cls.grade || "",
           division: cls.division || "",
           classTeacherId: cls.classTeacherId || null,
+          defaultAnnualFee: cls.defaultAnnualFee ?? null,
+          defaultMonthlyFee: cls.defaultMonthlyFee ?? null,
         }))
       );
     } else {
-      setClasses([{ id: null, grade: "", division: "", classTeacherId: null }]);
+      setClasses([
+        {
+          id: null,
+          grade: "",
+          division: "",
+          classTeacherId: null,
+          defaultAnnualFee: null,
+          defaultMonthlyFee: null,
+        },
+      ]);
     }
   }, [allClasses]);
 
@@ -138,10 +149,21 @@ export default function UpdateClassesPage() {
                 grade: cls.grade || "",
                 division: cls.division || "",
                 classTeacherId: cls.classTeacherId || null,
+                defaultAnnualFee: cls.defaultAnnualFee ?? null,
+                defaultMonthlyFee: cls.defaultMonthlyFee ?? null,
               }))
             );
           } else {
-            setClasses([{ id: null, grade: "", division: "", classTeacherId: null }]);
+            setClasses([
+              {
+                id: null,
+                grade: "",
+                division: "",
+                classTeacherId: null,
+                defaultAnnualFee: null,
+                defaultMonthlyFee: null,
+              },
+            ]);
           }
           setErrors({});
         }}

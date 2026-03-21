@@ -109,17 +109,21 @@ export function aggregateAttendanceByDate(
 /** Aggregate fee installments by month for bar/area charts */
 export function aggregateFeesByMonth(
   installments: Array<{ createdAt?: string; paidAt?: string; amount?: number; paidAmount?: number; paymentStatus?: string }>
-): Array<{ period: string; paid: number; pending: number; amount: number }> {
-  const byMonth: Record<string, { paid: number; pending: number; amount: number }> = {};
+): Array<{ period: string; paid: number; pending: number; cancelled: number; amount: number }> {
+  const byMonth: Record<string, { paid: number; pending: number; cancelled: number; amount: number }> = {};
   for (const item of installments) {
     const raw = item.createdAt || item.paidAt || "";
     const dateKey = raw ? raw.slice(0, 7) : ""; // YYYY-MM
     if (!dateKey) continue;
-    if (!byMonth[dateKey]) byMonth[dateKey] = { paid: 0, pending: 0, amount: 0 };
+    if (!byMonth[dateKey]) {
+      byMonth[dateKey] = { paid: 0, pending: 0, cancelled: 0, amount: 0 };
+    }
     const amt = Number(item.amount ?? 0);
     byMonth[dateKey].amount += amt;
     if (item.paymentStatus === "PAID") {
       byMonth[dateKey].paid += Number(item.paidAmount ?? item.amount ?? 0);
+    } else if (item.paymentStatus === "CANCELLED") {
+      byMonth[dateKey].cancelled += amt;
     } else {
       byMonth[dateKey].pending += amt;
     }
@@ -144,13 +148,19 @@ export function attendanceDistribution(stats: { presentCount?: number; absentCou
   ].filter((d) => d.value > 0);
 }
 
-/** Fee status distribution */
-export function feeStatusDistribution(stats: { totalPaid?: number; totalPending?: number }) {
+/** Fee status distribution (rupee amounts; cancelled = gross face value of cancelled rows) */
+export function feeStatusDistribution(stats: {
+  totalPaid?: number;
+  totalPending?: number;
+  cancelledAmountGross?: number;
+}) {
   const paid = Number(stats.totalPaid ?? 0);
   const pending = Number(stats.totalPending ?? 0);
+  const cancelled = Number(stats.cancelledAmountGross ?? 0);
   return [
     { name: "Collected", value: paid },
     { name: "Pending", value: pending },
+    { name: "Cancelled (gross)", value: cancelled },
   ].filter((d) => d.value > 0);
 }
 
@@ -166,4 +176,5 @@ export const CHART_COLORS = {
   late: "#f59e0b",
   paid: "#22c55e",
   pending: "#f59e0b",
+  cancelled: "#64748b",
 } as const;

@@ -77,17 +77,21 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
                         ? "Paid"
                         : installment.paymentStatus === "PARTIALLY_PAID"
                           ? "Partially Paid"
-                          : installment.paymentStatus === "WAIVED"
-                            ? "Waived"
-                            : "Pending";
+                          : installment.paymentStatus === "CANCELLED"
+                            ? "Cancelled"
+                            : installment.paymentStatus === "WAIVED"
+                              ? "Waived"
+                              : "Pending";
                     const statusClass =
                       installment.paymentStatus === "PAID"
                         ? "bg-schooliat-tint text-primary"
                         : installment.paymentStatus === "PARTIALLY_PAID"
                           ? "bg-amber-100 text-amber-800"
-                          : installment.paymentStatus === "WAIVED"
-                            ? "bg-slate-100 text-slate-700"
-                            : "bg-orange-100 text-orange-800";
+                          : installment.paymentStatus === "CANCELLED"
+                            ? "bg-slate-200 text-slate-800"
+                            : installment.paymentStatus === "WAIVED"
+                              ? "bg-slate-100 text-slate-700"
+                              : "bg-orange-100 text-orange-800";
                     return (
                       <div
                         key={installment.id}

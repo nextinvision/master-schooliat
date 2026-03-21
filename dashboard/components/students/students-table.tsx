@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -251,7 +252,12 @@ export function StudentsTable({
                       {String(index + 1).padStart(2, "0")}
                     </TableCell>
                     <TableCell className="font-medium">
-                      {student.firstName} {student.lastName}
+                      <Link
+                        href={`/admin/students/${student.id}`}
+                        className="text-primary hover:underline"
+                      >
+                        {student.firstName} {student.lastName}
+                      </Link>
                     </TableCell>
                     <TableCell>
                       {student.studentProfile?.rollNumber || "N/A"}

@@ -5005,5 +5005,43 @@
       "value": "1",
       "type": "string"
     }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-login: if auth_token is not set, login automatically before any request",
+          "const token = pm.collectionVariables.get(\"auth_token\");",
+          "if (!token || token === \"\") {",
+          "    const baseUrl = pm.collectionVariables.get(\"base_url\") || \"https://api.schooliat.com\";",
+          "    pm.sendRequest({",
+          "        url: baseUrl + \"/auth/authenticate\",",
+          "        method: \"POST\",",
+          "        header: {",
+          "            \"Content-Type\": \"application/json\",",
+          "            \"x-platform\": \"android\"",
+          "        },",
+          "        body: {",
+          "            mode: \"raw\",",
+          "            raw: JSON.stringify({ request: { email: \"student5@gis001.edu\", password: \"Student@123\" } })",
+          "        }",
+          "    }, function(err, res) {",
+          "        if (!err && res.code === 200) {",
+          "            const json = res.json();",
+          "            const newToken = json && (json.token || (json.data && json.data.token));",
+          "            if (newToken) {",
+          "                pm.collectionVariables.set(\"auth_token\", newToken);",
+          "                console.log(\"Auto-login successful for student5@gis001.edu\");",
+          "            }",
+          "        } else {",
+          "            console.error(\"Auto-login failed:\", err || res.status);",
+          "        }",
+          "    });",
+          "}"
+        ]
+      }
+    }
   ]
 }

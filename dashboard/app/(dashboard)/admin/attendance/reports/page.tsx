@@ -54,6 +54,8 @@ import {
 } from "recharts";
 import { format, subMonths, startOfMonth, endOfMonth } from "date-fns";
 import { toast } from "sonner";
+import { usePortalPeriod } from "@/lib/context/portal-period-context";
+import { Switch } from "@/components/ui/switch";
 
 const COLORS = {
   PRESENT: "#84cc16",
@@ -62,12 +64,20 @@ const COLORS = {
 };
 
 export default function AttendanceReportsPage() {
+  const { portalMonth, getMonthDateRange } = usePortalPeriod();
+  const [syncPortalMonth, setSyncPortalMonth] = useState(true);
   const [dateRange, setDateRange] = useState({
     startDate: format(startOfMonth(subMonths(new Date(), 1)), "yyyy-MM-dd"),
     endDate: format(endOfMonth(new Date()), "yyyy-MM-dd"),
   });
   const [selectedClassId, setSelectedClassId] = useState<string>("all");
   const [selectedStudentId, setSelectedStudentId] = useState<string>("all");
+
+  useEffect(() => {
+    if (!syncPortalMonth) return;
+    const r = getMonthDateRange();
+    setDateRange({ startDate: r.startDate, endDate: r.endDate });
+  }, [portalMonth, syncPortalMonth, getMonthDateRange]);
 
   // Fetch classes
   const { data: classesData, isLoading: classesLoading } = useClasses({ page: 1, limit: 1000 });
@@ -343,13 +353,33 @@ export default function AttendanceReportsPage() {
                 </Select>
               )}
             </div>
+            <div className="col-span-full flex items-center gap-3 py-1">
+              <Switch
+                id="attendance-portal-month"
+                checked={syncPortalMonth}
+                onCheckedChange={(c) => {
+                  const on = c === true;
+                  setSyncPortalMonth(on);
+                  if (on) {
+                    const r = getMonthDateRange();
+                    setDateRange({ startDate: r.startDate, endDate: r.endDate });
+                  }
+                }}
+              />
+              <Label htmlFor="attendance-portal-month" className="text-sm font-normal cursor-pointer">
+                Use portal month for date range (matches navbar month selector)
+              </Label>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="startDate">Start Date</Label>
               <Input
                 id="startDate"
                 type="date"
                 value={dateRange.startDate}
-                onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                onChange={(e) => {
+                  setSyncPortalMonth(false);
+                  setDateRange({ ...dateRange, startDate: e.target.value });
+                }}
               />
             </div>
             <div className="space-y-2">
@@ -358,7 +388,10 @@ export default function AttendanceReportsPage() {
                 id="endDate"
                 type="date"
                 value={dateRange.endDate}
-                onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+                onChange={(e) => {
+                  setSyncPortalMonth(false);
+                  setDateRange({ ...dateRange, endDate: e.target.value });
+                }}
               />
             </div>
           </div>

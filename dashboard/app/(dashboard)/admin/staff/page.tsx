@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { StaffTable } from "@/components/staff/staff-table";
 import { useStaffPage, useCreateStaff, useDeleteStaff } from "@/lib/hooks/use-staff";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,7 @@ import { UserPlus, Copy, KeyRound } from "lucide-react";
 type CreatedCredentials = { email: string; password: string } | null;
 
 export default function StaffPage() {
+    const router = useRouter();
     const [page, setPage] = useState(1);
     const [isAddStaffDialogOpen, setIsAddStaffDialogOpen] = useState(false);
     const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials>(null);
@@ -102,10 +104,10 @@ export default function StaffPage() {
     }, [deleteStaff, refetchStaff]);
 
     const handleEditStaff = useCallback((member: any) => {
-        // For now, edit is not implemented as a separate page, 
-        // but we could open an edit dialog here.
-        toast.info("Edit functionality for staff is coming soon!");
-    }, []);
+        if (member?.id) {
+            router.push(`/admin/staff/${member.id}/edit`);
+        }
+    }, [router]);
 
     return (
         <div className="space-y-6 pb-8">

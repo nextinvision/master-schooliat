@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   useAttendanceReports,
   useFeeAnalytics,
@@ -21,6 +21,9 @@ import { AttendanceSection } from "@/components/reports/AttendanceSection";
 import { FeeSection } from "@/components/reports/FeeSection";
 import { AcademicSection } from "@/components/reports/AcademicSection";
 import { SalarySection } from "@/components/reports/SalarySection";
+import { usePortalPeriod } from "@/lib/context/portal-period-context";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 const defaultRange = getDateRangeForPreset("last30");
 
@@ -32,6 +35,37 @@ export default function ReportsPage() {
     examId: null,
     compareWithPrevious: false,
   });
+  const { portalMonth, getMonthDateRange } = usePortalPeriod();
+  const [portalDateSync, setPortalDateSync] = useState(true);
+  const prevDateRangeRef = useRef(filters.dateRange);
+
+  useEffect(() => {
+    prevDateRangeRef.current = filters.dateRange;
+  }, [filters.dateRange]);
+
+  const handleFiltersChange = (f: ReportFiltersType) => {
+    const prev = prevDateRangeRef.current;
+    const dateChanged =
+      f.dateRange.startDate !== prev.startDate ||
+      f.dateRange.endDate !== prev.endDate ||
+      f.dateRange.preset !== prev.preset;
+    if (dateChanged) setPortalDateSync(false);
+    setFilters(f);
+  };
+
+  useEffect(() => {
+    if (!portalDateSync) return;
+    const r = getMonthDateRange();
+    setFilters((prev) => ({
+      ...prev,
+      dateRange: {
+        ...prev.dateRange,
+        preset: "custom",
+        startDate: r.startDate,
+        endDate: r.endDate,
+      },
+    }));
+  }, [portalMonth, portalDateSync, getMonthDateRange]);
 
   const { selectedYear } = useAcademicYear();
   const { data: classesData } = useClasses({ page: 1, limit: 1000 });
@@ -82,6 +116,31 @@ export default function ReportsPage() {
           <p className="text-muted-foreground mt-1">
             Comprehensive reports and analytics for school administration
           </p>
+          <div className="flex items-center gap-2 mt-3">
+            <Switch
+              id="reports-portal-sync"
+              checked={portalDateSync}
+              onCheckedChange={(c) => {
+                const on = c === true;
+                setPortalDateSync(on);
+                if (on) {
+                  const r = getMonthDateRange();
+                  setFilters((prev) => ({
+                    ...prev,
+                    dateRange: {
+                      ...prev.dateRange,
+                      preset: "custom",
+                      startDate: r.startDate,
+                      endDate: r.endDate,
+                    },
+                  }));
+                }
+              }}
+            />
+            <Label htmlFor="reports-portal-sync" className="text-sm font-normal cursor-pointer">
+              Date range follows portal month
+            </Label>
+          </div>
         </div>
         <ExportReportMenu
           tab={activeTab}
@@ -96,7 +155,7 @@ export default function ReportsPage() {
 
       <ReportFilters
         filters={filters}
-        onFiltersChange={setFilters}
+        onFiltersChange={handleFiltersChange}
         classes={classes}
         exams={exams}
         showExamFilter

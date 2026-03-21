@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useNotes } from "@/lib/hooks/use-notes";
+import { useNote } from "@/lib/hooks/use-notes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText, Calendar, User, BookOpen } from "lucide-react";
@@ -13,8 +13,8 @@ export default function ViewNotePage() {
     const router = useRouter();
     const noteId = params.id as string;
 
-    const { data: notesData, isLoading } = useNotes();
-    const note = notesData?.data?.find((n: any) => n.id === noteId);
+    const { data: noteRes, isLoading } = useNote(noteId);
+    const note = noteRes?.data;
 
     if (isLoading) {
         return (

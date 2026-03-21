@@ -42,8 +42,8 @@ function updateStaffApi(id: string, form: any) {
             lastName: form.lastName?.trim(),
             email: form.email?.trim(),
             contact: form.contact?.trim(),
-            gender: form.gender,
-            dateOfBirth: form.dateOfBirth,
+      gender: form.gender,
+      dateOfBirth: form.dateOfBirth ?? form.dob,
             address: [
                 `${form.areaStreet}`,
                 `${form.location}, ${form.district}`,

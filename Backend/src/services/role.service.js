@@ -93,6 +93,7 @@ const defaultRolePermissionsMap = {
     Permission.SEND_MESSAGE,
     Permission.CREATE_ANNOUNCEMENT,
     Permission.SEND_NOTIFICATION,
+    Permission.REQUEST_DELETION_OTP,
   ],
   [RoleName.EMPLOYEE]: [
     Permission.GET_SCHOOLS,
@@ -250,6 +251,10 @@ const defaultRolePermissionsMap = {
     Permission.GET_INVENTORY,
     Permission.EDIT_INVENTORY_ITEM,
     Permission.DELETE_INVENTORY_ITEM,
+    Permission.GET_COURIERS,
+    Permission.CREATE_COURIER_ENTRY,
+    Permission.UPDATE_COURIER_ENTRY,
+    Permission.DELETE_COURIER_ENTRY,
   ],
   [RoleName.STUDENT]: [
     Permission.GET_MY_SCHOOL,

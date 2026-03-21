@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 
 import { useDashboard } from "@/lib/hooks/use-dashboard";
 import { useAcademicYear } from "@/lib/context/academic-year-context";
+import { usePortalPeriod } from "@/lib/context/portal-period-context";
 import { useHolidays } from "@/lib/hooks/use-calendar";
 import { format } from "date-fns";
 import { PremiumLoadingSkeleton } from "@/components/dashboard/premium-loading-skeleton";
@@ -81,10 +82,17 @@ const RadialProgress = ({ percentage, color, label, subLabel }: { percentage: nu
 
 export default function AdminDashboardPage() {
   const { selectedYear } = useAcademicYear();
+  const { portalMonth, setPortalMonth } = usePortalPeriod();
 
   // Dashboard filter state
   const [filterType, setFilterType] = useState<string>("");
   const [filterValue, setFilterValue] = useState<string>("");
+
+  useEffect(() => {
+    if (filterType === "month") {
+      setFilterValue(portalMonth);
+    }
+  }, [portalMonth, filterType]);
 
   // States for the Calendar persistence
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -200,7 +208,11 @@ export default function AdminDashboardPage() {
           <Input
             type="month"
             value={filterValue}
-            onChange={(e) => setFilterValue(e.target.value)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFilterValue(v);
+              if (v) setPortalMonth(v);
+            }}
             className="w-[180px] h-9 text-sm"
           />
         )}

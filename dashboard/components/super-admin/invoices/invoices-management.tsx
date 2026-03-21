@@ -23,6 +23,8 @@ import { Download, Eye, Plus, Trash2 } from "lucide-react";
 import { useInvoices, useGenerateInvoice, useDeleteInvoice, Invoice } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { GenerateInvoiceForm } from "./generate-invoice-form";
+import { SuperAdminDeletionOtpDialog } from "@/components/super-admin/deletion-otp-dialog";
+import { SUPER_ADMIN_DELETION_ENTITY } from "@/lib/super-admin/deletion-entity-types";
 import {
     Dialog,
     DialogContent,
@@ -39,6 +41,7 @@ export default function InvoicesManagement() {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("All");
     const [isCreateOpen, setIsCreateOpen] = useState(false);
+    const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
     const itemsPerPage = 10;
 
     const { data, isLoading, error } = useInvoices({
@@ -87,20 +90,6 @@ export default function InvoicesManagement() {
             toast({
                 title: "Error",
                 description: err?.message || "Failed to generate invoice",
-                variant: "destructive",
-            });
-        }
-    };
-
-    const handleDeleteInvoice = async (invoiceId: string) => {
-        if (!confirm("Are you sure you want to delete this invoice?")) return;
-        try {
-            await deleteInvoice.mutateAsync(invoiceId);
-            toast({ title: "Success", description: "Invoice deleted successfully" });
-        } catch (err: any) {
-            toast({
-                title: "Error",
-                description: err?.message || "Failed to delete invoice",
                 variant: "destructive",
             });
         }
@@ -207,7 +196,7 @@ export default function InvoicesManagement() {
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10" onClick={() => handleViewInvoice(invoice.id)}>
                                                 <Eye className="w-4 h-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleDeleteInvoice(invoice.id)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setInvoiceToDelete(invoice)}>
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
                                         </div>
@@ -228,6 +217,28 @@ export default function InvoicesManagement() {
                     </div>
                 </div>
             )}
+
+            <SuperAdminDeletionOtpDialog
+                open={!!invoiceToDelete}
+                onOpenChange={(open) => {
+                    if (!open) setInvoiceToDelete(null);
+                }}
+                title="Delete invoice"
+                description={
+                    invoiceToDelete
+                        ? `Remove invoice ${invoiceToDelete.invoiceNumber || invoiceToDelete.id.slice(0, 8)} permanently.`
+                        : ""
+                }
+                entityType={SUPER_ADMIN_DELETION_ENTITY.INVOICE}
+                entityId={invoiceToDelete?.id ?? ""}
+                isDeleting={deleteInvoice.isPending}
+                onDeleteWithOtp={async (otp) => {
+                    if (!invoiceToDelete) return;
+                    await deleteInvoice.mutateAsync({ id: invoiceToDelete.id, otp });
+                    toast({ title: "Success", description: "Invoice deleted successfully" });
+                    setInvoiceToDelete(null);
+                }}
+            />
         </div>
     );
 }

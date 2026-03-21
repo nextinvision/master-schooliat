@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { deletionOtpRequestSchema } from "../common/deletion-otp-request.schema.js";
 
 const deleteRegionSchema = z
   .object({
-    request: z.object({}),
+    request: deletionOtpRequestSchema,
     query: z.object({}),
     params: z
       .object({

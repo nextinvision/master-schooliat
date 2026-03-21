@@ -21,8 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CheckCircle2, XCircle, Clock, User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CheckCircle2, XCircle, Clock, User, Minus } from "lucide-react";
+export type MarkableAttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
 
 interface Student {
   id: string;
@@ -32,7 +32,7 @@ interface Student {
   classGrade?: string;
   classDivision?: string;
   attendance?: {
-    status: "PRESENT" | "ABSENT" | "LATE";
+    status: MarkableAttendanceStatus;
     lateArrivalTime?: string;
     absenceReason?: string;
   };
@@ -44,11 +44,11 @@ interface AttendanceMarkingTableProps {
   classId: string;
   onMarkAttendance: (data: {
     studentId: string;
-    status: "PRESENT" | "ABSENT" | "LATE";
+    status: MarkableAttendanceStatus;
     lateArrivalTime?: string;
     absenceReason?: string;
   }) => void;
-  onBulkMark: (status: "PRESENT" | "ABSENT" | "LATE") => void;
+  onBulkMark: (status: MarkableAttendanceStatus) => void;
   isLoading?: boolean;
 }
 
@@ -79,7 +79,7 @@ export function AttendanceMarkingTable({
     });
   }, [students]);
   const [attendanceData, setAttendanceData] = useState<Record<string, {
-    status: "PRESENT" | "ABSENT" | "LATE";
+    status: MarkableAttendanceStatus;
     lateArrivalTime?: string;
     absenceReason?: string;
   }>>(() => {
@@ -92,7 +92,7 @@ export function AttendanceMarkingTable({
 
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 
-  const handleStatusChange = (studentId: string, status: "PRESENT" | "ABSENT" | "LATE") => {
+  const handleStatusChange = (studentId: string, status: MarkableAttendanceStatus) => {
     setAttendanceData((prev) => ({
       ...prev,
       [studentId]: {
@@ -134,7 +134,7 @@ export function AttendanceMarkingTable({
     }
   };
 
-  const handleBulkMark = (status: "PRESENT" | "ABSENT" | "LATE") => {
+  const handleBulkMark = (status: MarkableAttendanceStatus) => {
     const updates: Record<string, any> = {};
     selectedStudents.forEach((studentId) => {
       updates[studentId] = { status };
@@ -163,7 +163,7 @@ export function AttendanceMarkingTable({
     }
   };
 
-  const getStatusIcon = (status: "PRESENT" | "ABSENT" | "LATE") => {
+  const getStatusIcon = (status: MarkableAttendanceStatus) => {
     switch (status) {
       case "PRESENT":
         return <CheckCircle2 className="h-4 w-4 text-primary" />;
@@ -171,10 +171,12 @@ export function AttendanceMarkingTable({
         return <XCircle className="h-4 w-4 text-red-600" />;
       case "LATE":
         return <Clock className="h-4 w-4 text-yellow-600" />;
+      case "HALF_DAY":
+        return <Minus className="h-4 w-4 text-amber-700" />;
     }
   };
 
-  const getStatusBadge = (status: "PRESENT" | "ABSENT" | "LATE") => {
+  const getStatusBadge = (status: MarkableAttendanceStatus) => {
     switch (status) {
       case "PRESENT":
         return <Badge className="bg-primary hover:bg-schooliat-primary-dark">Present</Badge>;
@@ -182,6 +184,8 @@ export function AttendanceMarkingTable({
         return <Badge variant="destructive">Absent</Badge>;
       case "LATE":
         return <Badge className="bg-yellow-500 hover:bg-yellow-600">Late</Badge>;
+      case "HALF_DAY":
+        return <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-200">Half day</Badge>;
     }
   };
 
@@ -217,6 +221,14 @@ export function AttendanceMarkingTable({
               disabled={isLoading}
             >
               Mark All Late
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBulkMark("HALF_DAY")}
+              disabled={isLoading}
+            >
+              Mark All Half Day
             </Button>
           </div>
         </div>
@@ -274,7 +286,7 @@ export function AttendanceMarkingTable({
                       <TableCell>
                         <Select
                           value={attendance.status}
-                          onValueChange={(value: "PRESENT" | "ABSENT" | "LATE") =>
+                          onValueChange={(value: MarkableAttendanceStatus) =>
                             handleStatusChange(student.id, value)
                           }
                         >
@@ -298,6 +310,12 @@ export function AttendanceMarkingTable({
                               <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-yellow-600" />
                                 Late
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="HALF_DAY">
+                              <div className="flex items-center gap-2">
+                                <Minus className="h-4 w-4 text-amber-700" />
+                                Half day
                               </div>
                             </SelectItem>
                           </SelectContent>

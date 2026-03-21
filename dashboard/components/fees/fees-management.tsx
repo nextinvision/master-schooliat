@@ -19,17 +19,29 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Filter, Calendar as CalendarIcon, FileDown, Loader2, DownloadCloud, Eye, IndianRupee } from "lucide-react";
+import {
+  Search,
+  Plus,
+  Filter,
+  Calendar as CalendarIcon,
+  FileDown,
+  Loader2,
+  DownloadCloud,
+  Eye,
+  IndianRupee,
+  Ban,
+} from "lucide-react";
 import { useInstallments, useRecordPayment } from "@/lib/hooks/use-fees";
 import { get, downloadFromApi } from "@/lib/api/client";
 import { FeeDetailsModal } from "./fee-details-modal";
 import { PaymentModal } from "./payment-modal";
+import { CancelFeeInstallmentModal } from "./cancel-fee-installment-modal";
 import { PaymentFormData } from "@/lib/schemas/fees-schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { PaymentInfoCard } from "./payment-info-card";
 import { toast } from "sonner";
 
-const STATUS_OPTIONS = ["All Status", "Paid", "Partially Paid", "Pending"];
+const STATUS_OPTIONS = ["All Status", "Paid", "Partially Paid", "Pending", "Cancelled"];
 const YEAR_OPTIONS = ["2023-2024", "2024-2025", "2025-2026"];
 const PERIOD_OPTIONS = ["Annual", "Monthly", "Quarterly"];
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
@@ -54,28 +66,30 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
-function normalizeStatus(s: string | null | undefined): "Paid" | "Partially Paid" | "Pending" {
+function normalizeStatus(
+  s: string | null | undefined
+): "Paid" | "Partially Paid" | "Pending" | "Cancelled" {
   if (!s) return "Pending";
   if (s === "PAID") return "Paid";
   if (s === "PARTIALLY_PAID") return "Partially Paid";
+  if (s === "CANCELLED") return "Cancelled";
   return "Pending";
 }
 
-// Mock chart data - replace with real data
-const chartData = [
-  { month: "Jan", amount: 500 },
-  { month: "Feb", amount: 800 },
-  { month: "Mar", amount: 600 },
-  { month: "Apr", amount: 400 },
-  { month: "May", amount: 700 },
-  { month: "Jun", amount: 3000 },
-  { month: "Jul", amount: 5000 },
-  { month: "Aug", amount: 1500 },
-  { month: "Sep", amount: 1200 },
-  { month: "Oct", amount: 800 },
-  { month: "Nov", amount: 600 },
-  { month: "Dec", amount: 700 },
-];
+const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function buildCollectionChartData(installments: any[]): { month: string; amount: number }[] {
+  const buckets = MONTH_LABELS.map((m) => ({ month: m, amount: 0 }));
+  for (const inst of installments || []) {
+    if (inst.paymentStatus !== "PAID" || !inst.paidAt) continue;
+    const d = new Date(inst.paidAt);
+    if (Number.isNaN(d.getTime())) continue;
+    const idx = d.getMonth();
+    const paid = Number(inst.paidAmount ?? inst.amount ?? 0);
+    if (idx >= 0 && idx < 12) buckets[idx].amount += paid;
+  }
+  return buckets;
+}
 
 interface FeesManagementProps {
   onEdit?: (item: any) => void;
@@ -93,6 +107,10 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
   const [selectedInstallment, setSelectedInstallment] = useState<any>(null);
   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupResults, setLookupResults] = useState<any[]>([]);
+  const [lookupStudentId, setLookupStudentId] = useState<string | null>(null);
+  const [cancelInstallment, setCancelInstallment] = useState<any | null>(null);
 
   const [statusFilter, setStatusFilter] = useState("All Status");
   const [yearFilter, setYearFilter] = useState("2023-2024");
@@ -104,7 +122,10 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     isError,
     error,
     refetch,
-  } = useInstallments(installmentNumber, endInstallmentNumber, { enabled: true });
+  } = useInstallments(installmentNumber, endInstallmentNumber, {
+    enabled: true,
+    academicYear: yearFilter,
+  });
   const { mutateAsync: recordPayment, isPending: isRecordingPayment } = useRecordPayment();
 
   const handleViewDetails = (item: any) => {
@@ -125,6 +146,22 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
   const handleClosePaymentModal = () => {
     setPaymentModalVisible(false);
     setSelectedInstallment(null);
+  };
+
+  const runStudentLookup = async () => {
+    const q = lookupQuery.trim();
+    if (q.length < 2) {
+      toast.error("Enter at least 2 characters (name, ID, email, or phone)");
+      return;
+    }
+    try {
+      const res = await get("/fees/lookup-student", { q });
+      const list = res?.data?.students ?? [];
+      setLookupResults(list);
+      if (list.length === 0) toast.info("No students matched");
+    } catch (e: any) {
+      toast.error(e?.message || "Lookup failed");
+    }
   };
 
   const handleSubmitPayment = async (data: PaymentFormData) => {
@@ -181,6 +218,9 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     const pending = installments.filter(
       (i: any) => normalizeStatus(i.paymentStatus) === "Pending"
     ).length;
+    const cancelled = installments.filter(
+      (i: any) => normalizeStatus(i.paymentStatus) === "Cancelled"
+    ).length;
     const total = installments.reduce((s: number, i: any) => s + (Number(i.amount) || 0), 0);
     const totalPaid = installments.reduce(
       (s: number, i: any) => s + (Number(i.paidAmount) || 0),
@@ -193,6 +233,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     return {
       paid,
       pending,
+      cancelled,
       totalFees: formatCurrency(total),
       totalHostel: formatCurrency(0),
       totalTransport: formatCurrency(0),
@@ -202,6 +243,11 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
   }, [installments]);
 
   // Filtered data
+  const chartData = useMemo(
+    () => buildCollectionChartData(installments),
+    [installments],
+  );
+
   const filteredData = useMemo(() => {
     return installments.filter((item: any) => {
       const q = searchQuery.trim().toLowerCase();
@@ -212,9 +258,11 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
       const status = normalizeStatus(item.paymentStatus);
       const matchesStatus =
         statusFilter === "All Status" || status === statusFilter;
-      return matchesSearch && matchesStatus;
+      const matchesLookup =
+        !lookupStudentId || item.studentId === lookupStudentId;
+      return matchesSearch && matchesStatus && matchesLookup;
     });
-  }, [installments, searchQuery, statusFilter]);
+  }, [installments, searchQuery, statusFilter, lookupStudentId]);
 
   // Pagination
   const from = page * itemsPerPage;
@@ -224,7 +272,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
 
   useEffect(() => {
     setPage(0);
-  }, [searchQuery, statusFilter]);
+  }, [searchQuery, statusFilter, lookupStudentId]);
 
   return (
     <div className="space-y-6">
@@ -249,7 +297,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
         {/* Chart Card */}
         <div className="border rounded-lg p-4">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold">Fees Collection</h3>
+            <h3 className="text-lg font-semibold">Fees Collection (by payment month)</h3>
           </div>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={chartData}>
@@ -280,7 +328,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
               <span className="text-sm text-gray-600">Total Remaining</span>
               <span className="font-semibold text-red-600">{feeStats.totalRemaining}</span>
             </div>
-            <div className="flex gap-4 pt-2 border-t">
+              <div className="flex flex-wrap gap-4 pt-2 border-t">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-primary"></div>
                 <span className="text-sm">Paid: {feeStats.paid}</span>
@@ -289,9 +337,61 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                 <div className="w-3 h-3 rounded-full bg-orange-500"></div>
                 <span className="text-sm">Pending: {feeStats.pending}</span>
               </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-slate-400"></div>
+                <span className="text-sm">Cancelled: {feeStats.cancelled}</span>
+              </div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Student lookup (fee desk) */}
+      <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+        <div className="text-sm font-medium">Find student for payment</div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input
+            placeholder="Public ID, email, phone, or name fragment"
+            value={lookupQuery}
+            onChange={(e) => setLookupQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && runStudentLookup()}
+            className="flex-1"
+          />
+          <Button type="button" variant="secondary" onClick={runStudentLookup} className="gap-2 shrink-0">
+            <Search className="h-4 w-4" />
+            Search
+          </Button>
+        </div>
+        {lookupResults.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {lookupResults.map((s: any) => (
+              <Button
+                key={s.id}
+                type="button"
+                size="sm"
+                variant={lookupStudentId === s.id ? "default" : "outline"}
+                onClick={() => {
+                  setLookupStudentId(s.id);
+                  const name = [s.firstName, s.lastName].filter(Boolean).join(" ");
+                  setSearchQuery(name || s.publicUserId || "");
+                }}
+              >
+                {s.publicUserId || s.id.slice(0, 8)} — {[s.firstName, s.lastName].filter(Boolean).join(" ")}
+              </Button>
+            ))}
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setLookupStudentId(null);
+                setLookupResults([]);
+              }}
+            >
+              Clear filter
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -397,7 +497,9 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                               ? "bg-schooliat-tint text-primary"
                               : status === "Partially Paid"
                                 ? "bg-amber-100 text-amber-800"
-                                : "bg-orange-100 text-orange-800"
+                                : status === "Cancelled"
+                                  ? "bg-slate-200 text-slate-800"
+                                  : "bg-orange-100 text-orange-800"
                           }
                         >
                           {status}
@@ -417,11 +519,29 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleRecordPayment(item)}
-                            disabled={status === "Paid" || isRecordingPayment}
+                            disabled={
+                              status === "Paid" || status === "Cancelled" || isRecordingPayment
+                            }
                             className="h-8 w-8"
-                            title={status === "Paid" ? "Fully paid" : "Record Payment"}
+                            title={
+                              status === "Paid"
+                                ? "Fully paid"
+                                : status === "Cancelled"
+                                  ? "Cancelled"
+                                  : "Record Payment"
+                            }
                           >
                             <IndianRupee className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setCancelInstallment(item)}
+                            disabled={status === "Cancelled"}
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            title="Cancel installment (OTP)"
+                          >
+                            <Ban className="w-4 h-4" />
                           </Button>
                           {item.receiptFileUrl && (
                             <Button
@@ -506,6 +626,12 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
         onSubmit={handleSubmitPayment}
         installment={selectedInstallment}
         isSubmitting={isRecordingPayment}
+      />
+      <CancelFeeInstallmentModal
+        visible={!!cancelInstallment}
+        onClose={() => setCancelInstallment(null)}
+        installment={cancelInstallment}
+        onSuccess={() => refetch()}
       />
     </div>
   );

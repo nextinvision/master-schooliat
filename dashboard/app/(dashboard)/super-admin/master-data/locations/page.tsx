@@ -43,6 +43,8 @@ import {
 } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SuperAdminDeletionOtpDialog } from "@/components/super-admin/deletion-otp-dialog";
+import { SUPER_ADMIN_DELETION_ENTITY } from "@/lib/super-admin/deletion-entity-types";
 
 export default function LocationsPage() {
   const { data: locationsData, isLoading: locationsLoading } = useLocations();
@@ -127,26 +129,6 @@ export default function LocationsPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update location",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedLocation) return;
-
-    try {
-      await deleteLocation.mutateAsync(selectedLocation.id);
-      toast({
-        title: "Success",
-        description: "Location deleted successfully",
-      });
-      setIsDeleteOpen(false);
-      setSelectedLocation(null);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete location",
         variant: "destructive",
       });
     }
@@ -415,29 +397,31 @@ export default function LocationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
-      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Location</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{selectedLocation?.name}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteLocation.isPending}
-            >
-              {deleteLocation.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SuperAdminDeletionOtpDialog
+        open={isDeleteOpen}
+        onOpenChange={(open) => {
+          setIsDeleteOpen(open);
+          if (!open) setSelectedLocation(null);
+        }}
+        title="Delete location"
+        description={
+          selectedLocation
+            ? `Remove "${selectedLocation.name}" permanently. This cannot be undone.`
+            : ""
+        }
+        entityType={SUPER_ADMIN_DELETION_ENTITY.LOCATION}
+        entityId={selectedLocation?.id ?? ""}
+        isDeleting={deleteLocation.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!selectedLocation) return;
+          await deleteLocation.mutateAsync({ id: selectedLocation.id, otp });
+          toast({
+            title: "Success",
+            description: "Location deleted successfully",
+          });
+          setSelectedLocation(null);
+        }}
+      />
     </div>
   );
 }

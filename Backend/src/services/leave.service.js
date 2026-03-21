@@ -250,6 +250,7 @@ const getLeaveHistory = async (userId, filters = {}) => {
     startDate = null,
     endDate = null,
     schoolId = null,
+    classId = null,
     ...paginationOptions
   } = filters;
 
@@ -265,6 +266,15 @@ const getLeaveHistory = async (userId, filters = {}) => {
     where.schoolId = schoolId;
   } else {
     throw new Error("Either userId or schoolId must be provided");
+  }
+
+  if (classId && !userId) {
+    where.user = {
+      studentProfile: {
+        classId,
+        deletedAt: null,
+      },
+    };
   }
 
   if (status) {

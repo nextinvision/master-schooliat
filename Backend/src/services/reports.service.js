@@ -82,7 +82,7 @@ const getAttendanceReports = async (schoolId, filters = {}) => {
  * @returns {Promise<Object>} - Fee analytics
  */
 const getFeeAnalytics = async (schoolId, filters = {}) => {
-  const { startDate = null, endDate = null, studentId = null } = filters;
+  const { startDate = null, endDate = null, studentId = null, classId = null } = filters;
 
   const where = {
     schoolId,
@@ -91,6 +91,40 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
 
   if (studentId) {
     where.studentId = studentId;
+  } else if (classId) {
+    const studentsInClass = await prisma.user.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        studentProfile: {
+          classId,
+          deletedAt: null,
+        },
+      },
+      select: { id: true },
+    });
+    const ids = studentsInClass.map((u) => u.id);
+    if (ids.length === 0) {
+      return {
+        installments: [],
+        statistics: {
+          totalAmount: 0,
+          totalRevenue: 0,
+          paidAmount: 0,
+          totalPaid: 0,
+          pendingAmount: 0,
+          totalPending: 0,
+          overdueAmount: 0,
+          collectionRate: 0,
+          totalInstallments: 0,
+          paidInstallments: 0,
+          pendingInstallments: 0,
+          cancelledInstallments: 0,
+          cancelledAmountGross: 0,
+        },
+      };
+    }
+    where.studentId = { in: ids };
   }
 
   const installments = await prisma.feeInstallements.findMany({
@@ -118,6 +152,14 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
     .filter((inst) => inst.paymentStatus === "PENDING" && inst.paidAt == null && new Date(inst.createdAt) < new Date())
     .reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
 
+  const cancelledRows = filteredInstallments.filter(
+    (inst) => inst.paymentStatus === "CANCELLED",
+  );
+  const cancelledAmountGross = cancelledRows.reduce(
+    (sum, inst) => sum + Number(inst.amount || 0),
+    0,
+  );
+
   const collectionRate = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
 
   return {
@@ -134,6 +176,8 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
       totalInstallments: filteredInstallments.length,
       paidInstallments: filteredInstallments.filter((inst) => inst.paymentStatus === "PAID").length,
       pendingInstallments: filteredInstallments.filter((inst) => inst.paymentStatus === "PENDING").length,
+      cancelledInstallments: cancelledRows.length,
+      cancelledAmountGross,
     },
   };
 };

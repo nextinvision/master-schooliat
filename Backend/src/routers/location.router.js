@@ -3,6 +3,9 @@ import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
 import paginateUtil from "../utils/paginate.util.js";
+import validateRequest from "../middlewares/validate-request.middleware.js";
+import deleteLocationSchema from "../schemas/location/delete-location.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -132,6 +135,8 @@ router.patch(
 router.delete(
   "/:id",
   withPermission(Permission.DELETE_LOCATION),
+  validateRequest(deleteLocationSchema),
+  requireDeletionOTP({ entityType: "Location" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;

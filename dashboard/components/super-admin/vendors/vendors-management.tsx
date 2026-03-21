@@ -24,6 +24,8 @@ import { useVendors, useVendorStats, useDeleteVendor, Vendor } from "@/lib/hooks
 import { useToast } from "@/hooks/use-toast";
 import { EditVendorDialog } from "./edit-vendor-dialog";
 import { AddVendorDialog } from "./add-vendor-dialog";
+import { SuperAdminDeletionOtpDialog } from "@/components/super-admin/deletion-otp-dialog";
+import { SUPER_ADMIN_DELETION_ENTITY } from "@/lib/super-admin/deletion-entity-types";
 
 const LEAD_STATUS_CONFIG = {
   NEW: { label: "New", color: "#3498db", bgColor: "#e8f4fd" },
@@ -40,6 +42,7 @@ export function VendorsManagement() {
   const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
   const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
   const [isAddingVendor, setIsAddingVendor] = useState(false);
+  const [vendorToDelete, setVendorToDelete] = useState<Vendor | null>(null);
   const itemsPerPage = 10;
 
   const { data: statsData } = useVendorStats();
@@ -71,23 +74,6 @@ export function VendorsManagement() {
   useEffect(() => {
     setPage(0);
   }, [searchQuery, statusFilter]);
-
-  const handleDeleteVendor = async (vendorId: string) => {
-    if (!confirm("Are you sure you want to delete this vendor?")) return;
-    try {
-      await deleteVendor.mutateAsync(vendorId);
-      toast({
-        title: "Success",
-        description: "Vendor deleted successfully!",
-      });
-    } catch (err: any) {
-      toast({
-        title: "Error",
-        description: err?.message || "Failed to delete vendor",
-        variant: "destructive",
-      });
-    }
-  };
 
   if (isLoading) {
     return (
@@ -234,7 +220,7 @@ export function VendorsManagement() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            onClick={() => handleDeleteVendor(vendor.id)}
+                            onClick={() => setVendorToDelete(vendor)}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -288,6 +274,31 @@ export function VendorsManagement() {
       <AddVendorDialog
         isOpen={isAddingVendor}
         onOpenChange={setIsAddingVendor}
+      />
+
+      <SuperAdminDeletionOtpDialog
+        open={!!vendorToDelete}
+        onOpenChange={(open) => {
+          if (!open) setVendorToDelete(null);
+        }}
+        title="Delete vendor"
+        description={
+          vendorToDelete
+            ? `Remove "${vendorToDelete.name}" permanently. This cannot be undone.`
+            : ""
+        }
+        entityType={SUPER_ADMIN_DELETION_ENTITY.VENDOR}
+        entityId={vendorToDelete?.id ?? ""}
+        isDeleting={deleteVendor.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!vendorToDelete) return;
+          await deleteVendor.mutateAsync({ id: vendorToDelete.id, otp });
+          toast({
+            title: "Success",
+            description: "Vendor deleted successfully!",
+          });
+          setVendorToDelete(null);
+        }}
       />
     </div>
   );

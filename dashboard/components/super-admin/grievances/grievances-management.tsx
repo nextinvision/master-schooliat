@@ -1,12 +1,20 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Clipboard, Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 import { useGrievances } from "@/lib/hooks/use-grievances";
+import { useSchools } from "@/lib/hooks/use-super-admin";
 
 const STATUS_CONFIG = {
   OPEN: {
@@ -42,18 +50,34 @@ const PRIORITY_CONFIG = {
   URGENT: { label: "Urgent", color: "#ef4444" },
 };
 
+type ScopeFilter = "all" | "platform" | "school";
+
 export function GrievancesManagement() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [priorityFilter, setPriorityFilter] = useState<string | null>(null);
+  const [scope, setScope] = useState<ScopeFilter>("all");
+  const [filterSchoolId, setFilterSchoolId] = useState<string>("");
 
-  const { data, isLoading, error } = useGrievances({
-    status: statusFilter || undefined,
-    priority: priorityFilter || undefined,
-  });
+  const { data: schoolsRes } = useSchools();
+  const schools = (schoolsRes?.data ?? []) as { id: string; name: string; code: string }[];
 
-  const grievances = data?.data ?? [];
+  const listEnabled = scope !== "school" || !!filterSchoolId;
+
+  const { data, isLoading, error } = useGrievances(
+    {
+      scope,
+      status: statusFilter || undefined,
+      priority: priorityFilter || undefined,
+      platformOnly: scope === "platform",
+      schoolId:
+        scope === "school" && filterSchoolId ? filterSchoolId : undefined,
+    },
+    { enabled: listEnabled },
+  );
+
+  const grievances = listEnabled ? (data?.data ?? []) : [];
 
   const filteredGrievances = useMemo(() => {
     if (!searchQuery.trim()) return grievances;
@@ -93,7 +117,7 @@ export function GrievancesManagement() {
     });
   };
 
-  if (isLoading) {
+  if (isLoading && listEnabled) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-center">
@@ -152,13 +176,51 @@ export function GrievancesManagement() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4">
-        <Input
-          placeholder="Search..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="max-w-sm"
-        />
+      <div className="flex flex-col sm:flex-row gap-4 flex-wrap">
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-gray-700">Scope</p>
+          <Select
+            value={scope}
+            onValueChange={(v: ScopeFilter) => {
+              setScope(v);
+              if (v !== "school") setFilterSchoolId("");
+            }}
+          >
+            <SelectTrigger className="w-[220px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All schools</SelectItem>
+              <SelectItem value="platform">Platform (no school)</SelectItem>
+              <SelectItem value="school">Single school</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        {scope === "school" ? (
+          <div className="space-y-2 flex-1 min-w-[200px]">
+            <p className="text-sm font-medium text-gray-700">School</p>
+            <Select value={filterSchoolId} onValueChange={setFilterSchoolId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose a school…" />
+              </SelectTrigger>
+              <SelectContent>
+                {schools.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name} ({s.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+        <div className="space-y-2 flex-1 min-w-[200px]">
+          <p className="text-sm font-medium text-gray-700">Search</p>
+          <Input
+            placeholder="Search title, school, author…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
 
       {/* Status Chips */}
@@ -190,7 +252,13 @@ export function GrievancesManagement() {
       </div>
 
       {/* Grievances List */}
-      {filteredGrievances.length === 0 ? (
+      {scope === "school" && !filterSchoolId ? (
+        <div className="text-center py-12 border rounded-lg bg-gray-50">
+          <p className="text-gray-600">
+            Choose a school in the filter row above to load its grievances.
+          </p>
+        </div>
+      ) : filteredGrievances.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500">No grievances found</p>
         </div>

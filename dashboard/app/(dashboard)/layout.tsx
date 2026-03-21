@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ClassesProvider } from "@/lib/context/classes-context";
 import { SidebarProvider } from "@/lib/context/sidebar-context";
 import { AcademicYearProvider } from "@/lib/context/academic-year-context";
+import { PortalPeriodProvider } from "@/lib/context/portal-period-context";
 import { LayoutContent } from "./layout-content";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -41,11 +42,13 @@ export default function DashboardLayout({
 
   return (
     <AcademicYearProvider>
-      <ClassesProvider>
-        <SidebarProvider>
-          <LayoutContent>{children}</LayoutContent>
-        </SidebarProvider>
-      </ClassesProvider>
+      <PortalPeriodProvider>
+        <ClassesProvider>
+          <SidebarProvider>
+            <LayoutContent>{children}</LayoutContent>
+          </SidebarProvider>
+        </ClassesProvider>
+      </PortalPeriodProvider>
     </AcademicYearProvider>
   );
 }

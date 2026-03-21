@@ -188,7 +188,7 @@ router.get(
 // Shared handler for leave history / requests list
 const handleLeaveHistory = async (req, res) => {
   const currentUser = req.context.user;
-  const { userId, status, startDate, endDate, page = 1, limit = 20 } = req.query;
+  const { userId, status, startDate, endDate, page = 1, limit = 20, classId } = req.query;
 
   let targetUserId = currentUser.id;
   let targetSchoolId = null;
@@ -225,6 +225,10 @@ const handleLeaveHistory = async (req, res) => {
       page: parseInt(page, 10) || 1,
       limit: parseInt(limit, 10) || 20,
       schoolId: targetSchoolId,
+      classId:
+        typeof classId === "string" && classId.length > 0 && targetUserId == null
+          ? classId
+          : null,
     });
     const mappedLeaves = result.leaves.map((leave) => ({
       ...leave,

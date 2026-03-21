@@ -29,7 +29,7 @@ export interface ReportFilters {
 export interface AttendanceReportItem {
   id: string;
   date: string;
-  status: "PRESENT" | "ABSENT" | "LATE";
+  status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
   studentId: string;
   student?: { firstName?: string; lastName?: string; studentProfile?: { class?: { grade?: string; division?: string } } };
 }
@@ -67,6 +67,9 @@ export interface FeeStatistics {
   totalInstallments: number;
   paidInstallments: number;
   pendingInstallments: number;
+  /** Ledger: cancelled installment rows (Phase 2 fee analytics). */
+  cancelledInstallments?: number;
+  cancelledAmountGross?: number;
 }
 
 // Academic
@@ -135,6 +138,7 @@ export interface FeeChartPoint {
   period: string;
   paid: number;
   pending: number;
+  cancelled: number;
   amount: number;
 }
 

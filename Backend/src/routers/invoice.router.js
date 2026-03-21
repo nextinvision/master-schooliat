@@ -9,6 +9,9 @@ import {
     InvoiceStatus,
 } from "../prisma/generated/index.js";
 import paginateUtil from "../utils/paginate.util.js";
+import validateRequest from "../middlewares/validate-request.middleware.js";
+import deleteInvoiceSchema from "../schemas/invoice/delete-invoice.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 // Get current directory for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -216,7 +219,12 @@ router.patch("/:id", withPermission(Permission.UPDATE_INVOICE), async (req, res)
     });
 });
 
-router.delete("/:id", withPermission(Permission.DELETE_INVOICE), async (req, res) => {
+router.delete(
+  "/:id",
+  withPermission(Permission.DELETE_INVOICE),
+  validateRequest(deleteInvoiceSchema),
+  requireDeletionOTP({ entityType: "Invoice" }),
+  async (req, res) => {
     const currentUser = req.context.user;
 
     await prisma.invoice.update({

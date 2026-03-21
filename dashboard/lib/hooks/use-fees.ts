@@ -31,6 +31,12 @@ function requestFeeOTPApi() {
   return post("/fees/request-otp", {});
 }
 
+function cancelInstallmentApi(installmentId: string, otp: string, reason?: string) {
+  return patch(`/fees/installments/${installmentId}/cancel`, {
+    request: { otp, reason },
+  });
+}
+
 export function useInstallments(installmentNumber: number, endInstallmentNumber?: number, options: { enabled?: boolean; academicYear?: string } = {}) {
   const { enabled = true, academicYear } = options;
   const shouldFetch = typeof installmentNumber === "number" && installmentNumber >= 1;
@@ -85,6 +91,26 @@ export function useRecordPayment() {
 export function useRequestOTP() {
   return useMutation({
     mutationFn: requestFeeOTPApi,
+  });
+}
+
+export function useCancelFeeInstallment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      installmentId,
+      otp,
+      reason,
+    }: {
+      installmentId: string;
+      otp: string;
+      reason?: string;
+    }) => cancelInstallmentApi(installmentId, otp, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fees", "installments"] });
+      queryClient.invalidateQueries({ queryKey: ["fees", "student"] });
+    },
   });
 }
 

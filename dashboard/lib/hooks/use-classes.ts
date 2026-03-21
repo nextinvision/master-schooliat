@@ -20,6 +20,14 @@ function createClassesApi(classes: ClassItem[]) {
       grade: cls.grade,
       division: cls.division || null,
       classTeacherId: cls.classTeacherId || null,
+      defaultAnnualFee:
+        cls.defaultAnnualFee !== undefined && cls.defaultAnnualFee !== null
+          ? cls.defaultAnnualFee
+          : undefined,
+      defaultMonthlyFee:
+        cls.defaultMonthlyFee !== undefined && cls.defaultMonthlyFee !== null
+          ? cls.defaultMonthlyFee
+          : undefined,
     })),
   };
   return post("/schools/classes", payload);

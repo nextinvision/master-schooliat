@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { ClassItem } from "@/lib/schemas/class-schema";
 
 const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
@@ -41,7 +42,14 @@ export function ClassFormTable({
   const addRow = () => {
     onChange([
       ...classes,
-      { id: null, grade: "", division: "", classTeacherId: null },
+      {
+        id: null,
+        grade: "",
+        division: "",
+        classTeacherId: null,
+        defaultAnnualFee: null,
+        defaultMonthlyFee: null,
+      },
     ]);
   };
 
@@ -79,6 +87,12 @@ export function ClassFormTable({
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[220px]">
                   Class Teacher
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[140px]">
+                  Annual fee (₹)
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[140px]">
+                  Monthly fee (₹)
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[60px]">
                   Action
@@ -153,6 +167,40 @@ export function ClassFormTable({
                         ))}
                       </SelectContent>
                     </Select>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="School default"
+                      value={cls.defaultAnnualFee ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        onFieldChange(
+                          index,
+                          "defaultAnnualFee",
+                          v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
+                        );
+                      }}
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <Input
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="× installments"
+                      value={cls.defaultMonthlyFee ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        onFieldChange(
+                          index,
+                          "defaultMonthlyFee",
+                          v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
+                        );
+                      }}
+                    />
                   </td>
                   <td className="px-4 py-3">
                     {classes.length > 1 && (

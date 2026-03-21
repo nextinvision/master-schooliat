@@ -4,18 +4,9 @@ import logger from "../config/logger.js";
 import notificationService from "./notification.service.js";
 
 /**
- * Creates Fee and FeeInstallements records for a student based on school settings
- * @param {string} studentId - The student's user ID
- * @param {string} schoolId - The school ID
- * @param {string} createdBy - The user ID creating the records
- * @returns {Promise<object>} The created Fee record with installments
+ * Resolve annual fee total and installment count for a student (class defaults override school settings).
  */
-const createFeeInstallementsForStudent = async (
-  studentId,
-  schoolId,
-  createdBy,
-) => {
-  // Get settings for the school
+const resolveFeePlanForStudent = async (studentId, schoolId) => {
   const settings = await prisma.settings.findFirst({
     where: {
       schoolId,
@@ -29,17 +20,67 @@ const createFeeInstallementsForStudent = async (
     );
   }
 
-  const totalAmount = settings.studentFeeAmount || 0;
   const numberOfInstallments = settings.studentFeeInstallments || 12;
+  let totalAmount = settings.studentFeeAmount || 0;
+
+  const profile = await prisma.studentProfile.findUnique({
+    where: { userId: studentId },
+    include: {
+      class: {
+        select: {
+          defaultAnnualFee: true,
+          defaultMonthlyFee: true,
+        },
+      },
+    },
+  });
+
+  const cls = profile?.class;
+  if (cls) {
+    if (cls.defaultAnnualFee != null && cls.defaultAnnualFee > 0) {
+      totalAmount = cls.defaultAnnualFee;
+    } else if (cls.defaultMonthlyFee != null && cls.defaultMonthlyFee > 0) {
+      totalAmount = cls.defaultMonthlyFee * numberOfInstallments;
+    }
+  }
+
+  return { totalAmount, numberOfInstallments, settings };
+};
+
+/**
+ * Creates Fee and FeeInstallements records for a student (idempotent if an active fee already exists).
+ */
+const createFeeInstallementsForStudent = async (
+  studentId,
+  schoolId,
+  createdBy,
+) => {
+  const existingFee = await prisma.fee.findFirst({
+    where: {
+      studentId,
+      schoolId,
+      deletedAt: null,
+    },
+  });
+
+  if (existingFee) {
+    const installments = await prisma.feeInstallements.findMany({
+      where: { feeId: existingFee.id, deletedAt: null },
+      orderBy: { installementNumber: "asc" },
+    });
+    return { ...existingFee, installments };
+  }
+
+  const { totalAmount, numberOfInstallments } = await resolveFeePlanForStudent(
+    studentId,
+    schoolId,
+  );
   const currentYear = new Date().getFullYear();
 
-  // Calculate amount per installment (divide evenly, put remainder in first installment)
   const baseInstallmentAmount = Math.floor(totalAmount / numberOfInstallments);
   const remainder = totalAmount % numberOfInstallments;
 
-  // Create Fee record and FeeInstallements in a transaction
   const result = await prisma.$transaction(async (tx) => {
-    // Create the main Fee record
     const fee = await tx.fee.create({
       data: {
         schoolId,
@@ -52,10 +93,8 @@ const createFeeInstallementsForStudent = async (
       },
     });
 
-    // Create FeeInstallements records
     const installmentsData = [];
     for (let i = 1; i <= numberOfInstallments; i++) {
-      // First installment gets the remainder
       const installmentAmount =
         i === 1 ? baseInstallmentAmount + remainder : baseInstallmentAmount;
 
@@ -76,7 +115,6 @@ const createFeeInstallementsForStudent = async (
       data: installmentsData,
     });
 
-    // Fetch the created installments to return
     const installments = await tx.feeInstallements.findMany({
       where: { feeId: fee.id },
       orderBy: { installementNumber: "asc" },
@@ -86,6 +124,111 @@ const createFeeInstallementsForStudent = async (
   });
 
   return result;
+};
+
+/**
+ * If the student has no payments yet, replace the fee plan using the current class defaults.
+ */
+const rebuildUnpaidFeePlanForStudent = async (studentId, schoolId, updatedBy) => {
+  const fee = await prisma.fee.findFirst({
+    where: { studentId, schoolId, deletedAt: null },
+    include: {
+      installments: {
+        where: { deletedAt: null },
+      },
+    },
+  });
+
+  if (!fee) {
+    return createFeeInstallementsForStudent(studentId, schoolId, updatedBy);
+  }
+
+  const anyLockedPayment = fee.installments.some(
+    (i) =>
+      i.paymentStatus === FeePaymentStatus.PAID ||
+      i.paymentStatus === FeePaymentStatus.PARTIALLY_PAID ||
+      (i.paidAmount && i.paidAmount > 0),
+  );
+
+  if (anyLockedPayment) {
+    return fee;
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.feeInstallements.updateMany({
+      where: { feeId: fee.id, deletedAt: null },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: updatedBy,
+      },
+    });
+    await tx.fee.update({
+      where: { id: fee.id },
+      data: {
+        deletedAt: new Date(),
+        deletedBy: updatedBy,
+      },
+    });
+  });
+
+  return createFeeInstallementsForStudent(studentId, schoolId, updatedBy);
+};
+
+/**
+ * Cancel a fee installment (ledger row retained). Reverts fee aggregates by prior paidAmount.
+ */
+const cancelFeeInstallment = async (
+  installmentId,
+  schoolId,
+  userId,
+  reason,
+) => {
+  const installment = await prisma.feeInstallements.findFirst({
+    where: {
+      id: installmentId,
+      schoolId,
+      deletedAt: null,
+    },
+    include: { fee: true },
+  });
+
+  if (!installment) {
+    throw new Error("Installment not found");
+  }
+
+  if (installment.paymentStatus === FeePaymentStatus.CANCELLED) {
+    throw new Error("Installment is already cancelled");
+  }
+
+  const prevPaid = Number(installment.paidAmount || 0);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.feeInstallements.update({
+      where: { id: installmentId },
+      data: {
+        paymentStatus: FeePaymentStatus.CANCELLED,
+        cancellationReason: reason || null,
+        cancelledAt: new Date(),
+        paidAt: null,
+        paidAmount: 0,
+        remainingAmount: installment.amount,
+        updatedBy: userId,
+      },
+    });
+
+    if (prevPaid > 0 && installment.feeId) {
+      await tx.fee.update({
+        where: { id: installment.feeId },
+        data: {
+          totalPaidAmount: { decrement: prevPaid },
+          totalRemainingAmount: { increment: prevPaid },
+          updatedBy: userId,
+        },
+      });
+    }
+
+    return { success: true };
+  });
 };
 
 /**
@@ -107,6 +250,10 @@ const recordPayment = async (installmentId, amount, paymentMethod, receiptFileId
 
   if (!installment) {
     throw new Error("Installment not found");
+  }
+
+  if (installment.paymentStatus === FeePaymentStatus.CANCELLED) {
+    throw new Error("Cannot record payment on a cancelled installment");
   }
 
   // Calculate new amounts
@@ -203,7 +350,11 @@ const calculateLateFee = async (installmentId, lateFeeConfig) => {
     },
   });
 
-  if (!installment || installment.paymentStatus === FeePaymentStatus.PAID) {
+  if (
+    !installment ||
+    installment.paymentStatus === FeePaymentStatus.PAID ||
+    installment.paymentStatus === FeePaymentStatus.CANCELLED
+  ) {
     return 0;
   }
 
@@ -289,48 +440,73 @@ const applyDiscount = async (feeId, discountAmount, discountType, reason, applie
  * @returns {Promise<Object>} - Fee analytics
  */
 const getFeeAnalytics = async (schoolId, year) => {
-  const [totalFees, totalPaid, totalPending, defaulterCount] = await Promise.all([
-    prisma.fee.aggregate({
-      where: {
-        schoolId,
-        year,
+  const feeIdsForYear = await prisma.fee.findMany({
+    where: { schoolId, year, deletedAt: null },
+    select: { id: true },
+  });
+  const feeIdList = feeIdsForYear.map((f) => f.id);
+
+  const cancelledWhere =
+    feeIdList.length === 0
+      ? null
+      : {
+        feeId: { in: feeIdList },
+        paymentStatus: FeePaymentStatus.CANCELLED,
         deletedAt: null,
-      },
-      _sum: {
-        totalAmount: true,
-      },
-    }),
-    prisma.fee.aggregate({
-      where: {
-        schoolId,
-        year,
-        deletedAt: null,
-      },
-      _sum: {
-        totalPaidAmount: true,
-      },
-    }),
-    prisma.fee.aggregate({
-      where: {
-        schoolId,
-        year,
-        deletedAt: null,
-      },
-      _sum: {
-        totalRemainingAmount: true,
-      },
-    }),
-    prisma.fee.count({
-      where: {
-        schoolId,
-        year,
-        totalRemainingAmount: {
-          gt: 0,
+      };
+
+  const [totalFees, totalPaid, totalPending, defaulterCount, cancelledSum, cancelledCount] =
+    await Promise.all([
+      prisma.fee.aggregate({
+        where: {
+          schoolId,
+          year,
+          deletedAt: null,
         },
-        deletedAt: null,
-      },
-    }),
-  ]);
+        _sum: {
+          totalAmount: true,
+        },
+      }),
+      prisma.fee.aggregate({
+        where: {
+          schoolId,
+          year,
+          deletedAt: null,
+        },
+        _sum: {
+          totalPaidAmount: true,
+        },
+      }),
+      prisma.fee.aggregate({
+        where: {
+          schoolId,
+          year,
+          deletedAt: null,
+        },
+        _sum: {
+          totalRemainingAmount: true,
+        },
+      }),
+      prisma.fee.count({
+        where: {
+          schoolId,
+          year,
+          totalRemainingAmount: {
+            gt: 0,
+          },
+          deletedAt: null,
+        },
+      }),
+      cancelledWhere
+        ? prisma.feeInstallements.aggregate({
+          where: cancelledWhere,
+          _sum: { amount: true },
+        })
+        : Promise.resolve({ _sum: { amount: 0 } }),
+      cancelledWhere
+        ? prisma.feeInstallements.count({ where: cancelledWhere })
+        : Promise.resolve(0),
+    ]);
 
   const collectionPercentage = totalFees._sum.totalAmount > 0
     ? (totalPaid._sum.totalPaidAmount / totalFees._sum.totalAmount) * 100
@@ -342,6 +518,8 @@ const getFeeAnalytics = async (schoolId, year) => {
     totalPending: totalPending._sum.totalRemainingAmount || 0,
     collectionPercentage: Math.round(collectionPercentage * 100) / 100,
     defaulterCount,
+    cancelledInstallmentCount: cancelledCount,
+    cancelledInstallmentAmountGross: cancelledSum._sum?.amount || 0,
   };
 };
 
@@ -416,7 +594,10 @@ const getDefaulters = async (schoolId, year, options = {}) => {
 };
 
 const feeService = {
+  resolveFeePlanForStudent,
   createFeeInstallementsForStudent,
+  rebuildUnpaidFeePlanForStudent,
+  cancelFeeInstallment,
   recordPayment,
   calculateLateFee,
   applyDiscount,

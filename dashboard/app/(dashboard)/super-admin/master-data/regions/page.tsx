@@ -41,6 +41,8 @@ import {
 } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SuperAdminDeletionOtpDialog } from "@/components/super-admin/deletion-otp-dialog";
+import { SUPER_ADMIN_DELETION_ENTITY } from "@/lib/super-admin/deletion-entity-types";
 
 export default function RegionsPage() {
   const { data, isLoading } = useRegions();
@@ -120,26 +122,6 @@ export default function RegionsPage() {
       toast({
         title: "Error",
         description: error.message || "Failed to update region",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!selectedRegion) return;
-
-    try {
-      await deleteRegion.mutateAsync(selectedRegion.id);
-      toast({
-        title: "Success",
-        description: "Region deleted successfully",
-      });
-      setIsDeleteOpen(false);
-      setSelectedRegion(null);
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete region",
         variant: "destructive",
       });
     }
@@ -348,29 +330,31 @@ export default function RegionsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Dialog */}
-      <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Region</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{selectedRegion?.name}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteRegion.isPending}
-            >
-              {deleteRegion.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SuperAdminDeletionOtpDialog
+        open={isDeleteOpen}
+        onOpenChange={(open) => {
+          setIsDeleteOpen(open);
+          if (!open) setSelectedRegion(null);
+        }}
+        title="Delete region"
+        description={
+          selectedRegion
+            ? `Remove "${selectedRegion.name}" permanently. This cannot be undone.`
+            : ""
+        }
+        entityType={SUPER_ADMIN_DELETION_ENTITY.REGION}
+        entityId={selectedRegion?.id ?? ""}
+        isDeleting={deleteRegion.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!selectedRegion) return;
+          await deleteRegion.mutateAsync({ id: selectedRegion.id, otp });
+          toast({
+            title: "Success",
+            description: "Region deleted successfully",
+          });
+          setSelectedRegion(null);
+        }}
+      />
     </div>
   );
 }

@@ -140,6 +140,54 @@ const getNotes = async (schoolId, filters = {}, options = {}) => {
 };
 
 /**
+ * Get a single note by id (school-scoped)
+ */
+const getNoteById = async (schoolId, noteId) => {
+  if (!schoolId || !noteId) return null;
+  try {
+    return await prisma.note.findFirst({
+      where: {
+        id: noteId,
+        schoolId,
+        deletedAt: null,
+        isActive: true,
+      },
+      include: {
+        subject: { select: { id: true, name: true } },
+        class: { select: { id: true, grade: true, division: true } },
+      },
+    });
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId, noteId }, "getNoteById failed");
+    return null;
+  }
+};
+
+/**
+ * Get a single syllabus by id (school-scoped)
+ */
+const getSyllabusById = async (schoolId, syllabusId) => {
+  if (!schoolId || !syllabusId) return null;
+  try {
+    return await prisma.syllabus.findFirst({
+      where: {
+        id: syllabusId,
+        schoolId,
+        deletedAt: null,
+        isActive: true,
+      },
+      include: {
+        subject: { select: { id: true, name: true } },
+        class: { select: { id: true, grade: true, division: true } },
+      },
+    });
+  } catch (err) {
+    logger.warn({ err: err.message, schoolId, syllabusId }, "getSyllabusById failed");
+    return null;
+  }
+};
+
+/**
  * Create syllabus
  * @param {Object} data - Syllabus data
  * @returns {Promise<Object>} - Created syllabus
@@ -270,9 +318,11 @@ const notesService = {
   createNote,
   updateNote,
   getNotes,
+  getNoteById,
   createSyllabus,
   updateSyllabus,
   getSyllabus,
+  getSyllabusById,
 };
 
 export default notesService;

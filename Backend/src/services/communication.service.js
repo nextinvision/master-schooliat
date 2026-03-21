@@ -1,5 +1,9 @@
 import prisma from "../prisma/client.js";
-import { ConversationType } from "../prisma/generated/index.js";
+import {
+  ConversationType,
+  RoleName,
+  NotificationType,
+} from "../prisma/generated/index.js";
 import logger from "../config/logger.js";
 import notificationService from "./notification.service.js";
 
@@ -284,9 +288,54 @@ const createAnnouncement = async (data) => {
     content,
     targetUserIds = [],
     targetRoles = [],
+    targetSchoolIds = [],
     schoolId,
     createdBy,
+    announcementType,
   } = data;
+
+  const resolvedNotificationType =
+    announcementType === "PAYMENT_REMINDER"
+      ? NotificationType.FEE
+      : NotificationType.ANNOUNCEMENT;
+
+  // Super-admin payment reminders: notify school admins per selected school
+  if (Array.isArray(targetSchoolIds) && targetSchoolIds.length > 0) {
+    const schoolAdminRole = await prisma.role.findFirst({
+      where: { name: RoleName.SCHOOL_ADMIN },
+      select: { id: true },
+    });
+    if (!schoolAdminRole) {
+      throw new Error("School admin role is not configured");
+    }
+    let totalSent = 0;
+    for (const sid of targetSchoolIds) {
+      const admins = await prisma.user.findMany({
+        where: {
+          schoolId: sid,
+          roleId: schoolAdminRole.id,
+          deletedAt: null,
+        },
+        select: { id: true },
+      });
+      const ids = admins.map((a) => a.id);
+      if (ids.length === 0) {
+        continue;
+      }
+      const result = await notificationService.createBulkNotifications(ids, {
+        title,
+        content,
+        type: resolvedNotificationType,
+        schoolId: sid,
+        createdBy,
+      });
+      totalSent += result.count;
+    }
+    return {
+      notificationsSent: totalSent,
+      targetUsers: totalSent,
+    };
+  }
 
   let userIds = [...targetUserIds];
 
@@ -338,7 +387,7 @@ const createAnnouncement = async (data) => {
   const result = await notificationService.createBulkNotifications(userIds, {
     title,
     content,
-    type: "ANNOUNCEMENT",
+    type: resolvedNotificationType,
     schoolId,
     createdBy,
   });

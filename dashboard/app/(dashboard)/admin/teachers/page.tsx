@@ -184,7 +184,6 @@ export default function TeachersPage() {
       {/* Teachers Table */}
       <TeachersTable
         teachers={teachers}
-        onAddNew={() => setIsAddTeacherDialogOpen(true)}
         onEdit={handleEditTeacher}
         onDelete={handleDeleteTeacher}
         onBulkDelete={handleBulkDelete}

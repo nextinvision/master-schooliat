@@ -14,8 +14,8 @@ This document is a **very deep analysis** of both the School Admin and Super Adm
 ---
 
 ### 1.2 Classes (`/admin/classes`, `/admin/classes/update`)
-- **UI**: List from `GET /schools/classes`; update page sends full list via `POST /schools/classes` with create/update/delete in one payload.
-- **Backend**: `POST /schools/classes` supports create + update + soft-delete; `PATCH /schools/classes/:id` exists for single-class edit.
+- **UI**: List from `GET /schools/classes` (card grid, multi-select, bulk class student-list CSV export); update page sends full list via `POST /schools/classes` with optional **default annual/monthly fee** per row.
+- **Backend**: `POST /schools/classes` supports create + update + soft-delete with `defaultAnnualFee` / `defaultMonthlyFee`; `PATCH /schools/classes/:id` supports the same optional fee fields.
 - **Status**: ✅ Working. (Dashboard uses bulk POST for “Update classes”; single-class PATCH is available but not used in UI.)
 
 ---
@@ -42,15 +42,15 @@ This document is a **very deep analysis** of both the School Admin and Super Adm
 ---
 
 ### 1.6 Staff (`/admin/staff`)
-- **UI**: List, add, delete, bulk delete. **Edit**: explicitly shows toast “Edit functionality for staff is coming soon!” – no edit dialog/page.
-- **Backend**: `PATCH /users/staff/:id` exists and is used by hook.
-- **Gap**: ❌ **Staff edit UI not implemented.** Backend supports it; dashboard needs an edit dialog or edit page that calls `PATCH /users/staff/:id`.
+- **UI**: List, add, delete, bulk delete; **edit** at `/admin/staff/[id]/edit` calling `PATCH /users/staff/:id` (payload maps `dob` → `dateOfBirth`).
+- **Backend**: `PATCH /users/staff/:id` exists.
+- **Status**: ✅ Edit flow implemented (replace any legacy “coming soon” toasts if they remain on the list page).
 
 ---
 
 ### 1.7 Attendance (Mark, Staff, Reports)
-- **UI**: Mark → `use-attendance` (periods, mark, mark-bulk); Staff attendance page; Reports → `useAttendanceReports` → `GET /reports/attendance`.
-- **Backend**: attendance.router + reports.router.
+- **UI**: Mark → `use-attendance` (periods, mark, mark-bulk) with **Present / Absent / Late / Half day**; statistics cards use API fields `total`, `present`, `absent`, `late`, `halfDay`; Staff attendance page; Reports → `useAttendanceReports` → `GET /reports/attendance` (portal month sync optional on reports page).
+- **Backend**: attendance.router + reports.router (`AttendanceStatus` includes `HALF_DAY`).
 - **Status**: ✅ Working.
 
 ---
@@ -63,16 +63,16 @@ This document is a **very deep analysis** of both the School Admin and Super Adm
 ---
 
 ### 1.9 Leave (Approvals)
-- **UI**: `use-leave` (history, approve, reject, types).
-- **Backend**: leave.router.
+- **UI**: `use-leave` (history, approve, reject, types); approvals page **class filter** (pending list scoped with `GET /leave/history?userId=all&classId=` for students in that class).
+- **Backend**: leave.router; history supports optional **`classId`** when listing all school requests.
 - **Status**: ✅ Working.
 
 ---
 
 ### 1.10 Finance – Fees (`/admin/finance/fees`)
-- **UI**: Installments, record payment (online/offline), receipt, export. Uses `use-fees` and `downloadFromApi` for export.
-- **Backend**: fee.router (installments, student fees, record payment, OTP, export); receipt generated on payment; `paymentMethod` persisted.
-- **Status**: ✅ Working (after recent root-level fixes). Optional: replace mock chart data in fees-management with real fee analytics.
+- **UI**: Installments, record payment (online/offline), receipt, export, student lookup, cancel installment (OTP), cancelled status; collection chart from paid installments.
+- **Backend**: fee.router (installments, student fees, record payment, cancel, lookup, OTP, export); class-level fee defaults; student fee plan on create / rebuild on class change when safe.
+- **Status**: ✅ Working.
 
 ---
 
@@ -154,16 +154,16 @@ This document is a **very deep analysis** of both the School Admin and Super Adm
 ---
 
 ### 1.22 Reports & Analytics
-- **UI**: Dashboard summary, attendance, fees, academic, salary reports + export (client-side CSV from report data).
-- **Backend**: reports.router (dashboard-summary, attendance, fees, academic, salary).
+- **UI**: Dashboard summary, attendance, fees, academic, salary reports + export (client-side CSV from report data); fee tab shows **cancelled** ledger metrics and trend when data exists; date range can follow **portal month** on school admin reports/attendance reports.
+- **Backend**: reports.router (dashboard-summary, attendance, fees, academic, salary); `GET /reports/fees` supports **`classId`** (students in class).
 - **Status**: ✅ Working.
 
 ---
 
 ### 1.23 Courier (`/admin/courier`)
-- **UI**: CourierManagement – full CRUD for courier entries (tracking, provider, recipient, status) stored in **localStorage only**.
-- **Backend**: No courier API.
-- **Gap**: ❌ **Courier is not persisted.** To make it a real feature: add backend (e.g. Courier/Consignment model, router), then switch UI to use API instead of localStorage.
+- **UI**: CourierManagement – CRUD via `use-courier` (React Query) against **`GET/POST/PATCH/DELETE /api/v1/couriers`**.
+- **Backend**: `SchoolCourier` model (per school, soft delete), `courier.router.js`, permissions `GET_COURIERS`, `CREATE_COURIER_ENTRY`, `UPDATE_COURIER_ENTRY`, `DELETE_COURIER_ENTRY` on School Admin.
+- **Status**: ✅ Persisted per school; aggregates + pagination on list.
 
 ---
 
@@ -309,9 +309,9 @@ This document is a **very deep analysis** of both the School Admin and Super Adm
 ---
 
 ### 2.17 Reminders (Payment Reminders)
-- **UI**: Select schools, set subject/message, “Send Reminder” → `POST /communication/announcements` with **targetSchoolIds** and **type: "PAYMENT_REMINDER"**.
-- **Backend**: createAnnouncement accepts **targetUserIds** and **targetRoles** only; schema has no **targetSchoolIds**. When schoolId is null (super admin), “all school users” branch is not run; no logic to resolve “selected schools” to users.
-- **Gap**: ❌ **Reminders (by school) not supported.** Backend must either: (1) add **targetSchoolIds** to createAnnouncement and resolve to users (e.g. school admins) in those schools, or (2) dashboard must first fetch user IDs by schools and send targetUserIds (and optionally type in payload if backend supports it).
+- **UI**: Select schools, set subject/message, “Send Reminder” → `POST /communication/announcements` with **targetSchoolIds** and **type** (e.g. `PAYMENT_REMINDER`).
+- **Backend**: Announcements / communication service resolves **targetSchoolIds** to users (e.g. school admins per school) and supports notification **type** for payment-style reminders.
+- **Status**: ✅ Working for school-targeted reminders (verify on staging with real schools).
 
 ---
 
@@ -332,10 +332,9 @@ This document is a **very deep analysis** of both the School Admin and Super Adm
 
 | Area | Issue | Fix |
 |------|--------|-----|
-| **Reminders** | Dashboard sends `targetSchoolIds` and `type: "PAYMENT_REMINDER"`; backend has only `targetUserIds` and `targetRoles`. | Add `targetSchoolIds` (optional) to createAnnouncement schema and service; resolve to user IDs (e.g. all users or SCHOOL_ADMIN per school) and create notifications. Optionally support `type` in notification for PAYMENT_REMINDER. |
-| **Courier** | No backend. | Add Courier/Consignment model (and optional status enum), migration, router (CRUD), school-scoped; dashboard to use API instead of localStorage. |
-| **Fees chart** | fees-management uses mock chart data. | Optional: replace with real fee analytics (e.g. from GET /reports/fees or a dedicated fee-chart endpoint). |
+| **Courier** | — | ✅ `SchoolCourier` + `/couriers` + dashboard hooks (was localStorage-only). |
 | **Referral** | No backend. | Optional: add referral tracking (codes, signups, rewards) if product needs it. |
+| **Universal delete OTP** | Super-admin dashboard deletes were ungated. | ✅ Super-admin flows: `SuperAdminDeletionOtpDialog` + `POST /deletion-otp/request`; DELETE payloads include `request.otp`. Backend: `requireDeletionOTP` on school, region, vendor, license, invoice, location deletes. Other panels / routes still auditable separately. |
 
 ---
 
@@ -343,31 +342,15 @@ This document is a **very deep analysis** of both the School Admin and Super Adm
 
 ### Must-have (features that are in the UI but not working end-to-end)
 
-1. **Staff edit (School Admin)**  
-   - **What**: Implement edit flow for staff (dialog or edit page).  
-   - **Where**: Dashboard: staff page + optional edit route.  
-   - **How**: Reuse or mirror teachers/students edit; call existing `PATCH /users/staff/:id` with same payload shape the backend expects.
-
-2. **Payment reminders by school (Super Admin)**  
-   - **What**: Send payment reminders to selected schools.  
-   - **Where**: Backend: communication (announcements) + optional notification type.  
-   - **How**: Extend createAnnouncement to accept `targetSchoolIds`; resolve to users (e.g. SCHOOL_ADMIN or all users) in those schools; create notifications. Extend createAnnouncement schema and validate. Dashboard already sends targetSchoolIds; ensure type PAYMENT_REMINDER is stored/used if desired.
-
-3. **Courier management (School Admin)**  
-   - **What**: Persist courier/consignment data per school.  
-   - **Where**: Backend: new model + router; dashboard: replace localStorage with API.  
-   - **How**: Add Courier/Consignment table (e.g. trackingNumber, provider, recipient, destination, contents, status, dispatchDate, deliveryDate, schoolId, createdBy, etc.); CRUD router with school scope; dashboard CourierManagement to use new hooks and API.
+_(Courier persistence is implemented; see §1.23.)_
 
 ### Should-have (consistency and polish)
 
-4. **Fees chart – real data**  
-   - Replace mock chart in fees-management with real data (e.g. from existing fee/report APIs or a small aggregation endpoint).
-
-5. **Contact SchooliAT / Grievances for Super Admin**  
-   - Ensure super admin grievance list can filter by school or “platform” so “Contact SchooliAT” submissions from schools are visible and manageable in one place.
-
-6. **Referral tracking (optional)**  
+1. **Referral tracking (optional)**  
    - Only if product needs it: referral codes, signup attribution, rewards; backend models + APIs; dashboard updates to show stats or links.
+
+2. **OTP on remaining deletes / cancels (meeting)**  
+   - Super-admin destructive deletes (schools, regions, locations, vendors, licenses, invoices) are OTP-gated end-to-end. Extend the same pattern to school-admin deletes and any other DELETE routes if policy requires it.
 
 ### Already working (no dev needed for “starts working”)
 
@@ -381,11 +364,12 @@ This document is a **very deep analysis** of both the School Admin and Super Adm
 
 | Panel        | Feature / Area     | Status        | Action |
 |-------------|--------------------|---------------|--------|
-| School Admin | Staff edit         | ❌ Not impl.  | Add edit UI (dialog/page), use existing PATCH. |
-| School Admin | Courier            | ❌ Local only | Backend model + API; dashboard use API. |
-| School Admin | Fees chart         | ⚠️ Mock data | Optional: wire to real fee analytics. |
-| Super Admin  | Reminders by school| ❌ Wrong API  | Backend: targetSchoolIds + resolve users. |
-| Super Admin  | Grievances         | ✅            | Ensure list supports all schools if needed. |
+| School Admin | Staff edit         | ✅            | Edit route + PATCH. |
+| School Admin | Courier            | ✅            | `SchoolCourier` + `/couriers`; dashboard API hooks. |
+| School Admin | Fees / classes     | ✅            | Class defaults, ledger cancel, reports class filter, portal month on key report pages. |
+| Super Admin  | Reminders by school| ✅            | targetSchoolIds + resolution (verify on staging). |
+| Super Admin  | Grievances         | ✅            | List scope: all schools, platform (`schoolId` null), or one school; school-scoped for non–super-admin `GET /grievances`. |
 | Both         | Referral           | Optional      | Only if tracking/rewards required. |
+| Both         | Delete OTP everywhere | ⚠️ Partial   | Super-admin deletes: ✅. School admin / other routes: extend if required. |
 
-Once the three must-have items (Staff edit, Reminders by school, Courier backend + UI) are done, every current feature in the two panels can work end-to-end. The rest are optional or already working.
+Remaining panel gaps are mostly optional product items (referral, universal delete OTP, etc.).

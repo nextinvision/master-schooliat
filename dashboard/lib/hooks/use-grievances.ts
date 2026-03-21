@@ -1,12 +1,36 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { get, post, patch } from "@/lib/api/client";
 
-export function useGrievances(params?: { status?: string; priority?: string }) {
-  const { status, priority } = params || {};
+export function useGrievances(
+  params?: {
+    status?: string;
+    priority?: string;
+    schoolId?: string;
+    platformOnly?: boolean;
+    /** Distinguishes list intent for cache keys (e.g. all vs school picker idle). */
+    scope?: "all" | "platform" | "school";
+  },
+  options?: { enabled?: boolean },
+) {
+  const { status, priority, schoolId, platformOnly, scope } = params || {};
+  const query: Record<string, string> = {};
+  if (status) query.status = status;
+  if (priority) query.priority = priority;
+  if (schoolId) query.schoolId = schoolId;
+  if (platformOnly) query.platformOnly = "true";
+
   return useQuery({
-    queryKey: ["grievances", status, priority],
-    queryFn: () => get("/grievances", { status, priority }),
+    queryKey: [
+      "grievances",
+      scope ?? "all",
+      status,
+      priority,
+      schoolId,
+      platformOnly,
+    ],
+    queryFn: () => get("/grievances", query),
     staleTime: 30 * 1000,
+    enabled: options?.enabled !== false,
   });
 }
 

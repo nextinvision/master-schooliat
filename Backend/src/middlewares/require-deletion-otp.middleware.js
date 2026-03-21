@@ -1,67 +1,55 @@
 import otpDeletionService from "../services/otp-deletion.service.js";
-import { ApiErrors } from "../errors.js";
 import logger from "../config/logger.js";
 
 /**
- * Middleware to require OTP for deletion operations
- * Only applies to Super Admin and School Admin
+ * Verifies email OTP (purpose "deletion") after validateRequest has populated req.body.request.otp.
+ * Use only on routes where the body schema includes the deletion OTP field.
+ *
+ * @param {{ entityType: string }} options - Human-readable type for audit logs (e.g. "School", "Invoice").
  */
-const requireDeletionOTP = async (req, res, next) => {
-  const user = req.context?.user;
-  if (!user) {
-    return next();
-  }
+export function requireDeletionOTP({ entityType }) {
+  return async function requireDeletionOTPMiddleware(req, res, next) {
+    try {
+      const user = req.context?.user;
+      if (!user?.email) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
 
-  // Only apply to Super Admin and School Admin
-  const adminRoles = ["SUPER_ADMIN", "SCHOOL_ADMIN"];
-  if (!adminRoles.includes(user.role?.name)) {
-    return next(); // Not an admin role, skip OTP requirement
-  }
+      const otp =
+        req.body?.request?.otp ??
+        (typeof req.body?.otp === "string" ? req.body.otp : null);
 
-  // Check if OTP is provided in request
-  const { otpId, otpCode } = req.body;
+      if (!otp || typeof otp !== "string") {
+        return res.status(403).json({
+          message: "Deletion requires email OTP verification",
+          errorCode: "DELETION_OTP_REQUIRED",
+          requiresOTP: true,
+        });
+      }
 
-  if (!otpId || !otpCode) {
-    // OTP not provided, return error asking for OTP
-    return res.status(403).json({
-      message: "Deletion requires email OTP verification",
-      errorCode: "DELETION_OTP_REQUIRED",
-      requiresOTP: true,
-    });
-  }
+      const entityId = req.params.id || req.params[Object.keys(req.params || {})[0]];
+      const ok = await otpDeletionService.verifyDeletionOTP({
+        userEmail: user.email,
+        otpCode: otp.trim(),
+        entityType,
+        entityId,
+      });
 
-  // Extract entity info from route
-  const routeParts = req.path.split("/").filter(Boolean);
-  const entityType = routeParts[routeParts.length - 1] || routeParts[routeParts.length - 2] || "Unknown";
-  const entityId = req.params.id || req.params[Object.keys(req.params)[0]] || null;
+      if (!ok) {
+        logger.warn(
+          { userId: user.id, entityType, entityId },
+          "Deletion OTP verification failed",
+        );
+        return res.status(403).json({
+          message:
+            "Invalid or expired OTP. Request a new verification code and try again.",
+          errorCode: "DELETION_OTP_INVALID",
+        });
+      }
 
-  // Get IP address
-  const ipAddress =
-    req.ip ||
-    req.headers["x-forwarded-for"]?.split(",")[0] ||
-    req.headers["x-real-ip"] ||
-    req.connection?.remoteAddress ||
-    "unknown";
-
-  // Verify OTP
-  const isValid = await otpDeletionService.verifyDeletionOTP({
-    userEmail: user.email,
-    otpCode,
-    entityType,
-    entityId,
-  });
-
-  if (!isValid) {
-    logger.warn(
-      { userId: user.id, entityType, entityId },
-      "Deletion OTP verification failed",
-    );
-    throw ApiErrors.FORBIDDEN;
-  }
-
-  // OTP verified, proceed with deletion
-  next();
-};
-
-export default requireDeletionOTP;
-
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+}

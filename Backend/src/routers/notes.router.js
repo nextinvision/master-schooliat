@@ -105,6 +105,30 @@ router.get(
   },
 );
 
+// Get single note
+router.get(
+  "/notes/:id",
+  withPermission(Permission.GET_NOTES),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+      const note = await notesService.getNoteById(currentUser.schoolId, id);
+      if (!note) {
+        return res.status(404).json({ message: "Note not found" });
+      }
+      return res.status(200).json({
+        message: "Note fetched successfully",
+        data: note,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch note",
+      });
+    }
+  },
+);
+
 // Delete note
 router.delete(
   "/notes/:id",
@@ -216,6 +240,30 @@ router.get(
         message: "Syllabus fetched successfully",
         data: result.syllabus,
         pagination: result.pagination,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch syllabus",
+      });
+    }
+  },
+);
+
+// Get single syllabus
+router.get(
+  "/syllabus/:id",
+  withPermission(Permission.GET_SYLLABUS),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const currentUser = req.context.user;
+      const syllabus = await notesService.getSyllabusById(currentUser.schoolId, id);
+      if (!syllabus) {
+        return res.status(404).json({ message: "Syllabus not found" });
+      }
+      return res.status(200).json({
+        message: "Syllabus fetched successfully",
+        data: syllabus,
       });
     } catch (error) {
       return res.status(400).json({

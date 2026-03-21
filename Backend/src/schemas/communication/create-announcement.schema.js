@@ -8,6 +8,8 @@ const createAnnouncementSchema = z
         content: z.string().min(1, "Content is required").max(5000, "Content too long"),
         targetUserIds: z.array(z.string().uuid("Invalid user ID")).optional().default([]),
         targetRoles: z.array(z.string()).optional().default([]),
+        targetSchoolIds: z.array(z.string().uuid("Invalid school ID")).optional().default([]),
+        type: z.string().max(64).optional(),
       })
       ,
     query: z.object({}),

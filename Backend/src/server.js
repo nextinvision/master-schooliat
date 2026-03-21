@@ -68,6 +68,7 @@ import tcRouter from "./routers/tc.router.js";
 import emergencyContactRouter from "./routers/emergency-contact.router.js";
 import subjectRouter from "./routers/subject.router.js";
 import inventoryRouter from "./routers/inventory.router.js";
+import courierRouter from "./routers/courier.router.js";
 import roleService from "./services/role.service.js";
 import userService from "./services/user.service.js";
 import logRequestStart from "./middlewares/log-request-start.middleware.js";
@@ -279,6 +280,7 @@ function addRouters(app) {
   app.use("/emergency-contacts", emergencyContactRouter);
   app.use("/subjects", subjectRouter);
   app.use("/inventory", inventoryRouter);
+  app.use("/couriers", courierRouter);
 }
 
 async function setupData() {

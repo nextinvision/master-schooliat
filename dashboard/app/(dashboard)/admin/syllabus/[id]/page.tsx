@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useSyllabus } from "@/lib/hooks/use-notes";
+import { useSyllabusById } from "@/lib/hooks/use-notes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, BookOpen, Calendar, User, ListChecks } from "lucide-react";
@@ -13,8 +13,8 @@ export default function ViewSyllabusPage() {
     const router = useRouter();
     const syllabusId = params.id as string;
 
-    const { data: syllabusData, isLoading } = useSyllabus({});
-    const syllabus = syllabusData?.data?.find((s: any) => s.id === syllabusId);
+    const { data: syllabusRes, isLoading } = useSyllabusById(syllabusId);
+    const syllabus = syllabusRes?.data;
 
     if (isLoading) {
         return (

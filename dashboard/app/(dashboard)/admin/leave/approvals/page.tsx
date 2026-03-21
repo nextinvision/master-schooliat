@@ -6,6 +6,7 @@ import {
   useApproveLeave,
   useRejectLeave,
 } from "@/lib/hooks/use-leave";
+import { useClasses } from "@/lib/hooks/use-classes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -27,6 +28,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import { CheckCircle2, XCircle, ArrowLeft, Calendar } from "lucide-react";
 import { format } from "date-fns";
@@ -35,7 +43,12 @@ import { useRouter } from "next/navigation";
 
 export default function LeaveApprovalsPage() {
   const router = useRouter();
-  const { data: pendingLeaves, isLoading, refetch } = usePendingLeaveRequestsForApproval();
+  const [classFilter, setClassFilter] = useState<string>("all");
+  const { data: classesData, isLoading: classesLoading } = useClasses({ page: 1, limit: 1000 });
+  const classes = classesData?.data ?? [];
+  const { data: pendingLeaves, isLoading, refetch } = usePendingLeaveRequestsForApproval(
+    classFilter === "all" ? null : classFilter
+  );
   const approveLeave = useApproveLeave();
   const rejectLeave = useRejectLeave();
 
@@ -98,6 +111,33 @@ export default function LeaveApprovalsPage() {
           </div>
         </div>
       </div>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Filter by class</CardTitle>
+          <CardDescription>Show pending requests only for students in the selected class (staff/teacher leave is hidden when a class is selected).</CardDescription>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {classesLoading ? (
+            <Skeleton className="h-10 w-full max-w-sm" />
+          ) : (
+            <Select value={classFilter} onValueChange={setClassFilter}>
+              <SelectTrigger className="w-full max-w-sm">
+                <SelectValue placeholder="All classes" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All classes</SelectItem>
+                {classes.map((c: { id: string; grade?: string; division?: string | null }) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.grade}
+                    {c.division ? `-${c.division}` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

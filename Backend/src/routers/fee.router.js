@@ -5,11 +5,12 @@ import { fileURLToPath } from "url";
 import crypto from "crypto";
 import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
-import { Permission, FeePaymentStatus } from "../prisma/generated/index.js";
+import { Permission, FeePaymentStatus, RoleName } from "../prisma/generated/index.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
 import getInstallmentsSchema from "../schemas/fee/get-installments.schema.js";
 import getStudentInstallmentsSchema from "../schemas/fee/get-student-installments.schema.js";
 import recordPaymentSchema from "../schemas/fee/record-payment.schema.js";
+import cancelInstallmentSchema from "../schemas/fee/cancel-installment.schema.js";
 import fileService from "../services/file.service.js";
 import { uploadFile } from "../config/storage/index.js";
 import logger from "../config/logger.js";
@@ -349,13 +350,30 @@ router.get(
       },
     });
 
+    const pendingInstallments = await prisma.feeInstallements.count({
+      where: {
+        ...installmentsWhere,
+        paymentStatus: {
+          in: [FeePaymentStatus.PENDING, FeePaymentStatus.PARTIALLY_PAID],
+        },
+      },
+    });
+
+    const cancelledInstallments = await prisma.feeInstallements.count({
+      where: {
+        ...installmentsWhere,
+        paymentStatus: FeePaymentStatus.CANCELLED,
+      },
+    });
+
     return res.json({
       message: "Fees overview fetched!",
       data: {
         totalFees,
         totalInstallments,
         paidInstallments,
-        pendingInstallments: totalInstallments - paidInstallments,
+        pendingInstallments,
+        cancelledInstallments,
         endpoints: {
           installments: "/fees/installments/:installmentNumber",
           student: "/fees/student/:studentId",
@@ -429,6 +447,81 @@ router.get(
           remainingAmount: i.remainingAmount,
         })),
       },
+    });
+  },
+);
+
+// Lookup student for fee desk (public ID, email, phone, name)
+router.get(
+  "/lookup-student",
+  withPermission(Permission.GET_FEES),
+  async (req, res) => {
+    const qRaw = typeof req.query.q === "string" ? req.query.q.trim() : "";
+    const currentUser = req.context.user;
+
+    if (!currentUser.schoolId) {
+      return res
+        .status(400)
+        .json({ message: "User is not associated with a school!" });
+    }
+
+    if (qRaw.length < 2) {
+      return res.status(400).json({
+        message: "Query q must be at least 2 characters",
+      });
+    }
+
+    const studentRole = await prisma.role.findFirst({
+      where: { name: RoleName.STUDENT, deletedAt: null },
+    });
+    if (!studentRole) {
+      return res.status(500).json({ message: "Student role not configured" });
+    }
+
+    const baseWhere = {
+      schoolId: currentUser.schoolId,
+      roleId: studentRole.id,
+      deletedAt: null,
+    };
+
+    const uuidLike =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        qRaw,
+      );
+
+    const students = await prisma.user.findMany({
+      where: uuidLike
+        ? { ...baseWhere, id: qRaw }
+        : {
+          ...baseWhere,
+          OR: [
+            { publicUserId: { contains: qRaw, mode: "insensitive" } },
+            { email: { contains: qRaw, mode: "insensitive" } },
+            { contact: { contains: qRaw } },
+            { firstName: { contains: qRaw, mode: "insensitive" } },
+            { lastName: { contains: qRaw, mode: "insensitive" } },
+          ],
+        },
+      take: 15,
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        contact: true,
+        publicUserId: true,
+        studentProfile: {
+          select: {
+            rollNumber: true,
+            class: { select: { grade: true, division: true } },
+          },
+        },
+      },
+    });
+
+    return res.json({
+      message: "Student lookup complete",
+      data: { students },
     });
   },
 );
@@ -669,6 +762,12 @@ router.patch(
       return res.status(404).json({ message: "Fee installment not found!" });
     }
 
+    if (installment.paymentStatus === FeePaymentStatus.CANCELLED) {
+      return res.status(400).json({
+        message: "This installment has been cancelled and cannot accept payments.",
+      });
+    }
+
     // Validate payment amount (if not a waiver)
     if (!isWaiver) {
       if (amount <= 0) {
@@ -761,6 +860,52 @@ router.patch(
         fee: result.fee,
       },
     });
+  },
+);
+
+router.patch(
+  "/installments/:id/cancel",
+  withPermission(Permission.RECORD_FEE_PAYMENT),
+  validateRequest(cancelInstallmentSchema),
+  async (req, res) => {
+    const { id } = req.params;
+    const { otp, reason } = req.body.request || {};
+    const currentUser = req.context.user;
+
+    const otpVerification = await otpService.verifyOTP(
+      currentUser.email,
+      otp,
+      "fee-payment",
+    );
+    if (!otpVerification.valid) {
+      return res.status(400).json({ message: otpVerification.message });
+    }
+
+    if (!currentUser.schoolId) {
+      return res
+        .status(400)
+        .json({ message: "User is not associated with a school!" });
+    }
+
+    try {
+      await feeService.cancelFeeInstallment(
+        id,
+        currentUser.schoolId,
+        currentUser.id,
+        reason,
+      );
+      const updated = await prisma.feeInstallements.findFirst({
+        where: { id, schoolId: currentUser.schoolId, deletedAt: null },
+      });
+      return res.json({
+        message: "Installment cancelled",
+        data: { installment: updated },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to cancel installment",
+      });
+    }
   },
 );
 

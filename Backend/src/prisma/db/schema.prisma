@@ -133,6 +133,7 @@ model School {
   schoolTCs               TransferCertificate[] @relation("SchoolTCs")
   users                   User[]
   inventoryItems          InventoryItem[]
+  schoolCouriers          SchoolCourier[]
 
   @@map("schools")
 }
@@ -141,6 +142,10 @@ model Class {
   id             String           @id @default(uuid())
   grade          String
   division       String?
+  /// Optional default total annual fee (whole currency units) for new student fee plans in this class.
+  defaultAnnualFee  Int?          @map("default_annual_fee")
+  /// Optional default monthly fee; if set without annual, annual total = monthly × installment count from school settings.
+  defaultMonthlyFee Int?          @map("default_monthly_fee")
   schoolId       String           @map("school_id")
   classTeacherId String?          @map("class_teacher_id")
   createdBy      String           @map("created_by")
@@ -613,6 +618,8 @@ model FeeInstallements {
   remainingAmount    Int               @map("remaining_amount")
   paidAmount         Int               @map("paid_amount")
   paidAt             DateTime?         @map("paid_at")
+  cancelledAt        DateTime?         @map("cancelled_at")
+  cancellationReason String?           @map("cancellation_reason")
   receiptFileId      String?           @map("receipt_file_id")
   createdBy          String            @map("created_by")
   updatedBy          String?           @map("updated_by")
@@ -1401,6 +1408,29 @@ model InventoryItem {
   @@map("inventory_items")
 }
 
+model SchoolCourier {
+  id              String                @id @default(uuid())
+  schoolId        String                @map("school_id")
+  trackingNumber  String                @map("tracking_number")
+  provider        String
+  recipient       String
+  destination     String
+  contents        String                @default("")
+  status          CourierDispatchStatus @default(DISPATCHED)
+  dispatchDate    DateTime              @default(now()) @map("dispatch_date")
+  deliveryDate    DateTime?             @map("delivery_date")
+  createdBy       String                @map("created_by")
+  updatedBy       String?               @map("updated_by")
+  deletedBy       String?               @map("deleted_by")
+  createdAt       DateTime              @default(now()) @map("created_at")
+  updatedAt       DateTime?             @updatedAt @map("updated_at")
+  deletedAt       DateTime?             @map("deleted_at")
+  school          School                @relation(fields: [schoolId], references: [id])
+
+  @@index([schoolId, deletedAt])
+  @@map("school_couriers")
+}
+
 model Note {
   id          String    @id @default(uuid())
   title       String
@@ -1805,6 +1835,10 @@ enum Permission {
   GET_INVENTORY
   EDIT_INVENTORY_ITEM
   DELETE_INVENTORY_ITEM
+  GET_COURIERS
+  CREATE_COURIER_ENTRY
+  UPDATE_COURIER_ENTRY
+  DELETE_COURIER_ENTRY
   CREATE_INVOICE
   GET_INVOICES
   UPDATE_INVOICE
@@ -1875,8 +1909,18 @@ enum FeePaymentStatus {
   PENDING
   PARTIALLY_PAID
   PAID
+  CANCELLED
 
   @@map("fee_payment_status")
+}
+
+enum CourierDispatchStatus {
+  DISPATCHED
+  IN_TRANSIT
+  DELIVERED
+  RETURNED
+
+  @@map("courier_dispatch_status")
 }
 
 enum GrievanceStatus {

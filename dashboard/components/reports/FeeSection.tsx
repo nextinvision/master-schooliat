@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IndianRupee, TrendingUp, BarChart3, Users } from "lucide-react";
+import { IndianRupee, TrendingUp, BarChart3, Users, Ban } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from "recharts";
 import { aggregateFeesByMonth, feeStatusDistribution, formatCurrency, CHART_COLORS } from "@/lib/utils/analytics";
 import type { FeeStatistics } from "@/lib/types/reports";
@@ -13,7 +13,7 @@ interface FeeSectionProps {
   isLoading: boolean;
 }
 
-const PIE_COLORS = [CHART_COLORS.paid, CHART_COLORS.pending];
+const PIE_COLORS = [CHART_COLORS.paid, CHART_COLORS.pending, CHART_COLORS.cancelled];
 
 export function FeeSection({ data, statistics, isLoading }: FeeSectionProps) {
   const trendData = aggregateFeesByMonth(data);
@@ -30,7 +30,7 @@ export function FeeSection({ data, statistics, isLoading }: FeeSectionProps) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
@@ -75,12 +75,28 @@ export function FeeSection({ data, statistics, isLoading }: FeeSectionProps) {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Ledger cancellations</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-start gap-2">
+              <Ban className="h-8 w-8 text-slate-500 shrink-0" />
+              <div className="min-w-0">
+                <div className="text-3xl font-bold">{statistics.cancelledInstallments ?? 0}</div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Gross face value: {formatCurrency(statistics.cancelledAmountGross ?? 0)}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Fee Collection Trend</CardTitle>
+            <CardTitle>Fee trend (paid / pending / cancelled gross)</CardTitle>
           </CardHeader>
           <CardContent>
             {trendData.length > 0 ? (
@@ -93,6 +109,7 @@ export function FeeSection({ data, statistics, isLoading }: FeeSectionProps) {
                   <Legend />
                   <Bar dataKey="paid" fill={CHART_COLORS.paid} name="Paid" />
                   <Bar dataKey="pending" fill={CHART_COLORS.pending} name="Pending" />
+                  <Bar dataKey="cancelled" fill={CHART_COLORS.cancelled} name="Cancelled (gross)" />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -104,7 +121,7 @@ export function FeeSection({ data, statistics, isLoading }: FeeSectionProps) {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Collection vs Pending</CardTitle>
+            <CardTitle>Amount mix</CardTitle>
           </CardHeader>
           <CardContent>
             {distributionData.length > 0 ? (

@@ -7,6 +7,7 @@ import createRegionSchema from "../schemas/region/create-region.schema.js";
 import updateRegionSchema from "../schemas/region/update-region.schema.js";
 import getRegionsSchema from "../schemas/region/get-regions.schema.js";
 import deleteRegionSchema from "../schemas/region/delete-region.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -121,6 +122,7 @@ router.delete(
   "/:id",
   withPermission(Permission.DELETE_REGION),
   validateRequest(deleteRegionSchema),
+  requireDeletionOTP({ entityType: "Region" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;

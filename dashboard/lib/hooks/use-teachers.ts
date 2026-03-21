@@ -13,6 +13,8 @@ function fetchTeacher(teacherId: string) {
 }
 
 function createTeacherApi(form: any) {
+  const ypRaw = form.yearOfPassing?.toString?.().trim?.() ?? "";
+  const yearOfPassing = ypRaw ? parseInt(ypRaw, 10) : new Date().getFullYear();
   const payload = {
     request: {
       firstName: form.firstName?.trim(),
@@ -32,11 +34,14 @@ function createTeacherApi(form: any) {
       designation: form.designation?.trim(),
       highestQualification: form.highestQualification?.trim(),
       university: form.university?.trim(),
-      yearOfPassing: Number(form.yearOfPassing),
+      yearOfPassing: Number.isFinite(yearOfPassing) ? yearOfPassing : new Date().getFullYear(),
       grade: form.percentage?.trim(),
       transportId:
         form.transportMode === "Transport" ? form.transportId ?? null : null,
       registrationPhotoId: form.registrationPhotoId || null,
+      ...(form.publicUserId?.trim()
+        ? { publicUserId: form.publicUserId.trim() }
+        : {}),
     },
   };
   return post("/users/teachers", payload);

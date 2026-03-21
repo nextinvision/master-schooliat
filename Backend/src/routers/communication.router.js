@@ -171,7 +171,14 @@ router.post(
   validateRequest(createAnnouncementSchema),
   async (req, res) => {
     const currentUser = req.context.user;
-    const { title, content, targetUserIds, targetRoles } = req.body.request;
+    const {
+      title,
+      content,
+      targetUserIds,
+      targetRoles,
+      targetSchoolIds,
+      type: announcementType,
+    } = req.body.request;
 
     // Only school admin and super admin can create announcements
     if (currentUser.role.name !== "SCHOOL_ADMIN" && currentUser.role.name !== "SUPER_ADMIN") {
@@ -187,8 +194,10 @@ router.post(
         content,
         targetUserIds: targetUserIds || [],
         targetRoles: targetRoles || [],
+        targetSchoolIds: targetSchoolIds || [],
         schoolId: currentUser.schoolId,
         createdBy: currentUser.id,
+        announcementType,
       });
 
       res.json({

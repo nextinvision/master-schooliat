@@ -100,11 +100,29 @@ router.get(
   withPermission(Permission.GET_GRIEVANCES),
   validateRequest(getGrievancesSchema),
   async (req, res) => {
-    const { status, priority } = req.query;
+    const currentUser = req.context.user;
+    const userRole = currentUser.role?.name;
+    const { status, priority, schoolId, platformOnly } = req.query;
 
     const where = {};
     if (status) where.status = status;
     if (priority) where.priority = priority;
+
+    if (userRole === RoleName.SUPER_ADMIN) {
+      if (platformOnly === "true") {
+        where.schoolId = null;
+      } else if (schoolId) {
+        where.schoolId = schoolId;
+      }
+    } else if (currentUser.schoolId) {
+      where.schoolId = currentUser.schoolId;
+    } else {
+      return res.json({
+        message: "Grievances fetched successfully!",
+        data: [],
+        total: 0,
+      });
+    }
 
     const grievances = await prisma.grievance.findMany({
       where,

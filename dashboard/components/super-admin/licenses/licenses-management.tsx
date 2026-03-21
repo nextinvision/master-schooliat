@@ -16,6 +16,8 @@ import { useLicenses, useDeleteLicense, License } from "@/lib/hooks/use-super-ad
 import { useToast } from "@/hooks/use-toast";
 import { AddLicenseDialog } from "./add-license-dialog";
 import { EditLicenseDialog } from "./edit-license-dialog";
+import { SuperAdminDeletionOtpDialog } from "@/components/super-admin/deletion-otp-dialog";
+import { SUPER_ADMIN_DELETION_ENTITY } from "@/lib/super-admin/deletion-entity-types";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -62,6 +64,9 @@ export function LicensesManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLicense, setSelectedLicense] = useState<License | null>(null);
+  const [licenseToDelete, setLicenseToDelete] = useState<LicenseDisplay | null>(
+    null
+  );
 
   const licenses = useMemo<LicenseDisplay[]>(() => {
     if (!data?.data) return [];
@@ -83,26 +88,6 @@ export function LicensesManagement() {
     if (original) {
       setSelectedLicense(original);
       setIsEditDialogOpen(true);
-    }
-  };
-
-  const handleDelete = async (licenseId: string, licenseName: string) => {
-    if (!confirm(`Are you sure you want to delete the license "${licenseName}"?`)) {
-      return;
-    }
-
-    try {
-      await deleteLicense.mutateAsync(licenseId);
-      toast({
-        title: "Success",
-        description: "License deleted successfully",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete license",
-        variant: "destructive",
-      });
     }
   };
 
@@ -197,7 +182,7 @@ export function LicensesManagement() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(license.id, license.name)}
+                          onClick={() => setLicenseToDelete(license)}
                           disabled={deleteLicense.isPending}
                           title="Delete"
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -222,6 +207,31 @@ export function LicensesManagement() {
         license={selectedLicense}
         isOpen={isEditDialogOpen}
         onOpenChange={setIsEditDialogOpen}
+      />
+
+      <SuperAdminDeletionOtpDialog
+        open={!!licenseToDelete}
+        onOpenChange={(open) => {
+          if (!open) setLicenseToDelete(null);
+        }}
+        title="Delete license"
+        description={
+          licenseToDelete
+            ? `Remove license "${licenseToDelete.name}" permanently. This cannot be undone.`
+            : ""
+        }
+        entityType={SUPER_ADMIN_DELETION_ENTITY.LICENSE}
+        entityId={licenseToDelete?.id ?? ""}
+        isDeleting={deleteLicense.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!licenseToDelete) return;
+          await deleteLicense.mutateAsync({ id: licenseToDelete.id, otp });
+          toast({
+            title: "Success",
+            description: "License deleted successfully",
+          });
+          setLicenseToDelete(null);
+        }}
       />
     </div>
   );

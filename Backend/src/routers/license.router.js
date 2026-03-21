@@ -3,6 +3,9 @@ import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission, LicenseStatus } from "../prisma/generated/index.js";
 import paginateUtil from "../utils/paginate.util.js";
+import validateRequest from "../middlewares/validate-request.middleware.js";
+import deleteLicenseSchema from "../schemas/license/delete-license.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -125,6 +128,8 @@ router.put(
 router.delete(
   "/:id",
   withPermission(Permission.DELETE_LICENSE),
+  validateRequest(deleteLicenseSchema),
+  requireDeletionOTP({ entityType: "License" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;

@@ -63,7 +63,7 @@ export default function AttendancePage() {
   const handleMarkAttendance = useCallback(
     async (data: {
       studentId: string;
-      status: "PRESENT" | "ABSENT" | "LATE";
+      status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
       lateArrivalTime?: string;
       absenceReason?: string;
     }) => {
@@ -88,7 +88,7 @@ export default function AttendancePage() {
   );
 
   const handleBulkMark = useCallback(
-    async (status: "PRESENT" | "ABSENT" | "LATE") => {
+    async (status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY") => {
       if (!selectedClassId) {
         toast.error("Please select a class");
         return;
@@ -118,11 +118,13 @@ export default function AttendancePage() {
   );
 
   const statistics = statisticsData?.data || {};
-  const presentCount = statistics.presentCount || 0;
-  const absentCount = statistics.absentCount || 0;
-  const lateCount = statistics.lateCount || 0;
-  const totalCount = statistics.totalCount || filteredStudents.length;
-  const attendancePercentage = totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(1) : "0";
+  const presentCount = statistics.present ?? statistics.presentCount ?? 0;
+  const absentCount = statistics.absent ?? statistics.absentCount ?? 0;
+  const lateCount = statistics.late ?? statistics.lateCount ?? 0;
+  const halfDayCount = statistics.halfDay ?? 0;
+  const totalCount = statistics.total ?? statistics.totalCount ?? 0;
+  const attendancePercentage =
+    totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(1) : "0";
 
   return (
     <div className="space-y-6 pb-8">
@@ -202,10 +204,10 @@ export default function AttendancePage() {
 
       {/* Statistics Cards */}
       {selectedClassId && (
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-gray-600">Total Students</CardTitle>
+              <CardTitle className="text-sm font-medium text-gray-600">Records (period)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{totalCount}</div>
@@ -229,7 +231,23 @@ export default function AttendancePage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-yellow-600">Attendance %</CardTitle>
+              <CardTitle className="text-sm font-medium text-yellow-600">Late</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">{lateCount}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-amber-800">Half day</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-800">{halfDayCount}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-yellow-600">Present %</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-yellow-600">{attendancePercentage}%</div>
