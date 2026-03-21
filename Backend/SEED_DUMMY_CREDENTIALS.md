@@ -20,15 +20,13 @@ Dummy login credentials are created by the seed so you can test the Postman coll
 
 Creates roles, regions, schools, classes, and all dummy users (admin, employees, school admins, teachers, students, staff).
 
-1. **Database**
-   - **Docker:** From `Backend/`: `docker compose up -d postgres` (or `docker-compose up -d postgres`).
-   - **Existing Postgres:** Ensure your DB is running and you have a connection URL.
+1. **Database**  
+   Ensure PostgreSQL is running (local install or remote) and you have a connection URL.
 
 2. **Backend/.env**
    - Copy from `.env.example` if needed.
-   - Set `DATABASE_URL` (and `DATABASE_DIRECT_URL` if required):
-     - Docker: `postgresql://schooliat:schooliat_dev_password@localhost:5432/schooliat_db`
-     - Or your own: `postgresql://user:password@host:5432/dbname`
+   - Set `DATABASE_URL` (and `DATABASE_DIRECT_URL` if required), e.g.  
+     `postgresql://user:password@host:5432/dbname`
 
 3. **Migrations**
    ```bash
@@ -84,7 +82,7 @@ Example: for schools with codes GIS001, SPS002, BFA003 you get teacher1@gis001.e
   Create `Backend/.env` with `DATABASE_URL=postgresql://...` or export it before running.
 
 - **"Authentication failed" (P1000)**  
-  Check user, password, and host in `DATABASE_URL`. For Docker, use user `schooliat`, password `schooliat_dev_password`, db `schooliat_db`.
+  Check user, password, and host in `DATABASE_URL`.
 
 - **"Relation does not exist"**  
   Run migrations first: `npm run prisma:migrate:deploy`.

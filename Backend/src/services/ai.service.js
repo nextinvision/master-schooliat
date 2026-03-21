@@ -362,35 +362,41 @@ const getFAQs = async (schoolId, filters = {}, options = {}) => {
   const { page = 1, limit = 20 } = options;
   const skip = (page - 1) * limit;
 
-  const where = {
-    OR: [
-      { schoolId: schoolId },
-      { schoolId: null }, // Global FAQs
-    ],
-    isActive: true,
-    deletedAt: null,
-  };
+  const andConditions = [
+    {
+      OR: [
+        ...(schoolId ? [{ schoolId }] : []),
+        { schoolId: null },
+      ],
+    },
+    { isActive: true },
+    { deletedAt: null },
+  ];
 
   if (filters.category) {
-    where.category = filters.category;
+    andConditions.push({ category: filters.category });
   }
 
   if (filters.search) {
-    where.OR = [
-      {
-        question: {
-          contains: filters.search,
-          mode: "insensitive",
+    andConditions.push({
+      OR: [
+        {
+          question: {
+            contains: filters.search,
+            mode: "insensitive",
+          },
         },
-      },
-      {
-        answer: {
-          contains: filters.search,
-          mode: "insensitive",
+        {
+          answer: {
+            contains: filters.search,
+            mode: "insensitive",
+          },
         },
-      },
-    ];
+      ],
+    });
   }
+
+  const where = { AND: andConditions };
 
   const [faqs, total] = await Promise.all([
     prisma.fAQ.findMany({

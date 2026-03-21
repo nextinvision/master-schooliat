@@ -37,6 +37,7 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
   }
 
   const { attendance, fees, academic, salary } = summary;
+  const ay = summary.academicYear || attendance.periodLabel || "";
 
   return (
     <Card>
@@ -47,7 +48,9 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
               <Users className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Attendance ({attendance.periodLabel || "N/A"})</p>
+              <p className="text-xs text-muted-foreground">
+                Attendance{ay ? ` (AY ${ay})` : ""}
+              </p>
               <p className="text-lg font-semibold">{attendance.averageRate ?? 0}% avg</p>
             </div>
           </div>
@@ -56,7 +59,7 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
               <IndianRupee className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Fees</p>
+              <p className="text-xs text-muted-foreground">Fees{ay ? ` (AY ${ay})` : ""}</p>
               <p className="text-lg font-semibold">{formatCurrency(fees.totalRevenue ?? 0)} revenue</p>
             </div>
           </div>
@@ -65,7 +68,7 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
               <GraduationCap className="h-5 w-5 text-purple-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Academic</p>
+              <p className="text-xs text-muted-foreground">Academic{ay ? ` (AY ${ay})` : ""}</p>
               <p className="text-lg font-semibold">{academic.averageScore ?? 0}% avg · {academic.passRate ?? 0}% pass</p>
             </div>
           </div>
@@ -74,7 +77,7 @@ export function DashboardSummaryStrip({ summary, isLoading }: DashboardSummarySt
               <Wallet className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Salary</p>
+              <p className="text-xs text-muted-foreground">Salary{ay ? ` (AY ${ay})` : ""}</p>
               <p className="text-lg font-semibold">{formatCurrency(salary.totalPaid ?? 0)} · {salary.totalEmployees ?? 0} staff</p>
             </div>
           </div>

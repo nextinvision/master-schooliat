@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
 
 import { useDashboard } from "@/lib/hooks/use-dashboard";
@@ -123,8 +123,10 @@ export default function AdminDashboardPage() {
   const presentStaffAndTeachers = userCounts.presentStaffAndTeachers || 0;
   const totalStaffAndTeachers = totalStaff + teachersCount;
 
-  const boysPercentage = totalStudents > 0 ? Math.round((boysCount / totalStudents) * 100) : 53;
-  const girlsPercentage = totalStudents > 0 ? Math.round((girlsCount / totalStudents) * 100) : 47;
+  const boysPercentage =
+    totalStudents > 0 ? Math.round((boysCount / totalStudents) * 100) : 0;
+  const girlsPercentage =
+    totalStudents > 0 ? Math.round((girlsCount / totalStudents) * 100) : 0;
 
   const { data: holidaysData } = useHolidays(format(displayMonth, "yyyy-MM"));
   const holidays = holidaysData?.data || [];
@@ -143,6 +145,21 @@ export default function AdminDashboardPage() {
     { month: "Nov", income: 0, expense: 0 },
     { month: "Dec", income: 0, expense: 0 },
   ];
+
+  const earningsYAxisMax = useMemo(() => {
+    const maxVal = Math.max(
+      0,
+      ...earningsData.flatMap((d: { income?: number; expense?: number }) => [
+        Number(d.income) || 0,
+        Number(d.expense) || 0,
+      ]),
+    );
+    if (maxVal <= 0) return 1000;
+    const padded = maxVal * 1.15;
+    const exp = Math.floor(Math.log10(padded)) || 0;
+    const step = 10 ** Math.max(0, exp - 1);
+    return Math.max(1000, Math.ceil(padded / step) * step);
+  }, [earningsData]);
 
   if (isLoading) {
     return <PremiumLoadingSkeleton />;
@@ -296,7 +313,11 @@ export default function AdminDashboardPage() {
               <div className="flex items-center justify-between gap-6">
                 <div className="max-w-xl z-10">
                   <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
-                    Welcome, {school.name || "St. Patrick School"} Team!
+                    Welcome
+                    {school.name?.trim()
+                      ? `, ${school.name.trim()} team`
+                      : " to your school dashboard"}
+                    !
                   </h1>
                   <p className="text-gray-500 text-sm md:text-base leading-relaxed mb-6">
                     Manage your school operations with ease. Stay updated on academics, attendance, finances, and more, all in one place. Let's keep shaping a brighter future together!
@@ -452,8 +473,17 @@ export default function AdminDashboardPage() {
                       axisLine={false}
                       tickLine={false}
                       tick={{ fill: '#6b7280', fontSize: 13 }}
-                      ticks={[0, 250000, 500000, 750000, 1000000]}
-                      tickFormatter={(val) => val === 0 ? '0' : (val / 1000) + 'K'}
+                      domain={[0, earningsYAxisMax]}
+                      tickCount={6}
+                      tickFormatter={(val) => {
+                        if (val === 0) return "0";
+                        if (val >= 100000) {
+                          const l = val / 100000;
+                          return `${l % 1 === 0 ? l : l.toFixed(1)}L`;
+                        }
+                        if (val >= 1000) return `${Math.round(val / 1000)}K`;
+                        return String(val);
+                      }}
                       dx={-10}
                     />
                     <Tooltip

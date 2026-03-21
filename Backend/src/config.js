@@ -10,6 +10,8 @@ const config = {
   // Supabase specific: Use direct connection for migrations, pooled for runtime
   DATABASE_DIRECT_URL: process.env.DATABASE_DIRECT_URL?.replace(/^["']|["']$/g, "").trim() || process.env.DATABASE_URL?.replace(/^["']|["']$/g, "").trim(),
   API_URL: process.env.API_URL,
+  /** Browser-reachable API base for /files/:id links in JSON (omit internal Docker hostnames). */
+  PUBLIC_API_URL: process.env.PUBLIC_API_URL || process.env.API_URL,
   LOG_LEVEL: process.env.LOG_LEVEL || "info",
   // JWT_SECRET must be set in production
   JWT_SECRET: (() => {
@@ -23,13 +25,14 @@ const config = {
   })(),
   JWT_EXPIRATION_TIME: parseInt(process.env.JWT_EXPIRATION_TIME) || 48, // in hours
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || "*",
+  // GET /files/:uuid must match without a bogus trailing slash (browser open / download has no auth header)
   AUTH_EXCLUDED_PATHS: process.env.AUTH_EXCLUDED_PATHS?.split(",") || [
     /^\/$/,
     /^\/docs/,
     /^\/health/,
     /^\/api\/v1\/health/,
-    /^\/files\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
-    /^\/api\/v1\/files\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/,
+    /^\/files\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\?.*)?$/,
+    /^\/api\/v1\/files\/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}(?:\?.*)?$/,
   ],
 
   // File Storage Config: "local" (filesystem), "minio" (local MinIO), "aws-s3" (AWS cloud)

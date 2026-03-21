@@ -3,11 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { get } from "@/lib/api/client";
 
-// Dashboard summary (overview KPIs)
-function fetchDashboardSummary() {
-  return get("/reports/dashboard-summary");
-}
-
 export function useDashboardSummary(params: { academicYear?: string } = {}) {
   const { academicYear } = params;
   return useQuery({

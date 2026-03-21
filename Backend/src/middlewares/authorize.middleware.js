@@ -10,8 +10,9 @@ import tokenBlacklistService from "../services/token-blacklist.service.js";
  * Validates JWT token and ensures user exists and is active
  */
 const authorize = async (req, res, next) => {
+  const pathForAuth = req.originalUrl?.split("?")[0] || req.path || req.url;
   const isExcluded = config.AUTH_EXCLUDED_PATHS.some((regex) =>
-    regex.test(req.url),
+    regex.test(pathForAuth),
   );
   if (isExcluded) {
     return next();

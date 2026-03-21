@@ -8,8 +8,9 @@ interface FinancialOverviewWidgetProps {
   totalSalary?: number;
   todayCollection?: number;
   pendingAmount?: number;
-  incomeChangePercent?: string;
-  salaryChangePercent?: string;
+  /** From dashboard API (`calculateGrowth`); omit to hide trend badges. */
+  incomeChangePercent?: string | null;
+  salaryChangePercent?: string | null;
   currentYear?: number;
   filterType?: string;
   filterValue?: string;
@@ -20,8 +21,8 @@ export function FinancialOverviewWidget({
   totalSalary = 0,
   todayCollection = 0,
   pendingAmount = 0,
-  incomeChangePercent = "+12%",
-  salaryChangePercent = "+0.5%",
+  incomeChangePercent,
+  salaryChangePercent,
   currentYear,
   filterType,
   filterValue,
@@ -67,10 +68,13 @@ export function FinancialOverviewWidget({
               <div className="w-7 h-7 rounded-full bg-[#fdeab1] flex items-center justify-center text-[#d97706]">
                 <BarChart2 className="h-3.5 w-3.5" />
               </div>
-              <div className="flex items-center gap-1 bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
-                <TrendingUp className="h-2.5 w-2.5" />
-                {incomeChangePercent}
-              </div>
+              {incomeChangePercent != null &&
+                String(incomeChangePercent).trim() !== "" && (
+                  <div className="flex items-center gap-1 bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
+                    <TrendingUp className="h-2.5 w-2.5" />
+                    {incomeChangePercent}
+                  </div>
+                )}
             </div>
             <div>
               <p className="text-lg font-bold text-gray-900 mb-0.5">
@@ -86,10 +90,13 @@ export function FinancialOverviewWidget({
               <div className="w-7 h-7 rounded-full bg-[#fdeab1] flex items-center justify-center text-[#d97706]">
                 <BarChart2 className="h-3.5 w-3.5" />
               </div>
-              <div className="flex items-center gap-1 bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
-                <TrendingUp className="h-2.5 w-2.5" />
-                {salaryChangePercent}
-              </div>
+              {salaryChangePercent != null &&
+                String(salaryChangePercent).trim() !== "" && (
+                  <div className="flex items-center gap-1 bg-blue-50 text-blue-500 px-1.5 py-0.5 rounded-full text-[10px] font-bold">
+                    <TrendingUp className="h-2.5 w-2.5" />
+                    {salaryChangePercent}
+                  </div>
+                )}
             </div>
             <div>
               <p className="text-lg font-bold text-gray-900 mb-0.5">

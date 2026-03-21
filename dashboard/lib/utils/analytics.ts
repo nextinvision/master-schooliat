@@ -96,7 +96,7 @@ export function aggregateAttendanceByDate(
     const status = (item.status || "").toUpperCase();
     if (status === "PRESENT") byDate[dateKey].present += 1;
     else if (status === "ABSENT") byDate[dateKey].absent += 1;
-    else if (status === "LATE") byDate[dateKey].late += 1;
+    else if (status === "LATE" || status === "HALF_DAY") byDate[dateKey].late += 1;
   }
   return Object.entries(byDate)
     .sort(([a], [b]) => a.localeCompare(b))

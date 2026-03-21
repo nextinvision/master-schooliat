@@ -324,6 +324,20 @@ router.get(
                 division: true,
               },
             },
+            slots: {
+              include: {
+                subject: {
+                  select: { id: true, name: true },
+                },
+                teacher: {
+                  select: { id: true, firstName: true, lastName: true },
+                },
+              },
+              orderBy: [
+                { dayOfWeek: "asc" },
+                { periodNumber: "asc" },
+              ],
+            },
           },
           orderBy: {
             createdAt: "desc",

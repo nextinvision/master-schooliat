@@ -7,7 +7,7 @@ import logger from "../config/logger.js";
 const BROWSER_ARGS = [
   "--no-sandbox",
   "--disable-setuid-sandbox",
-  "--disable-dev-shm-usage", // Use /tmp instead of /dev/shm (important for Docker/low memory)
+  "--disable-dev-shm-usage", // Use /tmp instead of /dev/shm (important for low-memory / container hosts)
   "--disable-gpu",
   "--disable-software-rasterizer",
   "--disable-extensions",

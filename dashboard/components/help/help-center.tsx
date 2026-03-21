@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { FormCard } from "@/components/forms/form-card";
-import { HelpCircle, MessageSquare, BookOpen } from "lucide-react";
+import { HelpCircle, MessageSquare, BookOpen, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { post } from "@/lib/api/client";
+import { useFAQs } from "@/lib/hooks/use-ai";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const helpQuerySchema = z.object({
   subject: z.string().min(1, "Subject is required"),
@@ -27,6 +29,16 @@ interface HelpCenterProps {
 export function HelpCenter({ showQueryForm = true }: HelpCenterProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { data: faqResponse, isLoading: faqsLoading, isError: faqsError } =
+    useFAQs({ limit: 50, page: 1 });
+
+  const faqs = (faqResponse?.data ?? []) as Array<{
+    id: string;
+    question: string;
+    answer: string;
+    category?: string | null;
+  }>;
 
   const form = useForm<HelpQueryFormData>({
     resolver: zodResolver(helpQuerySchema),
@@ -54,36 +66,14 @@ export function HelpCenter({ showQueryForm = true }: HelpCenterProps) {
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error?.message || "Failed to submit query. Please try again.",
+        description:
+          error?.message || "Failed to submit query. Please try again.",
         variant: "destructive",
       });
     } finally {
       setIsSubmitting(false);
     }
   });
-
-  const faqs = [
-    {
-      question: "How do I add a new student?",
-      answer:
-        "Navigate to Students > Add New Student, fill in the required information, and click Save.",
-    },
-    {
-      question: "How do I generate fee receipts?",
-      answer:
-        "Go to Finance > Fees, select a student, and click on Generate Receipt.",
-    },
-    {
-      question: "How do I manage classes?",
-      answer:
-        "Navigate to Classes, click Add New Class, and configure the class details including divisions.",
-    },
-    {
-      question: "How do I update school settings?",
-      answer:
-        "Go to Settings, update the school logo, fee configuration, or change your password.",
-    },
-  ];
 
   return (
     <div className="space-y-6">
@@ -97,38 +87,60 @@ export function HelpCenter({ showQueryForm = true }: HelpCenterProps) {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Quick Actions */}
         <div className="space-y-4">
           <div className="p-4 border rounded-lg">
             <BookOpen className="w-6 h-6 text-primary mb-2" />
             <h3 className="font-semibold">Documentation</h3>
             <p className="text-sm text-gray-600">
-              Browse our comprehensive documentation
+              FAQs below are managed for your school and platform. Use Submit a
+              Query for anything not listed.
             </p>
           </div>
           <div className="p-4 border rounded-lg">
             <MessageSquare className="w-6 h-6 text-primary mb-2" />
             <h3 className="font-semibold">Support</h3>
             <p className="text-sm text-gray-600">
-              Contact our support team for assistance
+              Submit a query and the SchooliAT team will respond via your
+              grievance thread.
             </p>
           </div>
         </div>
 
-        {/* FAQ & Query Form */}
         <div className="lg:col-span-2 space-y-6">
-          {/* FAQs */}
           <FormCard title="Frequently Asked Questions">
             <div className="space-y-4">
-              {faqs.map((faq, index) => (
-                <div key={index} className="border-b pb-4 last:border-0">
-                  <div className="flex items-start gap-2 mb-2">
-                    <HelpCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                    <h4 className="font-semibold">{faq.question}</h4>
-                  </div>
-                  <p className="text-sm text-gray-600 ml-7">{faq.answer}</p>
+              {faqsLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-4/6" />
                 </div>
-              ))}
+              ) : faqsError ? (
+                <p className="text-sm text-muted-foreground">
+                  Could not load FAQs. You can still submit a query below.
+                </p>
+              ) : faqs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No published FAQs yet. Your administrator can add them under
+                  AI / FAQ management, or use Submit a Query for help.
+                </p>
+              ) : (
+                faqs.map((faq) => (
+                  <div
+                    key={faq.id}
+                    className="border-b pb-4 last:border-0"
+                  >
+                    <div className="flex items-start gap-2 mb-2">
+                      <HelpCircle className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                      <h4 className="font-semibold">{faq.question}</h4>
+                    </div>
+                    <p className="text-sm text-gray-600 ml-7 whitespace-pre-wrap">
+                      {faq.answer}
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           </FormCard>
 
@@ -157,7 +169,14 @@ export function HelpCenter({ showQueryForm = true }: HelpCenterProps) {
                 </div>
 
                 <Button type="submit" disabled={isSubmitting} className="w-full">
-                  {isSubmitting ? "Submitting..." : "Submit Query"}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin inline" />
+                      Submitting…
+                    </>
+                  ) : (
+                    "Submit Query"
+                  )}
                 </Button>
               </form>
             </FormCard>
@@ -167,4 +186,3 @@ export function HelpCenter({ showQueryForm = true }: HelpCenterProps) {
     </div>
   );
 }
-

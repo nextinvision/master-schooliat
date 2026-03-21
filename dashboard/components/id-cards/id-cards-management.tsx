@@ -29,6 +29,7 @@ import {
 } from "@/lib/hooks/use-id-cards";
 import { toast } from "sonner";
 import { BASE_URL } from "@/lib/api/config";
+import { resolvePublicFileUrl } from "@/lib/utils/resolve-public-file-url";
 import { format } from "date-fns";
 import { IdCardTemplateConfig } from "./id-card-template-config";
 
@@ -147,7 +148,7 @@ export function IDCardsManagement() {
       // If backend returned a zipFileUrl, open for download
       const zipUrl = (result as any)?.data?.zipFileUrl;
       if (zipUrl) {
-        window.open(zipUrl, "_blank");
+        window.open(resolvePublicFileUrl(zipUrl), "_blank");
       }
       toast.success("ID cards generated successfully!");
       refetch();
@@ -162,7 +163,7 @@ export function IDCardsManagement() {
 
   const handleViewTemplate = () => {
     if (idCardConfig?.sampleUrl) {
-      window.open(idCardConfig.sampleUrl, "_blank");
+      window.open(resolvePublicFileUrl(idCardConfig.sampleUrl), "_blank");
       return;
     }
 
@@ -178,7 +179,7 @@ export function IDCardsManagement() {
   };
 
   const handleDownload = (fileUrl: string) => {
-    window.open(fileUrl, "_blank");
+    window.open(resolvePublicFileUrl(fileUrl), "_blank");
   };
 
   if (isLoading) {

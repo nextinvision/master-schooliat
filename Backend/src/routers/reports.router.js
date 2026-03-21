@@ -12,7 +12,10 @@ router.get(
   async (req, res) => {
     try {
       const currentUser = req.context.user;
-      const summary = await reportsService.getDashboardSummary(currentUser.schoolId || req.query.schoolId);
+      const summary = await reportsService.getDashboardSummary(
+        currentUser.schoolId || req.query.schoolId,
+        { academicYear: req.query.academicYear },
+      );
       return res.status(200).json({
         message: "Dashboard summary fetched successfully",
         data: summary,

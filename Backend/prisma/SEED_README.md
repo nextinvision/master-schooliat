@@ -53,10 +53,7 @@ The seed file (`prisma/seed.js`) creates a complete dataset including:
 
 2. **Environment Variables**: Make sure your `.env` file has the correct `DATABASE_URL` configured
 
-3. **Docker Services** (for local development): Ensure Docker services are running
-   ```bash
-   docker-compose up -d
-   ```
+3. **PostgreSQL & Redis**: Ensure Postgres (and Redis if your app uses it) are running and reachable from `DATABASE_URL` / your env.
 
 ## Running the Seed
 
@@ -168,8 +165,7 @@ The seed checks for existing users by email. If you want to re-seed, you may nee
 
 ### Error: Database connection failed
 - Check your `DATABASE_URL` in `.env`
-- Ensure Docker services are running (if using local Docker)
-- Verify database credentials
+- Ensure PostgreSQL is running and credentials are correct
 
 ### Error: Prisma client not generated
 Run: `npm run prisma:generate`

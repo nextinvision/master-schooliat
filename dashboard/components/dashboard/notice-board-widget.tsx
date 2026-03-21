@@ -1,6 +1,6 @@
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { Bell, Edit, Trash2 } from "lucide-react";
+import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -26,14 +26,6 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
   const handleViewAll = () => {
     router.push("/admin/circulars");
   };
-
-  const handleEdit = () => {
-    // Open edit logic or page
-  }
-
-  const handleDelete = () => {
-    // Open delete modal
-  }
 
   return (
     <Card className="relative isolate border-none shadow-sm h-full rounded-2xl flex flex-col">
@@ -84,22 +76,6 @@ export function NoticeBoardWidget({ notices = [] }: NoticeBoardWidgetProps) {
             onClick={handleAddNew}
           >
             Add New
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 hover:text-gray-600 hover:bg-gray-50"
-            onClick={handleEdit}
-          >
-            <Edit className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 hover:text-red-600 hover:bg-gray-50"
-            onClick={handleDelete}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
           </Button>
         </div>
       </CardContent>

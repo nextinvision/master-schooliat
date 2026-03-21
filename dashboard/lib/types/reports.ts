@@ -118,8 +118,9 @@ export interface SalaryStatistics {
   pendingPayments: number;
 }
 
-// Dashboard summary (overview KPIs)
+// Dashboard summary (overview KPIs — scoped to selected academic year on backend)
 export interface DashboardSummary {
+  academicYear?: string;
   attendance: { totalStudents: number; averageRate: number; periodLabel: string };
   fees: { totalRevenue: number; totalPending: number; collectionRate: number };
   academic: { totalExams: number; averageScore: number; passRate: number };

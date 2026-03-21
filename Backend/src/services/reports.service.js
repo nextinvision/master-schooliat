@@ -1,6 +1,42 @@
 import prisma from "../prisma/client.js";
 import logger from "../config/logger.js";
 
+/** @param {string} label e.g. "2025-26" (April → March Indian academic year) */
+const parseAcademicYearRange = (label) => {
+  if (!label || typeof label !== "string") return null;
+  const parts = label.trim().split("-");
+  if (parts.length !== 2) return null;
+  const y1 = parseInt(parts[0], 10);
+  const y2s = parts[1];
+  if (!Number.isFinite(y1) || !/^\d{2}$/.test(y2s)) return null;
+  const endYear = Math.floor(y1 / 100) * 100 + parseInt(y2s, 10);
+  const start = new Date(y1, 3, 1, 0, 0, 0, 0);
+  const end = new Date(endYear, 2, 31, 23, 59, 59, 999);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return null;
+  return { start, end, startYear: y1 };
+};
+
+const defaultAcademicYearLabel = (now = new Date()) => {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  if (month >= 3) {
+    return `${year}-${String((year + 1) % 100).padStart(2, "0")}`;
+  }
+  return `${year - 1}-${String(year % 100).padStart(2, "0")}`;
+};
+
+/** Salary row overlaps [rangeStart, rangeEnd] if month is YYYY-MM payroll month or createdAt falls in range */
+const salaryPaymentInDateRange = (payment, rangeStart, rangeEnd) => {
+  if (payment.month && /^\d{4}-\d{2}$/.test(payment.month)) {
+    const [y, m] = payment.month.split("-").map(Number);
+    const monthStart = new Date(y, m - 1, 1, 0, 0, 0, 0);
+    const monthEnd = new Date(y, m, 0, 23, 59, 59, 999);
+    return monthEnd >= rangeStart && monthStart <= rangeEnd;
+  }
+  const created = payment.createdAt;
+  return created >= rangeStart && created <= rangeEnd;
+};
+
 /**
  * Get attendance reports
  * @param {string} schoolId - School ID
@@ -55,7 +91,7 @@ const getAttendanceReports = async (schoolId, filters = {}) => {
   const totalDays = attendance.length;
   const presentCount = attendance.filter((a) => a.status === "PRESENT").length;
   const absentCount = attendance.filter((a) => a.status === "ABSENT").length;
-  const lateCount = attendance.filter((a) => a.status === "LATE").length;
+  const lateCount = attendance.filter((a) => a.status === "LATE" || a.status === "HALF_DAY").length;
   const totalStudents = new Set(attendance.map((a) => a.studentId)).size;
   const attendanceRate = totalDays > 0 ? (presentCount / totalDays) * 100 : 0;
 
@@ -127,32 +163,40 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
     where.studentId = { in: ids };
   }
 
+  if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new Error("Invalid start or end date for fee analytics");
+    }
+    where.AND = [
+      ...(where.AND || []),
+      {
+        OR: [
+          { createdAt: { gte: start, lte: end } },
+          { paidAt: { gte: start, lte: end } },
+        ],
+      },
+    ];
+  }
+
   const installments = await prisma.feeInstallements.findMany({
     where,
   });
 
-  // Filter by date if provided (use createdAt or paidAt)
-  let filteredInstallments = installments;
-  if (startDate && endDate) {
-    filteredInstallments = installments.filter((inst) => {
-      const instDate = new Date(inst.createdAt || inst.paidAt || 0);
-      return instDate >= new Date(startDate) && instDate <= new Date(endDate);
-    });
-  }
-
   // Use paymentStatus (schema field), not status
-  const totalAmount = filteredInstallments.reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
-  const paidAmount = filteredInstallments
+  const totalAmount = installments.reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
+  const paidAmount = installments
     .filter((inst) => inst.paymentStatus === "PAID")
     .reduce((sum, inst) => sum + Number(inst.paidAmount != null ? inst.paidAmount : (inst.amount || 0)), 0);
-  const pendingAmount = filteredInstallments
+  const pendingAmount = installments
     .filter((inst) => inst.paymentStatus === "PENDING")
     .reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
-  const overdueAmount = filteredInstallments
+  const overdueAmount = installments
     .filter((inst) => inst.paymentStatus === "PENDING" && inst.paidAt == null && new Date(inst.createdAt) < new Date())
     .reduce((sum, inst) => sum + Number(inst.amount || 0), 0);
 
-  const cancelledRows = filteredInstallments.filter(
+  const cancelledRows = installments.filter(
     (inst) => inst.paymentStatus === "CANCELLED",
   );
   const cancelledAmountGross = cancelledRows.reduce(
@@ -163,7 +207,7 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
   const collectionRate = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
 
   return {
-    installments: filteredInstallments,
+    installments,
     statistics: {
       totalAmount,
       totalRevenue: totalAmount,
@@ -173,9 +217,9 @@ const getFeeAnalytics = async (schoolId, filters = {}) => {
       totalPending: pendingAmount,
       overdueAmount,
       collectionRate: Number(collectionRate.toFixed(2)),
-      totalInstallments: filteredInstallments.length,
-      paidInstallments: filteredInstallments.filter((inst) => inst.paymentStatus === "PAID").length,
-      pendingInstallments: filteredInstallments.filter((inst) => inst.paymentStatus === "PENDING").length,
+      totalInstallments: installments.length,
+      paidInstallments: installments.filter((inst) => inst.paymentStatus === "PAID").length,
+      pendingInstallments: installments.filter((inst) => inst.paymentStatus === "PENDING").length,
       cancelledInstallments: cancelledRows.length,
       cancelledAmountGross,
     },
@@ -295,10 +339,9 @@ const getSalaryReports = async (schoolId, filters = {}) => {
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
       throw new Error("Invalid start or end date for salary report");
     }
-    filteredPayments = payments.filter((payment) => {
-      const paymentDate = payment.createdAt;
-      return paymentDate >= start && paymentDate <= end;
-    });
+    filteredPayments = payments.filter((payment) =>
+      salaryPaymentInDateRange(payment, start, end),
+    );
   }
 
   // Resolve user names for display (SalaryPayments has userId = teacher_id)
@@ -335,49 +378,67 @@ const getSalaryReports = async (schoolId, filters = {}) => {
 };
 
 /**
- * Get dashboard summary for reports overview (current month KPIs)
- * @param {string} schoolId
- * @returns {Promise<Object>}
+ * Overview KPIs for the reports page: all blocks use the same academic year window
+ * (April–March) and optional academicYear label from the portal (e.g. "2025-26").
+ * @param {string} [schoolId]
+ * @param {{ academicYear?: string }} [options]
  */
-const getDashboardSummary = async (schoolId) => {
-  const now = new Date();
-  const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const endOfThisMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+const getDashboardSummary = async (schoolId, options = {}) => {
+  const label = options.academicYear || defaultAcademicYearLabel();
+  const range = parseAcademicYearRange(label);
+  if (!range) {
+    throw new Error("Invalid academic year for dashboard summary");
+  }
+  const { start, end, startYear } = range;
 
   const baseWhere = { deletedAt: null };
   if (schoolId) baseWhere.schoolId = schoolId;
 
-  const [attendanceRows, feeRows, marksRows, salaryRows, examCount, totalEnrolledStudents] = await Promise.all([
-    prisma.attendance.findMany({
-      where: { ...baseWhere, date: { gte: startOfThisMonth, lte: endOfThisMonth } },
-      select: { status: true, studentId: true },
-    }),
-    prisma.feeInstallements.findMany({
-      where: baseWhere,
-      select: { amount: true, paidAmount: true, paymentStatus: true },
-    }),
-    prisma.marks.findMany({
-      where: baseWhere,
-      select: { percentage: true },
-    }),
-    prisma.salaryPayments.findMany({
-      where: baseWhere,
-      select: { totalAmount: true, userId: true },
-    }),
-    prisma.exam.count({ where: schoolId ? { schoolId } : {} }),
-    // Count actual enrolled students (matching dashboard logic)
-    prisma.user.count({
-      where: {
-        ...baseWhere,
-        role: { name: "STUDENT" },
-        userType: "SCHOOL",
-      },
-    }),
-  ]);
+  const feeWhere = {
+    ...baseWhere,
+    OR: [
+      { createdAt: { gte: start, lte: end } },
+      { paidAt: { gte: start, lte: end } },
+    ],
+  };
+
+  const examWhere = schoolId ? { schoolId, year: startYear } : { year: startYear };
+
+  const [attendanceRows, feeRows, marksRows, salaryRowsAll, examCount, totalEnrolledStudents] =
+    await Promise.all([
+      prisma.attendance.findMany({
+        where: { ...baseWhere, date: { gte: start, lte: end } },
+        select: { status: true, studentId: true },
+      }),
+      prisma.feeInstallements.findMany({
+        where: feeWhere,
+        select: { amount: true, paidAmount: true, paymentStatus: true },
+      }),
+      prisma.marks.findMany({
+        where: { ...baseWhere, exam: { year: startYear } },
+        select: { percentage: true },
+      }),
+      prisma.salaryPayments.findMany({
+        where: baseWhere,
+        select: { totalAmount: true, userId: true, month: true, createdAt: true },
+      }),
+      prisma.exam.count({ where: examWhere }),
+      prisma.user.count({
+        where: {
+          ...baseWhere,
+          role: { name: "STUDENT" },
+          userType: "SCHOOL",
+        },
+      }),
+    ]);
+
+  const salaryRows = salaryRowsAll.filter((p) => salaryPaymentInDateRange(p, start, end));
 
   const presentCount = attendanceRows.filter((a) => a.status === "PRESENT").length;
   const attendanceRate =
-    attendanceRows.length > 0 ? Number(((presentCount / attendanceRows.length) * 100).toFixed(2)) : 0;
+    attendanceRows.length > 0
+      ? Number(((presentCount / attendanceRows.length) * 100).toFixed(2))
+      : 0;
 
   const totalFeeAmount = feeRows.reduce((s, f) => s + Number(f.amount || 0), 0);
   const paidFeeAmount = feeRows
@@ -391,8 +452,8 @@ const getDashboardSummary = async (schoolId) => {
   const avgScore =
     marksRows.length > 0
       ? Number(
-        (marksRows.reduce((s, m) => s + Number(m.percentage || 0), 0) / marksRows.length).toFixed(2)
-      )
+          (marksRows.reduce((s, m) => s + Number(m.percentage || 0), 0) / marksRows.length).toFixed(2),
+        )
       : 0;
   const passCount = marksRows.filter((m) => Number(m.percentage || 0) >= 40).length;
   const passRate = marksRows.length > 0 ? Number(((passCount / marksRows.length) * 100).toFixed(2)) : 0;
@@ -401,10 +462,11 @@ const getDashboardSummary = async (schoolId) => {
   const salaryEmployees = new Set(salaryRows.map((p) => p.userId)).size;
 
   return {
+    academicYear: label,
     attendance: {
       totalStudents: totalEnrolledStudents,
       averageRate: attendanceRate,
-      periodLabel: "This month",
+      periodLabel: label,
     },
     fees: {
       totalRevenue: totalFeeAmount,

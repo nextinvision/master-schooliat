@@ -351,7 +351,7 @@ Database:
 •	Backup Strategy: Daily automated backups with point-in-time recovery capability
 Cloud Infrastructure:
 •	Hosting Platform: Amazon Web Services (AWS), Google Cloud Platform (GCP), or Microsoft Azure (to be determined during deployment planning)
-•	Compute: Containerized deployment using Docker, orchestrated via Kubernetes or equivalent
+•	Compute: Node.js application on server (e.g. PM2) with PostgreSQL, Redis, and reverse proxy (e.g. Nginx)
 •	Storage: Cloud object storage for uploaded files (documents, images, PDFs)
 •	CDN: Content Delivery Network for static assets and improved global performance
 

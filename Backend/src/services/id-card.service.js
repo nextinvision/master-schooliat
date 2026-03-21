@@ -395,14 +395,20 @@ const getClassesWithCollectionStatus = async (schoolId) => {
     },
   });
 
-  collections.forEach((idCardConfig) => {
-    idCardConfig.fileUrl =
-      idCardConfig.fileId != null
-        ? fileService.attachFileURL({
-            id: idCardConfig.fileId,
-            extension: "pdf",
-          }).url
-        : null;
+  const collectionFileIds = [
+    ...new Set(collections.map((c) => c.fileId).filter(Boolean)),
+  ];
+  const fileRecords =
+    collectionFileIds.length > 0
+      ? await prisma.file.findMany({
+          where: { id: { in: collectionFileIds } },
+        })
+      : [];
+  const fileById = new Map(fileRecords.map((f) => [f.id, f]));
+
+  collections.forEach((col) => {
+    const fileRow = col.fileId ? fileById.get(col.fileId) : null;
+    col.fileUrl = fileRow ? fileService.attachFileURL(fileRow).url : null;
   });
 
   const collectionMap = new Map(collections.map((c) => [c.classId, c]));

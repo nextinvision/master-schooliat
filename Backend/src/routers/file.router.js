@@ -54,8 +54,12 @@ router.post("/", fileUpload.single("file"), async (req, res, next) => {
   });
 });
 
-// GET /files/:id – always registered for mobile API. Stream when storage allows; otherwise return metadata + URL.
-const canStream = config.ENVIRONMENT !== "production" || config.FILE_STORAGE === "minio" || config.MINIO_ENDPOINT;
+// Stream file bytes whenever storage supports it (local, MinIO, or AWS S3).
+// Previously production+local returned JSON here, which broke browser open/download for /files/:id links.
+const canStream =
+  config.FILE_STORAGE === "local" ||
+  config.FILE_STORAGE === "minio" ||
+  config.FILE_STORAGE === "aws-s3";
 
 router.get("/:id", validateRequest(getFileSchema), async (req, res) => {
   const file = await fileService.getFileById(req.params.id);
