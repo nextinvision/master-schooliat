@@ -34,9 +34,16 @@ import {
   useCreateInventoryItem,
   useUpdateInventoryItem,
   useDeleteInventoryItem,
+  useBulkDeleteInventoryItems,
   InventoryItem,
 } from "@/lib/hooks/use-inventory";
 import { toast } from "sonner";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
+
+type InventoryOtpTarget =
+  | { mode: "one"; id: string }
+  | { mode: "bulk"; ids: string[] };
 
 const CATEGORY_OPTIONS = ["All Categories", "Electronics", "Stationery", "Furniture", "Lab Equipment", "Sports"];
 const UNIT_OPTIONS = ["All Units", "Pieces", "Boxes", "Kits", "Sets", "Bottles"];
@@ -72,6 +79,7 @@ export function InventoryManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editItem, setEditItem] = useState<InventoryItem | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [inventoryOtpTarget, setInventoryOtpTarget] = useState<InventoryOtpTarget | null>(null);
 
   // API hooks
   const { data, isLoading, isError, refetch } = useInventory({
@@ -85,6 +93,7 @@ export function InventoryManagement() {
   const createItem = useCreateInventoryItem();
   const updateItem = useUpdateInventoryItem();
   const deleteItem = useDeleteInventoryItem();
+  const bulkDeleteItems = useBulkDeleteInventoryItems();
 
   const items: InventoryItem[] = data?.data || [];
 
@@ -156,27 +165,14 @@ export function InventoryManagement() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this item?")) return;
-    try {
-      await deleteItem.mutateAsync(id);
-      toast.success("Item deleted!");
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete item");
-    }
+  const handleDelete = (id: string) => {
+    setInventoryOtpTarget({ mode: "one", id });
   };
 
-  const handleDeleteSelected = async () => {
-    if (!confirm(`Delete ${selectedRows.size} selected item(s)?`)) return;
-    try {
-      for (const id of selectedRows) {
-        await deleteItem.mutateAsync(id);
-      }
-      setSelectedRows(new Set());
-      toast.success("Selected items deleted!");
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete items");
-    }
+  const handleDeleteSelected = () => {
+    const ids = Array.from(selectedRows);
+    if (ids.length === 0) return;
+    setInventoryOtpTarget({ mode: "bulk", ids });
   };
 
   const conditionLabel = (c: string) => {
@@ -508,6 +504,45 @@ export function InventoryManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeletionOtpDialog
+        open={!!inventoryOtpTarget}
+        onOpenChange={(open) => !open && setInventoryOtpTarget(null)}
+        audience="school-admin"
+        title={
+          inventoryOtpTarget?.mode === "bulk"
+            ? `Delete ${inventoryOtpTarget.ids.length} item(s)`
+            : "Delete inventory item"
+        }
+        description="Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.INVENTORY_ITEM}
+        entityId={
+          inventoryOtpTarget?.mode === "one"
+            ? inventoryOtpTarget.id
+            : inventoryOtpTarget
+              ? `bulk:${inventoryOtpTarget.ids.length}`
+              : ""
+        }
+        isDeleting={deleteItem.isPending || bulkDeleteItems.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!inventoryOtpTarget) return;
+          if (inventoryOtpTarget.mode === "one") {
+            await deleteItem.mutateAsync({ id: inventoryOtpTarget.id, otp });
+            toast.success("Item deleted!");
+          } else {
+            const res = await bulkDeleteItems.mutateAsync({
+              itemIds: inventoryOtpTarget.ids,
+              otp,
+            });
+            const n =
+              (res as { data?: { count?: number } })?.data?.count ??
+              inventoryOtpTarget.ids.length;
+            toast.success(`${n} item(s) deleted!`);
+            setSelectedRows(new Set());
+          }
+          refetch();
+        }}
+      />
     </div>
   );
 }

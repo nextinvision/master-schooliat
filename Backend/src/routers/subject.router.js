@@ -6,6 +6,7 @@ import getSubjectsSchema from "../schemas/subject/get-subjects.schema.js";
 import createSubjectSchema from "../schemas/subject/create-subject.schema.js";
 import updateSubjectSchema from "../schemas/subject/update-subject.schema.js";
 import deleteSubjectSchema from "../schemas/subject/delete-subject.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import subjectService from "../services/subject.service.js";
 import logger from "../config/logger.js";
 
@@ -118,6 +119,7 @@ router.delete(
     "/:id",
     withPermission([Permission.DELETE_CLASSES]),
     validateRequest(deleteSubjectSchema),
+    requireDeletionOTP({ entityType: "Subject" }),
     async (req, res) => {
         const currentUser = req.context.user;
         const { id } = req.params;

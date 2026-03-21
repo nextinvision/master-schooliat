@@ -1,9 +1,9 @@
 "use client";
 
 import { useRouter, useParams } from "next/navigation";
-import { useForm, FormProvider } from "react-hook-form";
+import { useForm, FormProvider, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { editStudentSchema, StudentFormData } from "@/lib/schemas/student-schema";
 import { useStudent, useUpdateStudent } from "@/lib/hooks/use-students";
 import { FormTopBar } from "@/components/forms/form-top-bar";
@@ -32,6 +32,42 @@ function parseAddress(address: string[]): {
   const [location = "", district = ""] = (locationDistrict || "").split(",").map((s) => s.trim());
   const [state = "", pincode = ""] = (statePincode || "").split("-").map((s) => s.trim());
   return { areaStreet, location, district, state, pincode };
+}
+
+function studentToFormValues(student: any): StudentFormData {
+  const addr = student.address || [];
+  const { areaStreet, location, district, state, pincode } = parseAddress(addr);
+  const sp = student.studentProfile || {};
+  return {
+    firstName: student.firstName || "",
+    lastName: student.lastName || "",
+    gender: student.gender || undefined,
+    dob: student.dateOfBirth
+      ? format(new Date(student.dateOfBirth), "yyyy-MM-dd")
+      : "",
+    phone: student.contact || "",
+    email: student.email || "",
+    areaStreet,
+    location,
+    district,
+    pincode,
+    state,
+    fatherName: sp.fatherName || "",
+    fatherContact: sp.fatherContact || "",
+    motherName: sp.motherName || "",
+    motherContact: sp.motherContact || "",
+    fatherIncome: sp.annualIncome?.toString() || "",
+    fatherOccupation: sp.fatherOccupation || "",
+    aadhaarNumber: student.aadhaarId || "",
+    apaarId: sp.apaarId || "",
+    classId: sp.classId || "",
+    accommodationType: sp.accommodationType || "DAY_SCHOLAR",
+    transportMode: sp.transportId == null ? "Non Transport" : "Transport",
+    transportId: sp.transportId || "",
+    registrationPhotoId: student.registrationPhotoId || null,
+      bloodGroup: sp.bloodGroup ? String(sp.bloodGroup) : "",
+      rollNumber: sp.rollNumber != null && sp.rollNumber !== "" ? String(sp.rollNumber) : "",
+  };
 }
 
 export default function EditStudentPage() {
@@ -70,6 +106,7 @@ export default function EditStudentPage() {
       aadhaarNumber: "",
       apaarId: "",
       bloodGroup: "",
+      rollNumber: "",
     },
     mode: "onBlur",
   });
@@ -82,45 +119,38 @@ export default function EditStudentPage() {
     formState: { errors },
   } = methods;
 
-  useEffect(() => {
-    if (!student) return;
-    const addr = student.address || [];
-    const { areaStreet, location, district, state, pincode } = parseAddress(addr);
-    const sp = student.studentProfile || {};
+  /** Avoid resetting on every React Query refetch (new `student` reference) — that was clearing class & parent fields while editing. */
+  const hydratedForStudentIdRef = useRef<string | null>(null);
 
-    reset({
-      firstName: student.firstName || "",
-      lastName: student.lastName || "",
-      gender: student.gender || undefined,
-      dob: student.dateOfBirth
-        ? format(new Date(student.dateOfBirth), "yyyy-MM-dd")
-        : "",
-      phone: student.contact || "",
-      email: student.email || "",
-      areaStreet,
-      location,
-      district,
-      pincode,
-      state,
-      fatherName: sp.fatherName || "",
-      fatherContact: sp.fatherContact || "",
-      motherName: sp.motherName || "",
-      motherContact: sp.motherContact || "",
-      fatherIncome: sp.annualIncome?.toString() || "",
-      fatherOccupation: sp.fatherOccupation || "",
-      aadhaarNumber: student.aadhaarId || "",
-      apaarId: sp.apaarId || "",
-      classId: sp.classId || "",
-      accommodationType: sp.accommodationType || "DAY_SCHOLAR",
-      transportMode: sp.transportId == null ? "Non Transport" : "Transport",
-      transportId: sp.transportId || "",
-      registrationPhotoId: student.registrationPhotoId || null,
-      bloodGroup: sp.bloodGroup || "",
-      rollNumber: sp.rollNumber || "",
-    });
-  }, [student, reset]);
+  useEffect(() => {
+    if (!student?.id || student.id !== studentId) return;
+    if (hydratedForStudentIdRef.current === student.id) return;
+    hydratedForStudentIdRef.current = student.id;
+    reset(studentToFormValues(student));
+  }, [student, studentId, reset]);
+
+  const classAdditionalOptions = useMemo(() => {
+    const sp = student?.studentProfile;
+    if (!sp?.classId) return undefined;
+    const label = sp.class
+      ? `${sp.class.grade}${sp.class.division ? `-${sp.class.division}` : ""}`
+      : "Current class";
+    return [{ value: sp.classId, label }];
+  }, [
+    student?.studentProfile?.classId,
+    student?.studentProfile?.class?.grade,
+    student?.studentProfile?.class?.division,
+  ]);
 
   const transportMode = watch("transportMode");
+
+  const onInvalid = useCallback((err: FieldErrors<StudentFormData>) => {
+    const first = Object.values(err).find(
+      (e): e is { message?: string } =>
+        !!e && typeof e === "object" && "message" in e && !!e.message
+    );
+    toast.error(first?.message ?? "Please fix the highlighted fields and try again.");
+  }, []);
 
   const onSubmit = async (data: StudentFormData) => {
     try {
@@ -157,12 +187,16 @@ export default function EditStudentPage() {
         <FormTopBar
           title="Edit Student"
           onCancel={() => router.push("/admin/students")}
-          onReset={() => reset()}
-          onSave={handleSubmit(onSubmit)}
+          onReset={() => student && reset(studentToFormValues(student))}
+          submitFormId="edit-student-form"
           isSaving={isSaving}
         />
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form
+          id="edit-student-form"
+          onSubmit={handleSubmit(onSubmit, onInvalid)}
+          className="space-y-6"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Basic Information */}
             <FormCard title="Basic Information">
@@ -235,9 +269,11 @@ export default function EditStudentPage() {
 
                 <div className="space-y-2 col-span-2">
                   <ClassDropdown
+                    key={studentId}
                     name="classId"
                     label="Select Class"
                     rules={{ required: "Class is required" }}
+                    additionalOptions={classAdditionalOptions}
                   />
                 </div>
 

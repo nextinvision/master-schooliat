@@ -5,7 +5,7 @@ This document describes the **fees management** flow on the School Admin panel: 
 ## Overview
 
 - **Page**: Admin → Finance → Fees (`/admin/finance/fees`)
-- **Use cases**: View installments, record payments (online/offline), generate receipts, export CSV report.
+- **Use cases**: View installments, record payments (online/offline), generate receipts, export CSV, and **review the school-wide transaction ledger** (payments, waivers, cancellation reversals) on the **Transaction ledger** tab.
 - **Backend**: `/api/v1/fees/*` (and legacy `/fees/*`).
 
 ## Flow
@@ -15,7 +15,7 @@ This document describes the **fees management** flow on the School Admin panel: 
 - **UI**: `FeesManagement` shows a table of installments (by installment number range and optional academic year).
 - **API**: `GET /api/v1/fees/installments/:installmentNumber?end=&academicYear=`  
   Returns installments for the school with student info and `receiptFileUrl` when a receipt exists.
-- **Filters**: Status (All/Paid/Partially Paid/Pending), Year, Period, Installment range. Academic year is sent as `academicYear` when applicable.
+- **Filters**: **Academic year** uses the same control as the rest of the portal (`AcademicYearProvider` / navbar storage), not a separate hardcoded year — so installment and ledger queries match the year you use elsewhere. Also: status, installment range, student search. `academicYear` is sent URL-encoded on API calls.
 
 ### 2. Record payment (online / offline)
 
@@ -41,17 +41,27 @@ This document describes the **fees management** flow on the School Admin panel: 
   - **Main table**: Each row has a receipt icon that opens `receiptFileUrl` in a new tab (when present).
   - **Fee details modal**: Per-installment “Receipt” button opens that installment’s receipt when `receiptFileUrl` is present.
 
-### 4. Export report
+### 4. Export reports
 
-- **UI**: “Download Report” in Fees Management.
+- **Installments CSV** (Fee desk tab): **Installments CSV** button.
 - **API**: `GET /api/v1/fees/export?academicYear=`  
   Returns CSV (student, installment, amount, paid at, status, **payment method**).
-- **Implementation**: Dashboard uses the shared **API client** `downloadFromApi("/fees/export?academicYear=...")` so the request uses the same base URL and `/api/v1` prefix (works in dev with Next.js rewrites and in production).
+- **Ledger CSV** (Transaction ledger tab): **Ledger CSV** with the same filters as the ledger table (academic year, optional student, entry type).
+- **API**: `GET /api/v1/fees/ledger/export?academicYear=&studentId=&entryType=&dateFrom=&dateTo=`
+- **Implementation**: Dashboard uses `downloadFromApi()` for both exports so auth and `/api/v1` prefix match dev rewrites.
+
+### 5. Transaction ledger (school-wide)
+
+- **UI**: **Transaction ledger** tab on Fees Management — paginated table of all `FeeLedgerEntry` rows for the school (date, type, student, amount, receipt no., installment #, method, recorded by, receipt link).
+- **Filters**: Academic year (April–March window), entry type (All / Payment / Waiver / Cancellation reversal), and the **same student lookup** as the fee desk (`lookupStudentId`). **Clear student filter** resets without leaving the tab.
+- **API**: `GET /api/v1/fees/ledger?academicYear=&studentId=&entryType=&page=&limit=`
+- **Per-student ledger** (profile / modal): `GET /api/v1/fees/student/:studentId/ledger?limit=`
+- **Fee Details modal**: **Installments** and **Payment history** tabs; history uses the per-student ledger endpoint.
 
 ## Root-level fixes applied
 
-1. **Export URL**  
-   Export no longer uses a raw `fetch` to `/fees/export`. It uses `downloadFromApi()` so the URL is built with `/api/v1` and the same auth, fixing 404 in dev when rewrites only apply to `/api/*`.
+1. **Export URLs**  
+   Exports use `downloadFromApi()` so paths include `/api/v1` and auth matches dev rewrites.
 
 2. **Payment amount as integer**  
    - Dashboard rounds the payment amount with `Math.round(Number(data.amount) || 0)` before sending.  
@@ -78,7 +88,10 @@ This document describes the **fees management** flow on the School Admin panel: 
 | Student fees    | GET    | `/api/v1/fees/student/:studentId`            |
 | Request OTP     | POST   | `/api/v1/fees/request-otp`                    |
 | Record payment  | PATCH  | `/api/v1/fees/installments/:id/payment`      |
-| Export CSV      | GET    | `/api/v1/fees/export?academicYear=`          |
+| Export installments CSV | GET | `/api/v1/fees/export?academicYear=` |
+| School ledger (paginated) | GET | `/api/v1/fees/ledger?academicYear=&studentId=&entryType=&page=&limit=` |
+| Export ledger CSV | GET | `/api/v1/fees/ledger/export?...` |
+| Student ledger  | GET    | `/api/v1/fees/student/:studentId/ledger?limit=` |
 | Receipt file    | GET    | `/files/:fileId` (via backend)               |
 
 All dashboard requests use the same API client (auth token, `x-platform: web`, and base URL with `/api/v1` where applicable).

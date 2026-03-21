@@ -57,8 +57,8 @@ function updateTimetableApi(timetableId: string, data: {
 }
 
 // Delete timetable
-function deleteTimetableApi(timetableId: string) {
-  return del(`/timetables/${timetableId}`);
+function deleteTimetableApi(timetableId: string, otp: string) {
+  return del(`/timetables/${timetableId}`, { request: { otp } });
 }
 
 // Check conflicts
@@ -142,7 +142,7 @@ export function useDeleteTimetable() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (timetableId: string) => deleteTimetableApi(timetableId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteTimetableApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["timetable"] });
     },

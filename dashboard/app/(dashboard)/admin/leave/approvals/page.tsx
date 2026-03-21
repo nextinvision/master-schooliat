@@ -6,7 +6,7 @@ import {
   useApproveLeave,
   useRejectLeave,
 } from "@/lib/hooks/use-leave";
-import { useClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses } from "@/lib/hooks/use-classes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -44,7 +44,7 @@ import { useRouter } from "next/navigation";
 export default function LeaveApprovalsPage() {
   const router = useRouter();
   const [classFilter, setClassFilter] = useState<string>("all");
-  const { data: classesData, isLoading: classesLoading } = useClasses({ page: 1, limit: 1000 });
+  const { data: classesData, isLoading: classesLoading } = useAllClasses();
   const classes = classesData?.data ?? [];
   const { data: pendingLeaves, isLoading, refetch } = usePendingLeaveRequestsForApproval(
     classFilter === "all" ? null : classFilter

@@ -58,8 +58,14 @@ function updateStaffApi(id: string, form: any) {
     return patch(`/users/staff/${id}`, payload);
 }
 
-function deleteStaffApi(staffId: string) {
-    return del(`/users/staff/${staffId}`);
+function deleteStaffApi(staffId: string, otp: string) {
+    return del(`/users/staff/${staffId}`, { request: { otp } });
+}
+
+function bulkDeleteStaffApi(staffIds: string[], otp: string) {
+    return post("/users/staff/bulk-delete", {
+        request: { staffIds, otp },
+    });
 }
 
 export function useStaffPage(page: number, limit = 15, academicYear?: string) {
@@ -121,7 +127,19 @@ export function useDeleteStaff() {
     const queryClient = useQueryClient();
 
     return useMutation({
-        mutationFn: (staffId: string) => deleteStaffApi(staffId),
+        mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteStaffApi(id, otp),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["staff"] });
+        },
+    });
+}
+
+export function useBulkDeleteStaff() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: ({ staffIds, otp }: { staffIds: string[]; otp: string }) =>
+            bulkDeleteStaffApi(staffIds, otp),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["staff"] });
         },

@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { BASE_URL } from "@/lib/api/config";
 import { useAttendanceReports } from "@/lib/hooks/use-reports";
-import { useClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses } from "@/lib/hooks/use-classes";
 import { useStudents } from "@/lib/hooks/use-students";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,7 +80,7 @@ export default function AttendanceReportsPage() {
   }, [portalMonth, syncPortalMonth, getMonthDateRange]);
 
   // Fetch classes
-  const { data: classesData, isLoading: classesLoading } = useClasses({ page: 1, limit: 1000 });
+  const { data: classesData, isLoading: classesLoading } = useAllClasses();
   const classes = classesData?.data || [];
 
   // Fetch students for selected class

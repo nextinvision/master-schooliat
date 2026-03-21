@@ -92,9 +92,9 @@ export function BulkUploadDialog({
     };
 
     return (
-        <Dialog open={open} onOpenChange={(val) => {
-            onOpenChange(val);
-            if (!val) reset();
+        <Dialog open={open} onOpenChange={(openNext: boolean) => {
+            onOpenChange(openNext);
+            if (!openNext) reset();
         }}>
             <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col">
                 <DialogHeader>
@@ -164,6 +164,74 @@ export function BulkUploadDialog({
                                                     <span className="text-red-700">{err.error}</span>
                                                 </div>
                                             ))}
+                                        </div>
+                                    </ScrollArea>
+                                </div>
+                            )}
+
+                            {Array.isArray(results.credentials) && results.credentials.length > 0 && (
+                                <div className="flex-1 overflow-hidden flex flex-col gap-2 border-t pt-3">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-sm font-medium">Mobile app login (one-time)</p>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-1 shrink-0"
+                                            onClick={() => {
+                                                const creds = results.credentials as {
+                                                    email: string;
+                                                    publicUserId: string;
+                                                    password: string;
+                                                }[];
+                                                const esc = (v: string) =>
+                                                    `"${String(v).replace(/"/g, '""')}"`;
+                                                const lines = creds.map((c) =>
+                                                    [esc(c.email), esc(c.publicUserId), esc(c.password)].join(","),
+                                                );
+                                                const csv = ["Email,LoginId,Password", ...lines].join("\n");
+                                                const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+                                                const url = URL.createObjectURL(blob);
+                                                const a = document.createElement("a");
+                                                a.href = url;
+                                                a.download = "teacher_login_credentials.csv";
+                                                a.click();
+                                                URL.revokeObjectURL(url);
+                                                toast.success("Credentials CSV downloaded");
+                                            }}
+                                        >
+                                            <Download className="h-4 w-4" />
+                                            Download CSV
+                                        </Button>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                        Use email or Login ID with password; app header{" "}
+                                        <span className="font-mono">x-platform: android</span> or{" "}
+                                        <span className="font-mono">ios</span>. Save now — passwords are not shown again.
+                                    </p>
+                                    <ScrollArea className="max-h-52 bg-white rounded border">
+                                        <div className="p-3 space-y-2 text-xs font-mono">
+                                            {(results.credentials as { email: string; publicUserId: string; password: string }[]).map(
+                                                (c, idx) => (
+                                                    <div
+                                                        key={`${c.email}-${idx}`}
+                                                        className="p-2 rounded border bg-muted/30 space-y-1"
+                                                    >
+                                                        <div>
+                                                            <span className="text-muted-foreground">Email </span>
+                                                            {c.email}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-muted-foreground">ID </span>
+                                                            {c.publicUserId}
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-muted-foreground">Pass </span>
+                                                            {c.password}
+                                                        </div>
+                                                    </div>
+                                                ),
+                                            )}
                                         </div>
                                     </ScrollArea>
                                 </div>

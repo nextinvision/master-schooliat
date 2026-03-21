@@ -41,6 +41,7 @@ export default function StaffAttendancePage() {
     // Fetch existing attendance for the date
     const { data: attendanceData, isLoading: attendanceLoading, refetch } = useAttendance({
         date: selectedDate,
+        classId: defaultClassId || undefined,
     });
 
     const markBulkAttendance = useMarkBulkAttendance();

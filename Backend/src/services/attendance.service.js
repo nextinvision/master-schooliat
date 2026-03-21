@@ -3,6 +3,7 @@ import { AttendanceStatus } from "../prisma/generated/index.js";
 import logger from "../config/logger.js";
 import emailService from "./email.service.js";
 import notificationService from "./notification.service.js";
+import { getLocalDayBounds, resolveLateArrivalDateTime } from "../utils/attendance-date.util.js";
 
 /**
  * Mark daily attendance for a student
@@ -31,12 +32,9 @@ const markAttendance = async (data) => {
     schoolId,
   } = data;
 
-  // Normalize date to start of day for comparison
   const attendanceDate = new Date(date);
-  const startOfDay = new Date(attendanceDate);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(attendanceDate);
-  endOfDay.setHours(23, 59, 59, 999);
+  const resolvedLate = resolveLateArrivalDateTime(attendanceDate, lateArrivalTime);
+  const { start: startOfDay, end: endOfDay } = getLocalDayBounds(attendanceDate);
 
   // Check if attendance already exists for this student, class, date, and period
   const existingAttendance = await prisma.attendance.findFirst({
@@ -59,7 +57,7 @@ const markAttendance = async (data) => {
       where: { id: existingAttendance.id },
       data: {
         status,
-        lateArrivalTime,
+        lateArrivalTime: resolvedLate,
         absenceReason,
         markedBy,
         updatedBy: markedBy,
@@ -74,7 +72,7 @@ const markAttendance = async (data) => {
         date: attendanceDate,
         status,
         periodId,
-        lateArrivalTime,
+        lateArrivalTime: resolvedLate,
         absenceReason,
         markedBy,
         schoolId,
@@ -116,26 +114,30 @@ const markBulkAttendance = async (attendanceData, markedBy) => {
     await Promise.all(
       batch.map(async (data) => {
         try {
+          const { start: dayStart, end: dayEnd } = getLocalDayBounds(data.date);
           const existing = await prisma.attendance.findFirst({
             where: {
               studentId: data.studentId,
               classId: data.classId,
               date: {
-                gte: new Date(new Date(data.date).setHours(0, 0, 0, 0)),
-                lt: new Date(new Date(data.date).setHours(23, 59, 59, 999)),
+                gte: dayStart,
+                lte: dayEnd,
               },
-              periodId: data.periodId || null,
+              periodId: data.periodId ?? null,
               deletedAt: null,
             },
           });
+
+          const rowDate = new Date(data.date);
+          const resolvedLateBulk = resolveLateArrivalDateTime(rowDate, data.lateArrivalTime);
 
           if (existing) {
             await prisma.attendance.update({
               where: { id: existing.id },
               data: {
                 status: data.status,
-                lateArrivalTime: data.lateArrivalTime,
-                absenceReason: data.absenceReason,
+                lateArrivalTime: resolvedLateBulk,
+                absenceReason: data.absenceReason ?? null,
                 markedBy,
                 updatedBy: markedBy,
               },
@@ -144,8 +146,14 @@ const markBulkAttendance = async (attendanceData, markedBy) => {
           } else {
             await prisma.attendance.create({
               data: {
-                ...data,
-                date: new Date(data.date),
+                studentId: data.studentId,
+                classId: data.classId,
+                date: rowDate,
+                status: data.status,
+                periodId: data.periodId ?? null,
+                lateArrivalTime: resolvedLateBulk,
+                absenceReason: data.absenceReason ?? null,
+                schoolId: data.schoolId,
                 markedBy,
                 createdBy: markedBy,
               },
@@ -226,10 +234,7 @@ const getStudentAttendance = async (studentId, startDate, endDate) => {
  * @returns {Promise<Array>} - Attendance records
  */
 const getClassAttendance = async (classId, date, periodId = null) => {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(date);
-  endOfDay.setHours(23, 59, 59, 999);
+  const { start: startOfDay, end: endOfDay } = getLocalDayBounds(date);
 
   const where = {
     classId,
@@ -240,7 +245,7 @@ const getClassAttendance = async (classId, date, periodId = null) => {
     deletedAt: null,
   };
 
-  if (periodId && periodId !== "all") {
+  if (periodId) {
     where.periodId = periodId;
   }
 
@@ -352,6 +357,7 @@ const sendAbsenceAlert = async (studentId, date, reason) => {
         include: {
           parent: {
             select: {
+              id: true,
               email: true,
               firstName: true,
               lastName: true,

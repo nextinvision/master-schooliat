@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useExams, useMarks, useEnterBulkMarks } from "@/lib/hooks/use-marks";
-import { useClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses } from "@/lib/hooks/use-classes";
 import { useSubjects } from "@/lib/hooks/use-subjects";
 import { useStudentsPage } from "@/lib/hooks/use-students";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ export default function MarksEntryPage() {
   const [grid, setGrid] = useState<Record<string, Record<string, { obtained: string; max: number }>>>({});
 
   const { data: examsRes } = useExams({ pageNumber: 1, pageSize: 100 });
-  const { data: classesRes } = useClasses({ page: 1, limit: 500 });
+  const { data: classesRes } = useAllClasses();
   const { data: studentsRes } = useStudentsPage(1, STUDENTS_PAGE_SIZE);
   const { data: subjectsRes } = useSubjects({
     classId: classId || undefined,

@@ -9,6 +9,8 @@ import updateNoteSchema from "../schemas/notes/update-note.schema.js";
 import getNotesSchema from "../schemas/notes/get-notes.schema.js";
 import createSyllabusSchema from "../schemas/syllabus/create-syllabus.schema.js";
 import getSyllabusSchema from "../schemas/syllabus/get-syllabus.schema.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -133,6 +135,8 @@ router.get(
 router.delete(
   "/notes/:id",
   withPermission(Permission.DELETE_NOTE),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "Note" }),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -277,6 +281,8 @@ router.get(
 router.delete(
   "/syllabus/:id",
   withPermission(Permission.DELETE_SYLLABUS),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "Syllabus" }),
   async (req, res) => {
     try {
       const { id } = req.params;

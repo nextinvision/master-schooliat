@@ -9,6 +9,8 @@ import { Permission, FeePaymentStatus, RoleName } from "../prisma/generated/inde
 import validateRequest from "../middlewares/validate-request.middleware.js";
 import getInstallmentsSchema from "../schemas/fee/get-installments.schema.js";
 import getStudentInstallmentsSchema from "../schemas/fee/get-student-installments.schema.js";
+import getStudentFeeLedgerSchema from "../schemas/fee/get-student-fee-ledger.schema.js";
+import getSchoolFeeLedgerSchema from "../schemas/fee/get-school-fee-ledger.schema.js";
 import recordPaymentSchema from "../schemas/fee/record-payment.schema.js";
 import cancelInstallmentSchema from "../schemas/fee/cancel-installment.schema.js";
 import fileService from "../services/file.service.js";
@@ -120,13 +122,6 @@ const numberToWords = (num) => {
   return words.trim() + " Rupees Only";
 };
 
-// Generate receipt number
-const generateReceiptNumber = () => {
-  const timestamp = Date.now().toString(36).toUpperCase();
-  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-  return `FEE-${timestamp}-${random}`;
-};
-
 // Upload file and create DB entry
 const uploadAndCreateFileEntry = async (
   buffer,
@@ -154,6 +149,28 @@ const uploadAndCreateFileEntry = async (
   return file.id;
 };
 
+const buildGstSectionHtml = (gstMeta, schoolGst, panCard) => {
+  if (!gstMeta?.gst) return "";
+  const rows = [
+    `<div class="gst-section">`,
+    `<h3 class="section-title">Tax details</h3>`,
+    `<table class="payment-table"><tbody>`,
+    `<tr><td>Taxable value (₹)</td><td class="text-right">${Number(gstMeta.taxableValue || 0).toLocaleString("en-IN")}</td></tr>`,
+    `<tr><td>CGST @ ${gstMeta.cgstPercent}%</td><td class="text-right">${Number(gstMeta.cgstAmount || 0).toLocaleString("en-IN")}</td></tr>`,
+    `<tr><td>SGST @ ${gstMeta.sgstPercent}%</td><td class="text-right">${Number(gstMeta.sgstAmount || 0).toLocaleString("en-IN")}</td></tr>`,
+    `<tr><td><strong>Total (incl. GST)</strong></td><td class="text-right"><strong>${Number(gstMeta.total || 0).toLocaleString("en-IN")}</strong></td></tr>`,
+    `</tbody></table>`,
+  ];
+  if (schoolGst) {
+    rows.push(`<p class="gst-note">School GSTIN: ${schoolGst}</p>`);
+  }
+  if (panCard) {
+    rows.push(`<p class="gst-note">PAN: ${panCard}</p>`);
+  }
+  rows.push(`</div>`);
+  return rows.join("");
+};
+
 // Generate fee receipt HTML
 const generateFeeReceiptHTML = async (
   installment,
@@ -163,6 +180,8 @@ const generateFeeReceiptHTML = async (
   previousPaidAmount,
   paymentMethod,
   isWaiver,
+  receiptNumber,
+  receiptConfig = {},
 ) => {
   const template = getFeeReceiptTemplate();
 
@@ -203,6 +222,12 @@ const generateFeeReceiptHTML = async (
     : "N/A";
   const fatherName = student.studentProfile?.fatherName || "N/A";
 
+  const gstSectionHtml = buildGstSectionHtml(
+    receiptConfig.gst,
+    school.gstNumber || "",
+    receiptConfig.panCardNumber || "",
+  );
+
   // Replace all placeholders
   let html = template;
 
@@ -212,7 +237,8 @@ const generateFeeReceiptHTML = async (
   html = html.replace(/\{\{school\.address\}\}/g, schoolAddress);
 
   // Receipt placeholders
-  html = html.replace(/\{\{receipt\.number\}\}/g, generateReceiptNumber());
+  html = html.replace(/\{\{receipt\.number\}\}/g, receiptNumber || "—");
+  html = html.replace(/\{\{receipt\.gstSectionHtml\}\}/g, gstSectionHtml);
   html = html.replace(/\{\{receipt\.date\}\}/g, receiptDate);
   html = html.replace(
     /\{\{receipt\.year\}\}/g,
@@ -278,6 +304,19 @@ const attachReceiptUrl = (installment) => {
     installment.receiptFileUrl = null;
   }
   return installment;
+};
+
+const attachLedgerEntryReceiptUrl = (row) => {
+  const next = { ...row };
+  if (next.receiptFileId) {
+    next.receiptFileUrl = fileService.attachFileURL({
+      id: next.receiptFileId,
+      extension: "html",
+    }).url;
+  } else {
+    next.receiptFileUrl = null;
+  }
+  return next;
 };
 
 const router = Router();
@@ -633,6 +672,177 @@ router.get(
   },
 );
 
+// GET fee ledger (payments, waivers, cancellation reversals) for a student
+router.get(
+  "/student/:studentId/ledger",
+  withPermission(Permission.GET_FEES),
+  validateRequest(getStudentFeeLedgerSchema),
+  async (req, res) => {
+    const { studentId } = req.params;
+    const currentUser = req.context.user;
+    const limitRaw = req.query.limit;
+    const limit = limitRaw
+      ? Math.min(500, Math.max(1, parseInt(String(limitRaw), 10) || 100))
+      : 100;
+
+    if (!currentUser.schoolId) {
+      return res
+        .status(400)
+        .json({ message: "User is not associated with a school!" });
+    }
+
+    const student = await prisma.user.findFirst({
+      where: {
+        id: studentId,
+        schoolId: currentUser.schoolId,
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found!" });
+    }
+
+    const entries = await feeService.getStudentFeeLedger(
+      currentUser.schoolId,
+      studentId,
+      { limit },
+    );
+
+    const withUrls = entries.map((e) => attachLedgerEntryReceiptUrl({ ...e }));
+
+    return res.json({
+      message: "Fee ledger fetched",
+      data: { entries: withUrls },
+    });
+  },
+);
+
+// GET school-wide fee ledger (admin fee desk — all students, filterable)
+router.get(
+  "/ledger",
+  withPermission(Permission.GET_FEES),
+  validateRequest(getSchoolFeeLedgerSchema),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    if (!currentUser.schoolId) {
+      return res
+        .status(400)
+        .json({ message: "User is not associated with a school!" });
+    }
+
+    const filters = {
+      studentId: req.query.studentId,
+      entryType: req.query.entryType,
+      academicYear: req.query.academicYear,
+      dateFrom: req.query.dateFrom,
+      dateTo: req.query.dateTo,
+      page: req.query.page,
+      limit: req.query.limit,
+    };
+
+    const result = await feeService.getSchoolFeeLedger(
+      currentUser.schoolId,
+      filters,
+    );
+    const entries = result.entries.map((e) =>
+      attachLedgerEntryReceiptUrl({ ...e }),
+    );
+
+    return res.json({
+      message: "School fee ledger fetched",
+      data: { entries, pagination: result.pagination },
+    });
+  },
+);
+
+// GET school fee ledger as CSV (same filters as /ledger except pagination)
+router.get(
+  "/ledger/export",
+  withPermission(Permission.GET_FEES),
+  validateRequest(getSchoolFeeLedgerSchema),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    if (!currentUser.schoolId) {
+      return res
+        .status(400)
+        .json({ message: "User is not associated with a school!" });
+    }
+
+    const filters = {
+      studentId: req.query.studentId,
+      entryType: req.query.entryType,
+      academicYear: req.query.academicYear,
+      dateFrom: req.query.dateFrom,
+      dateTo: req.query.dateTo,
+    };
+
+    const rows = await feeService.getSchoolFeeLedgerForExport(
+      currentUser.schoolId,
+      filters,
+    );
+
+    const csvEscape = (cell) =>
+      `"${String(cell ?? "").replace(/"/g, '""')}"`;
+
+    const headers = [
+      "Date (UTC)",
+      "Type",
+      "Public ID",
+      "Student name",
+      "Class",
+      "Roll",
+      "Amount",
+      "Receipt no",
+      "Installment #",
+      "Payment method",
+      "Transaction ID",
+      "Remarks",
+      "Recorded by",
+    ];
+
+    const lines = [headers.join(",")];
+    for (const e of rows) {
+      const st = e.student;
+      const name = st
+        ? `${st.firstName || ""} ${st.lastName || ""}`.trim()
+        : "";
+      const cls = st?.studentProfile?.class;
+      const classLabel = cls
+        ? `${cls.grade}${cls.division ? `-${cls.division}` : ""}`
+        : "";
+      const recorder = e.recordedByUser
+        ? `${e.recordedByUser.firstName || ""} ${e.recordedByUser.lastName || ""}`.trim()
+        : "";
+      lines.push(
+        [
+          csvEscape(e.createdAt ? new Date(e.createdAt).toISOString() : ""),
+          csvEscape(e.entryType),
+          csvEscape(st?.publicUserId),
+          csvEscape(name),
+          csvEscape(classLabel),
+          csvEscape(st?.studentProfile?.rollNumber),
+          csvEscape(e.amount),
+          csvEscape(e.receiptNumber),
+          csvEscape(e.installmentNumber),
+          csvEscape(e.paymentMethod),
+          csvEscape(e.transactionId),
+          csvEscape(e.remarks),
+          csvEscape(recorder),
+        ].join(","),
+      );
+    }
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=fee_ledger_export.csv",
+    );
+    return res.send(lines.join("\n"));
+  },
+);
+
 // GET all fee installments for a specific student
 router.get(
   "/student/:studentId",
@@ -802,20 +1012,31 @@ router.patch(
 
     const appliedAmount = isWaiver ? installment.remainingAmount : amount;
     const previousPaidAmount = installment.paidAmount;
-    const newPaidAmount = installment.paidAmount + appliedAmount;
-    const newRemainingAmount = installment.remainingAmount - appliedAmount;
 
-    // Determine new payment status
-    let newPaymentStatus;
-    if (newRemainingAmount === 0) {
-      newPaymentStatus = FeePaymentStatus.PAID;
-    } else if (newPaidAmount > 0) {
-      newPaymentStatus = FeePaymentStatus.PARTIALLY_PAID;
-    } else {
-      newPaymentStatus = FeePaymentStatus.PENDING;
+    if (!student || !school) {
+      return res
+        .status(404)
+        .json({ message: "Student or school not found for receipt." });
     }
 
-    let receiptFileId = null;
+    let ledgerResult;
+    try {
+      ledgerResult = await feeService.recordFeePaymentWithLedger({
+        installmentId: id,
+        appliedAmount,
+        paymentMethod,
+        recordedBy: currentUser.id,
+        transactionId,
+        remarks,
+        isWaiver: !!isWaiver,
+      });
+    } catch (err) {
+      logger.error({ err, installmentId: id }, "recordFeePaymentWithLedger failed");
+      return res.status(400).json({
+        message: err.message || "Failed to record payment",
+      });
+    }
+
     try {
       const receiptHTML = await generateFeeReceiptHTML(
         installment,
@@ -825,39 +1046,42 @@ router.patch(
         previousPaidAmount,
         paymentMethod || "System",
         isWaiver || false,
+        ledgerResult.receiptNumber,
+        ledgerResult.receiptConfig || {},
       );
 
-      receiptFileId = await uploadAndCreateFileEntry(
+      const safeName = String(ledgerResult.receiptNumber).replace(/[^\w.-]+/g, "_");
+      const receiptFileId = await uploadAndCreateFileEntry(
         Buffer.from(receiptHTML, "utf-8"),
-        `fee-receipt-${installment.id}-${Date.now()}`,
+        `fee-receipt-${safeName}`,
         "html",
         "text/html",
         currentUser.id,
       );
+
+      await feeService.attachFeePaymentReceipt({
+        ledgerEntryId: ledgerResult.ledgerEntryId,
+        installmentId: id,
+        receiptFileId,
+        recordedBy: currentUser.id,
+      });
     } catch (error) {
       logger.error(`Failed to generate fee receipt: ${error.message}`, error);
-      // Continue with payment recording even if receipt generation fails
     }
 
-    // Record payment using service
-    const result = await feeService.recordPayment(
-      id,
-      appliedAmount,
-      paymentMethod,
-      receiptFileId,
-      currentUser.id,
-      transactionId,
-      remarks
-    );
+    const finalInstallment = await prisma.feeInstallements.findFirst({
+      where: { id, schoolId: currentUser.schoolId, deletedAt: null },
+    });
 
-    // Attach receipt URL to response
-    const responseData = attachReceiptUrl({ ...result.installment });
+    const responseData = attachReceiptUrl({ ...finalInstallment });
 
     return res.json({
       message: "Payment recorded successfully!",
       data: {
         installment: responseData,
-        fee: result.fee,
+        fee: ledgerResult.fee,
+        receiptNumber: ledgerResult.receiptNumber,
+        ledgerEntryId: ledgerResult.ledgerEntryId,
       },
     });
   },
@@ -986,7 +1210,7 @@ router.get(
       const rows = installments.map((i) => {
         const student = i.studentId ? studentMap[i.studentId] : null;
         return [
-          i.id?.slice(0, 8) || "N/A",
+          i.lastReceiptNumber || i.id?.slice(0, 8) || "N/A",
           i.installementNumber || "N/A",
           student?.publicUserId || "N/A",
           student?.studentProfile?.rollNumber || "N/A",

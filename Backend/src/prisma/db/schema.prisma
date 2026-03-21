@@ -398,6 +398,14 @@ model Settings {
   updatedAt                DateTime? @updatedAt @map("updated_at")
   deletedAt                DateTime? @map("deleted_at")
   platformConfig           Json?     @map("platform_config")
+  /// When set (school settings only), deletion OTP emails go here instead of the admin login email.
+  deletionOtpEmail         String?   @map("deletion_otp_email")
+  feeReceiptNumberPrefix   String?   @default("REC") @map("fee_receipt_number_prefix")
+  feeReceiptNextSequence   Int?      @default(1) @map("fee_receipt_next_sequence")
+  feeReceiptUseGst         Boolean   @default(false) @map("fee_receipt_use_gst")
+  feeReceiptCgstPercent    Decimal?  @map("fee_receipt_cgst_percent") @db.Decimal(5, 2)
+  feeReceiptSgstPercent    Decimal?  @map("fee_receipt_sgst_percent") @db.Decimal(5, 2)
+  feeReceiptPanCardNumber  String?   @map("fee_receipt_pan_card_number")
 
   @@map("settings")
 }
@@ -621,6 +629,7 @@ model FeeInstallements {
   cancelledAt        DateTime?         @map("cancelled_at")
   cancellationReason String?           @map("cancellation_reason")
   receiptFileId      String?           @map("receipt_file_id")
+  lastReceiptNumber  String?           @map("last_receipt_number")
   createdBy          String            @map("created_by")
   updatedBy          String?           @map("updated_by")
   deletedBy          String?           @map("deleted_by")
@@ -632,6 +641,28 @@ model FeeInstallements {
   @@index([schoolId, deletedAt])
   @@index([studentId, deletedAt])
   @@map("fee_installments")
+}
+
+model FeeLedgerEntry {
+  id            String             @id @default(uuid())
+  schoolId      String             @map("school_id")
+  studentId     String             @map("student_id")
+  feeId         String?            @map("fee_id")
+  installmentId String?            @map("installment_id")
+  entryType     FeeLedgerEntryType @map("entry_type")
+  amount        Int
+  receiptNumber String?            @map("receipt_number")
+  receiptFileId String?            @map("receipt_file_id")
+  paymentMethod String?            @map("payment_method")
+  transactionId String?            @map("transaction_id")
+  remarks       String?
+  metadata      Json?
+  recordedBy    String?            @map("recorded_by")
+  createdAt     DateTime           @default(now()) @map("created_at")
+
+  @@index([schoolId, studentId, createdAt(sort: Desc)], map: "fee_ledger_entries_school_student_created_idx")
+  @@index([installmentId], map: "fee_ledger_entries_installment_idx")
+  @@map("fee_ledger_entries")
 }
 
 model Grievance {
@@ -1912,6 +1943,14 @@ enum FeePaymentStatus {
   CANCELLED
 
   @@map("fee_payment_status")
+}
+
+enum FeeLedgerEntryType {
+  PAYMENT
+  WAIVER
+  CANCELLATION_REVERSAL
+
+  @@map("fee_ledger_entry_type")
 }
 
 enum CourierDispatchStatus {

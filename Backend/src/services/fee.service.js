@@ -1,5 +1,9 @@
 import prisma from "../prisma/client.js";
-import { FeePaymentStatus, RoleName } from "../prisma/generated/index.js";
+import {
+  FeePaymentStatus,
+  FeeLedgerEntryType,
+  RoleName,
+} from "../prisma/generated/index.js";
 import logger from "../config/logger.js";
 import notificationService from "./notification.service.js";
 
@@ -227,78 +231,64 @@ const cancelFeeInstallment = async (
       });
     }
 
+    if (prevPaid > 0) {
+      await tx.feeLedgerEntry.create({
+        data: {
+          schoolId,
+          studentId: installment.studentId,
+          feeId: installment.feeId,
+          installmentId,
+          entryType: FeeLedgerEntryType.CANCELLATION_REVERSAL,
+          amount: prevPaid,
+          receiptNumber: null,
+          remarks: reason || null,
+          metadata: {
+            reversedReceiptNumber: installment.lastReceiptNumber || null,
+          },
+          recordedBy: userId,
+        },
+      });
+    }
+
     return { success: true };
   });
 };
 
 /**
- * Record fee payment
- * @param {string} installmentId - Installment ID
- * @param {number} amount - Payment amount
- * @param {string} paymentMethod - Payment method
- * @param {string} receiptFileId - Receipt file ID (optional)
- * @param {string} recordedBy - User ID recording payment
- * @returns {Promise<Object>} - Updated installment and fee
+ * GST / receipt metadata stored on ledger rows (and used for receipt HTML).
  */
-const recordPayment = async (installmentId, amount, paymentMethod, receiptFileId, recordedBy, transactionId, remarks) => {
-  const installment = await prisma.feeInstallements.findUnique({
-    where: { id: installmentId },
-    include: {
-      fee: true,
-    },
-  });
-
-  if (!installment) {
-    throw new Error("Installment not found");
+const buildFeeReceiptMetadata = (settings, appliedAmountRupee, isWaiver) => {
+  if (isWaiver || appliedAmountRupee <= 0) {
+    return { waiver: true };
   }
-
-  if (installment.paymentStatus === FeePaymentStatus.CANCELLED) {
-    throw new Error("Cannot record payment on a cancelled installment");
+  const useGst = settings?.feeReceiptUseGst;
+  const cg = Number(settings?.feeReceiptCgstPercent ?? 0);
+  const sg = Number(settings?.feeReceiptSgstPercent ?? 0);
+  if (!useGst || cg + sg <= 0) {
+    return { gst: false };
   }
+  const totalPct = cg + sg;
+  const base = Math.round(appliedAmountRupee / (1 + totalPct / 100));
+  const cgstAmt = Math.round((base * cg) / 100);
+  const sgstAmt = Math.round((base * sg) / 100);
+  const drift = appliedAmountRupee - base - cgstAmt - sgstAmt;
+  return {
+    gst: true,
+    taxableValue: base,
+    cgstPercent: cg,
+    sgstPercent: sg,
+    cgstAmount: cgstAmt,
+    sgstAmount: sgstAmt + drift,
+    total: appliedAmountRupee,
+  };
+};
 
-  // Calculate new amounts
-  const newPaidAmount = installment.paidAmount + amount;
-  const newRemainingAmount = installment.remainingAmount - amount;
-  const newPaymentStatus = newRemainingAmount <= 0
-    ? FeePaymentStatus.PAID
-    : newPaidAmount > 0
-      ? FeePaymentStatus.PARTIALLY_PAID
-      : FeePaymentStatus.PENDING;
-
-  // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
-    // Update installment
-    const updatedInstallment = await tx.feeInstallements.update({
-      where: { id: installmentId },
-      data: {
-        paidAmount: newPaidAmount,
-        remainingAmount: newRemainingAmount,
-        paymentStatus: newPaymentStatus,
-        paymentMethod: paymentMethod || undefined,
-        paidAt: newRemainingAmount <= 0 ? new Date() : (installment.paidAt || new Date()),
-        receiptFileId: receiptFileId || installment.receiptFileId,
-        updatedBy: recordedBy,
-      },
-    });
-
-    // Update fee totals
-    const updatedFee = await tx.fee.update({
-      where: { id: installment.feeId },
-      data: {
-        totalPaidAmount: {
-          increment: amount,
-        },
-        totalRemainingAmount: {
-          decrement: amount,
-        },
-        updatedBy: recordedBy,
-      },
-    });
-
-    return { installment: updatedInstallment, fee: updatedFee };
-  });
-
-  // Notify Principal
+const notifyPrincipalsOfFeePayment = async (
+  installment,
+  amount,
+  recordedBy,
+  receiptNumber,
+) => {
   try {
     const schoolAdmins = await prisma.user.findMany({
       where: {
@@ -310,30 +300,336 @@ const recordPayment = async (installmentId, amount, paymentMethod, receiptFileId
       },
     });
 
-    if (schoolAdmins.length > 0) {
-      const student = await prisma.user.findUnique({
-        where: { id: installment.studentId },
-        select: { firstName: true, lastName: true },
+    if (schoolAdmins.length === 0) return;
+
+    const student = await prisma.user.findUnique({
+      where: { id: installment.studentId },
+      select: { firstName: true, lastName: true },
+    });
+
+    const studentName = `${student?.firstName ?? ""} ${student?.lastName || ""}`.trim();
+    const ref = receiptNumber ? ` Receipt ${receiptNumber}.` : "";
+
+    for (const admin of schoolAdmins) {
+      await notificationService.createNotification({
+        userId: admin.id,
+        title: "Fee Payment Recorded",
+        content: `₹${amount} recorded for ${studentName} (Installment #${installment.installementNumber}).${ref}`,
+        type: "FEE",
+        schoolId: installment.schoolId,
+        createdBy: recordedBy,
       });
-
-      const studentName = `${student.firstName} ${student.lastName || ""}`.trim();
-
-      for (const admin of schoolAdmins) {
-        await notificationService.createNotification({
-          userId: admin.id,
-          title: "Fee Payment Recorded",
-          content: `A payment of ₹${amount} has been recorded for student ${studentName} (Installment #${installment.installementNumber}).`,
-          type: "FEE",
-          schoolId: installment.schoolId,
-          createdBy: recordedBy,
-        });
-      }
     }
   } catch (error) {
-    logger.error({ error, installmentId }, "Failed to send principal notification for fee payment");
+    logger.error(
+      { error, installmentId: installment.id },
+      "Failed to send principal notification for fee payment",
+    );
   }
+};
+
+/**
+ * Allocate sequential receipt number, update installment + fee totals, append ledger row.
+ * Receipt file is attached afterward via attachFeePaymentReceipt.
+ */
+const recordFeePaymentWithLedger = async ({
+  installmentId,
+  appliedAmount,
+  paymentMethod,
+  recordedBy,
+  transactionId,
+  remarks,
+  isWaiver,
+}) => {
+  const result = await prisma.$transaction(async (tx) => {
+    const installment = await tx.feeInstallements.findUnique({
+      where: { id: installmentId },
+      include: { fee: true },
+    });
+
+    if (!installment) {
+      throw new Error("Installment not found");
+    }
+
+    if (installment.paymentStatus === FeePaymentStatus.CANCELLED) {
+      throw new Error("Cannot record payment on a cancelled installment");
+    }
+
+    if (!installment.feeId || !installment.schoolId) {
+      throw new Error("Invalid installment: missing fee or school");
+    }
+
+    const lockRows = await tx.$queryRaw`
+      SELECT id FROM settings
+      WHERE school_id = ${installment.schoolId} AND deleted_at IS NULL
+      FOR UPDATE
+      LIMIT 1
+    `;
+    if (!Array.isArray(lockRows) || lockRows.length === 0) {
+      throw new Error(
+        "School fee settings not found. Configure fees in Settings before recording payments.",
+      );
+    }
+
+    const settings = await tx.settings.findFirst({
+      where: { schoolId: installment.schoolId, deletedAt: null },
+    });
+    if (!settings) {
+      throw new Error(
+        "School fee settings not found. Configure fees in Settings before recording payments.",
+      );
+    }
+
+    const seq = settings.feeReceiptNextSequence ?? 1;
+    const prefix = (settings?.feeReceiptNumberPrefix || "REC").trim() || "REC";
+    const receiptNumber = `${prefix}/${String(seq).padStart(5, "0")}`;
+
+    await tx.settings.update({
+      where: { id: settings.id },
+      data: { feeReceiptNextSequence: seq + 1 },
+    });
+
+    const newPaidAmount = installment.paidAmount + appliedAmount;
+    const newRemainingAmount = installment.remainingAmount - appliedAmount;
+    const newPaymentStatus = newRemainingAmount <= 0
+      ? FeePaymentStatus.PAID
+      : newPaidAmount > 0
+        ? FeePaymentStatus.PARTIALLY_PAID
+        : FeePaymentStatus.PENDING;
+
+    const metadata = buildFeeReceiptMetadata(settings, appliedAmount, isWaiver);
+
+    const ledgerRow = await tx.feeLedgerEntry.create({
+      data: {
+        schoolId: installment.schoolId,
+        studentId: installment.studentId,
+        feeId: installment.feeId,
+        installmentId: installment.id,
+        entryType: isWaiver
+          ? FeeLedgerEntryType.WAIVER
+          : FeeLedgerEntryType.PAYMENT,
+        amount: appliedAmount,
+        receiptNumber,
+        receiptFileId: null,
+        paymentMethod: isWaiver ? null : (paymentMethod || null),
+        transactionId: transactionId || null,
+        remarks: remarks || null,
+        metadata,
+        recordedBy,
+      },
+    });
+
+    const updatedInstallment = await tx.feeInstallements.update({
+      where: { id: installmentId },
+      data: {
+        paidAmount: newPaidAmount,
+        remainingAmount: newRemainingAmount,
+        paymentStatus: newPaymentStatus,
+        paymentMethod: isWaiver
+          ? undefined
+          : (paymentMethod || undefined),
+        paidAt:
+          newRemainingAmount <= 0
+            ? new Date()
+            : (installment.paidAt || new Date()),
+        lastReceiptNumber: receiptNumber,
+        updatedBy: recordedBy,
+      },
+    });
+
+    const updatedFee = await tx.fee.update({
+      where: { id: installment.feeId },
+      data: {
+        totalPaidAmount: { increment: appliedAmount },
+        totalRemainingAmount: { decrement: appliedAmount },
+        updatedBy: recordedBy,
+      },
+    });
+
+    return {
+      installment: updatedInstallment,
+      fee: updatedFee,
+      receiptNumber,
+      ledgerEntryId: ledgerRow.id,
+      receiptConfig: {
+        useGst: !!metadata?.gst,
+        panCardNumber: settings.feeReceiptPanCardNumber || null,
+        gst: metadata?.gst ? metadata : null,
+      },
+    };
+  });
+
+  await notifyPrincipalsOfFeePayment(
+    result.installment,
+    appliedAmount,
+    recordedBy,
+    result.receiptNumber,
+  );
 
   return result;
+};
+
+/**
+ * After HTML receipt upload: link file to installment and ledger row.
+ */
+const attachFeePaymentReceipt = async ({
+  ledgerEntryId,
+  installmentId,
+  receiptFileId,
+  recordedBy,
+}) => {
+  await prisma.$transaction(async (tx) => {
+    await tx.feeInstallements.update({
+      where: { id: installmentId },
+      data: { receiptFileId, updatedBy: recordedBy },
+    });
+    await tx.feeLedgerEntry.update({
+      where: { id: ledgerEntryId },
+      data: { receiptFileId },
+    });
+  });
+};
+
+const getStudentFeeLedger = async (schoolId, studentId, options = {}) => {
+  const limit = Math.min(Math.max(Number(options.limit) || 100, 1), 500);
+  return prisma.feeLedgerEntry.findMany({
+    where: { schoolId, studentId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+};
+
+const buildSchoolLedgerWhere = (schoolId, filters = {}) => {
+  const where = { schoolId };
+  if (filters.studentId) {
+    where.studentId = filters.studentId;
+  }
+  if (filters.entryType) {
+    where.entryType = filters.entryType;
+  }
+  if (filters.dateFrom || filters.dateTo) {
+    where.createdAt = {};
+    if (filters.dateFrom) {
+      where.createdAt.gte = new Date(filters.dateFrom);
+    }
+    if (filters.dateTo) {
+      where.createdAt.lte = new Date(filters.dateTo);
+    }
+  } else if (filters.academicYear && typeof filters.academicYear === "string") {
+    const parts = filters.academicYear.split("-");
+    if (parts.length === 2) {
+      const startYear = parseInt(parts[0], 10);
+      const endYearShort = parseInt(parts[1], 10);
+      const endYear = endYearShort < 100 ? 2000 + endYearShort : endYearShort;
+      if (!Number.isNaN(startYear) && !Number.isNaN(endYear)) {
+        where.createdAt = {
+          gte: new Date(`${startYear}-04-01T00:00:00.000Z`),
+          lte: new Date(`${endYear}-03-31T23:59:59.999Z`),
+        };
+      }
+    }
+  }
+  return where;
+};
+
+const enrichFeeLedgerRows = async (entries) => {
+  if (entries.length === 0) {
+    return [];
+  }
+  const studentIds = [...new Set(entries.map((e) => e.studentId))];
+  const installmentIds = [
+    ...new Set(entries.map((e) => e.installmentId).filter(Boolean)),
+  ];
+  const recorderIds = [
+    ...new Set(entries.map((e) => e.recordedBy).filter(Boolean)),
+  ];
+
+  const [students, installments, recorders] = await Promise.all([
+    prisma.user.findMany({
+      where: { id: { in: studentIds } },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        publicUserId: true,
+        studentProfile: {
+          select: {
+            rollNumber: true,
+            class: { select: { grade: true, division: true } },
+          },
+        },
+      },
+    }),
+    installmentIds.length > 0
+      ? prisma.feeInstallements.findMany({
+          where: { id: { in: installmentIds } },
+          select: { id: true, installementNumber: true },
+        })
+      : [],
+    recorderIds.length > 0
+      ? prisma.user.findMany({
+          where: { id: { in: recorderIds } },
+          select: { id: true, firstName: true, lastName: true, email: true },
+        })
+      : [],
+  ]);
+
+  const studentMap = Object.fromEntries(students.map((s) => [s.id, s]));
+  const instMap = Object.fromEntries(installments.map((i) => [i.id, i]));
+  const recMap = Object.fromEntries(recorders.map((r) => [r.id, r]));
+
+  return entries.map((e) => ({
+    ...e,
+    student: studentMap[e.studentId] || null,
+    installmentNumber:
+      e.installmentId && instMap[e.installmentId]
+        ? instMap[e.installmentId].installementNumber
+        : null,
+    recordedByUser: e.recordedBy ? recMap[e.recordedBy] || null : null,
+  }));
+};
+
+/**
+ * Paginated school-wide fee ledger (payments, waivers, cancellation reversals).
+ */
+const getSchoolFeeLedger = async (schoolId, filters = {}) => {
+  const page = Math.max(1, Number(filters.page) > 0 ? Number(filters.page) : 1);
+  const limitRaw = Number(filters.limit);
+  const limit = Math.min(100, Math.max(1, limitRaw > 0 ? limitRaw : 25));
+  const skip = (page - 1) * limit;
+  const where = buildSchoolLedgerWhere(schoolId, filters);
+
+  const [entries, total] = await Promise.all([
+    prisma.feeLedgerEntry.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: limit,
+    }),
+    prisma.feeLedgerEntry.count({ where }),
+  ]);
+
+  const rows = await enrichFeeLedgerRows(entries);
+
+  return {
+    entries: rows,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limit)),
+    },
+  };
+};
+
+const getSchoolFeeLedgerForExport = async (schoolId, filters = {}) => {
+  const where = buildSchoolLedgerWhere(schoolId, filters);
+  const entries = await prisma.feeLedgerEntry.findMany({
+    where,
+    orderBy: { createdAt: "desc" },
+    take: 15000,
+  });
+  return enrichFeeLedgerRows(entries);
 };
 
 /**
@@ -598,7 +894,11 @@ const feeService = {
   createFeeInstallementsForStudent,
   rebuildUnpaidFeePlanForStudent,
   cancelFeeInstallment,
-  recordPayment,
+  recordFeePaymentWithLedger,
+  attachFeePaymentReceipt,
+  getStudentFeeLedger,
+  getSchoolFeeLedger,
+  getSchoolFeeLedgerForExport,
   calculateLateFee,
   applyDiscount,
   getFeeAnalytics,

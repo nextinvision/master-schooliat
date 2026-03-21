@@ -21,33 +21,44 @@ import {
 import { Badge } from "@/components/ui/badge";
 import {
   Search,
-  Plus,
-  Filter,
-  Calendar as CalendarIcon,
   FileDown,
   Loader2,
   DownloadCloud,
   Eye,
   IndianRupee,
   Ban,
+  AlertCircle,
 } from "lucide-react";
-import { useInstallments, useRecordPayment } from "@/lib/hooks/use-fees";
+import {
+  useInstallments,
+  useRecordPayment,
+  useSchoolFeeLedger,
+  buildSchoolLedgerQuery,
+} from "@/lib/hooks/use-fees";
 import { get, downloadFromApi } from "@/lib/api/client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeeDetailsModal } from "./fee-details-modal";
 import { PaymentModal } from "./payment-modal";
 import { CancelFeeInstallmentModal } from "./cancel-fee-installment-modal";
 import { PaymentFormData } from "@/lib/schemas/fees-schema";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { PaymentInfoCard } from "./payment-info-card";
 import { toast } from "sonner";
+import { useAcademicYear } from "@/lib/context/academic-year-context";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const STATUS_OPTIONS = ["All Status", "Paid", "Partially Paid", "Pending", "Cancelled"];
-const YEAR_OPTIONS = ["2023-2024", "2024-2025", "2025-2026"];
-const PERIOD_OPTIONS = ["Annual", "Monthly", "Quarterly"];
 const INSTALLMENT_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
   value: String(i + 1),
   label: `Installment ${i + 1}`,
 }));
+
+const LEDGER_ENTRY_TYPES = [
+  { value: "ALL", label: "All types" },
+  { value: "PAYMENT", label: "Payment" },
+  { value: "WAIVER", label: "Waiver" },
+  { value: "CANCELLATION_REVERSAL", label: "Cancellation reversal" },
+] as const;
 
 function formatCurrency(num: number | string | null | undefined): string {
   return `₹${Number(num || 0).toLocaleString("en-IN")}`;
@@ -60,6 +71,18 @@ function formatDate(iso: string | null | undefined): string {
       day: "numeric",
       month: "short",
       year: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+}
+
+function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
     });
   } catch {
     return "—";
@@ -97,6 +120,8 @@ interface FeesManagementProps {
 }
 
 export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
+  const { selectedYear, setSelectedYear, options: academicYearOptions } = useAcademicYear();
+
   const [page, setPage] = useState(0);
   const itemsPerPage = 10;
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,9 +137,13 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
   const [lookupStudentId, setLookupStudentId] = useState<string | null>(null);
   const [cancelInstallment, setCancelInstallment] = useState<any | null>(null);
 
+  const [mainTab, setMainTab] = useState<"desk" | "ledger">("desk");
+  const [ledgerEntryType, setLedgerEntryType] = useState<string>("ALL");
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const ledgerPageSize = 25;
+  const [isExportingLedger, setIsExportingLedger] = useState(false);
+
   const [statusFilter, setStatusFilter] = useState("All Status");
-  const [yearFilter, setYearFilter] = useState("2023-2024");
-  const [periodFilter, setPeriodFilter] = useState("Annual");
 
   const {
     data: installmentsRes,
@@ -124,9 +153,39 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     refetch,
   } = useInstallments(installmentNumber, endInstallmentNumber, {
     enabled: true,
-    academicYear: yearFilter,
+    academicYear: selectedYear,
   });
   const { mutateAsync: recordPayment, isPending: isRecordingPayment } = useRecordPayment();
+
+  const schoolLedgerFilters = useMemo(
+    () => ({
+      academicYear: selectedYear,
+      studentId: lookupStudentId || undefined,
+      entryType:
+        ledgerEntryType === "ALL" ? undefined : ledgerEntryType,
+      page: ledgerPage,
+      limit: ledgerPageSize,
+    }),
+    [selectedYear, lookupStudentId, ledgerEntryType, ledgerPage, ledgerPageSize]
+  );
+
+  const {
+    data: schoolLedgerRes,
+    isLoading: loadingSchoolLedger,
+    isFetching: fetchingSchoolLedger,
+    isError: schoolLedgerIsError,
+    error: schoolLedgerError,
+  } = useSchoolFeeLedger(schoolLedgerFilters, {
+    enabled: mainTab === "ledger",
+  });
+
+  const ledgerEntries = schoolLedgerRes?.data?.entries ?? [];
+  const ledgerPagination = schoolLedgerRes?.data?.pagination ?? {
+    page: 1,
+    limit: ledgerPageSize,
+    total: 0,
+    totalPages: 1,
+  };
 
   const handleViewDetails = (item: any) => {
     setSelectedStudentId(item.studentId);
@@ -189,12 +248,12 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     setIsExporting(true);
     try {
       const blob = await downloadFromApi(
-        `/fees/export?academicYear=${encodeURIComponent(yearFilter)}`
+        `/fees/export?academicYear=${encodeURIComponent(selectedYear)}`
       );
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `fees_report_${yearFilter}.csv`;
+      a.download = `fees_report_${selectedYear.replace(/[^\w-]/g, "_")}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("Fees report exported successfully!");
@@ -274,23 +333,107 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     setPage(0);
   }, [searchQuery, statusFilter, lookupStudentId]);
 
+  useEffect(() => {
+    setLedgerPage(1);
+  }, [selectedYear, lookupStudentId, ledgerEntryType]);
+
+  const handleLedgerExport = async () => {
+    setIsExportingLedger(true);
+    try {
+      const q = buildSchoolLedgerQuery({
+        academicYear: selectedYear,
+        studentId: lookupStudentId || undefined,
+        entryType:
+          ledgerEntryType === "ALL" ? undefined : ledgerEntryType,
+      });
+      const blob = await downloadFromApi(`/fees/ledger/export${q}`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `fee_ledger_${selectedYear.replace(/[^\w-]/g, "_")}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Ledger exported");
+    } catch (e: unknown) {
+      const message =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message: string }).message)
+          : "Export failed";
+      toast.error(message);
+    } finally {
+      setIsExportingLedger(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Fees Management</h1>
-        <Button
-          variant="outline"
-          onClick={handleExport}
-          disabled={isExporting}
-          className="gap-2"
-        >
-          {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <DownloadCloud className="h-4 w-4" />}
-          Download Report
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {mainTab === "desk" ? (
+            <Button
+              variant="outline"
+              onClick={handleExport}
+              disabled={isExporting}
+              className="gap-2"
+            >
+              {isExporting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <DownloadCloud className="h-4 w-4" />
+              )}
+              Installments CSV
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={handleLedgerExport}
+              disabled={isExportingLedger}
+              className="gap-2"
+            >
+              {isExportingLedger ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4" />
+              )}
+              Ledger CSV
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Payment Info Card */}
-      <PaymentInfoCard />
+      <Tabs value={mainTab} onValueChange={(v) => setMainTab(v as "desk" | "ledger")}>
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="desk">Fee desk</TabsTrigger>
+          <TabsTrigger value="ledger">Transaction ledger</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="desk" className="space-y-6 mt-6">
+          <Card className="border-primary/25 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">How fee recording works</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground space-y-3">
+              <p>
+                Use the <strong className="text-foreground">Academic year</strong> control (in filters below) so this list matches the rest of the portal (navbar). Then find the student row and click{" "}
+                <strong className="text-foreground">Record payment</strong> (₹). You will verify with an email OTP. Receipts and ledger entries are created automatically.
+              </p>
+              <p>
+                Switch to <strong className="text-foreground">Transaction ledger</strong> for the full school-wide audit trail (payments, waivers, cancellations).
+              </p>
+            </CardContent>
+          </Card>
+
+          {isError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Could not load installments</AlertTitle>
+              <AlertDescription>
+                {(error as Error)?.message ||
+                  "Check your connection and permissions (Fees). If the problem continues, try another academic year."}
+              </AlertDescription>
+            </Alert>
+          ) : null}
 
       {/* Summary Cards Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -395,7 +538,27 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 flex-wrap">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              Academic year
+            </label>
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Year" />
+              </SelectTrigger>
+              <SelectContent>
+                {academicYearOptions.map((y) => (
+                  <SelectItem key={y} value={y}>
+                    {y}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <Input
             placeholder="Search by Student Name"
@@ -405,7 +568,10 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
           />
         </div>
         <div className="flex gap-2">
-          <Select value={String(installmentNumber)} onValueChange={(v) => setInstallmentNumber(Number(v))}>
+          <Select
+            value={String(installmentNumber)}
+            onValueChange={(v: string) => setInstallmentNumber(Number(v))}
+          >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="From Installment" />
             </SelectTrigger>
@@ -417,7 +583,10 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
               ))}
             </SelectContent>
           </Select>
-          <Select value={String(endInstallmentNumber)} onValueChange={(v) => setEndInstallmentNumber(Number(v))}>
+          <Select
+            value={String(endInstallmentNumber)}
+            onValueChange={(v: string) => setEndInstallmentNumber(Number(v))}
+          >
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="To Installment" />
             </SelectTrigger>
@@ -442,6 +611,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
             ))}
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {/* Table */}
@@ -457,7 +627,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                 <TableHead className="w-32">Remaining</TableHead>
                 <TableHead className="w-40">Paid At</TableHead>
                 <TableHead className="w-32">Status</TableHead>
-                <TableHead className="w-32">Action</TableHead>
+                <TableHead className="min-w-[200px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -469,8 +639,11 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                 </TableRow>
               ) : filteredData.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
-                    No installments found
+                  <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
+                    <p className="font-medium text-foreground mb-1">No installments in this view</p>
+                    <p className="text-sm">
+                      Academic year <strong>{selectedYear}</strong> is applied. Try another year above, clear student filters, or ensure students have fee plans (Settings → Fees).
+                    </p>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -516,22 +689,23 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                             <Eye className="w-4 h-4" />
                           </Button>
                           <Button
-                            variant="ghost"
-                            size="icon"
+                            variant="secondary"
+                            size="sm"
                             onClick={() => handleRecordPayment(item)}
                             disabled={
                               status === "Paid" || status === "Cancelled" || isRecordingPayment
                             }
-                            className="h-8 w-8"
+                            className="h-8 gap-1 shrink-0"
                             title={
                               status === "Paid"
                                 ? "Fully paid"
                                 : status === "Cancelled"
                                   ? "Cancelled"
-                                  : "Record Payment"
+                                  : "Record payment"
                             }
                           >
                             <IndianRupee className="w-4 h-4" />
+                            <span className="hidden sm:inline">Pay</span>
                           </Button>
                           <Button
                             variant="ghost"
@@ -613,8 +787,228 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
           </div>
         </div>
       )}
+        </TabsContent>
 
-      {/* Modals */}
+        <TabsContent value="ledger" className="space-y-6 mt-6">
+          {schoolLedgerIsError ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Could not load ledger</AlertTitle>
+              <AlertDescription>
+                {(schoolLedgerError as Error)?.message ||
+                  "Check permissions and that the API is available."}
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
+            <p className="text-sm font-medium">School fee ledger</p>
+            <p className="text-sm text-muted-foreground">
+              Every payment, waiver, and cancellation reversal for your school. Use the same student search as on the fee desk to narrow rows, or filter by type and academic year.
+            </p>
+            <div className="flex flex-col lg:flex-row gap-3 flex-wrap">
+              <Select value={selectedYear} onValueChange={setSelectedYear}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Academic year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {academicYearOptions.map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select value={ledgerEntryType} onValueChange={setLedgerEntryType}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Entry type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LEDGER_ENTRY_TYPES.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {lookupStudentId ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="secondary" className="h-9 px-3 py-1.5">
+                    Filtered to selected student
+                  </Badge>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLookupStudentId(null)}
+                  >
+                    Clear student filter
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+            <div className="text-sm font-medium">Find student (same filter as fee desk)</div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                placeholder="Public ID, email, phone, or name"
+                value={lookupQuery}
+                onChange={(e) => setLookupQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && runStudentLookup()}
+                className="flex-1"
+              />
+              <Button type="button" variant="secondary" onClick={runStudentLookup} className="gap-2 shrink-0">
+                <Search className="h-4 w-4" />
+                Search
+              </Button>
+            </div>
+            {lookupResults.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {lookupResults.map((s: any) => (
+                  <Button
+                    key={s.id}
+                    type="button"
+                    size="sm"
+                    variant={lookupStudentId === s.id ? "default" : "outline"}
+                    onClick={() => {
+                      setLookupStudentId(s.id);
+                      const name = [s.firstName, s.lastName].filter(Boolean).join(" ");
+                      setSearchQuery(name || s.publicUserId || "");
+                    }}
+                  >
+                    {s.publicUserId || s.id.slice(0, 8)} — {[s.firstName, s.lastName].filter(Boolean).join(" ")}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-schooliat-tint">
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Student</TableHead>
+                    <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Receipt</TableHead>
+                    <TableHead>Inst.</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Recorded by</TableHead>
+                    <TableHead className="w-24">Receipt</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loadingSchoolLedger || fetchingSchoolLedger ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                        Loading ledger…
+                      </TableCell>
+                    </TableRow>
+                  ) : ledgerEntries.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center py-10 text-muted-foreground">
+                        No ledger entries for these filters.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    ledgerEntries.map((row: any) => {
+                      const st = row.student;
+                      const name =
+                        [st?.firstName, st?.lastName].filter(Boolean).join(" ") || "—";
+                      const rec = row.recordedByUser;
+                      const recName =
+                        [rec?.firstName, rec?.lastName].filter(Boolean).join(" ") || "—";
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {formatDateTime(row.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="font-normal">
+                              {row.entryType || "—"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm font-medium">{name}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {st?.publicUserId || row.studentId?.slice(0, 8) || ""}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {formatCurrency(row.amount)}
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[140px] truncate" title={row.receiptNumber}>
+                            {row.receiptNumber || "—"}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {row.installmentNumber != null ? row.installmentNumber : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm">{row.paymentMethod || "—"}</TableCell>
+                          <TableCell className="text-sm max-w-[120px] truncate" title={recName}>
+                            {recName}
+                          </TableCell>
+                          <TableCell>
+                            {row.receiptFileUrl ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-primary"
+                                onClick={() => window.open(row.receiptFileUrl, "_blank")}
+                              >
+                                Open
+                              </Button>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+
+          {ledgerPagination.totalPages > 1 ? (
+            <div className="flex items-center justify-between border rounded-lg p-3 bg-muted/30">
+              <p className="text-sm text-muted-foreground">
+                Page {ledgerPagination.page} of {ledgerPagination.totalPages} ·{" "}
+                {ledgerPagination.total} entries
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={ledgerPage <= 1}
+                  onClick={() => setLedgerPage((p) => Math.max(1, p - 1))}
+                >
+                  Previous
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={ledgerPage >= ledgerPagination.totalPages}
+                  onClick={() =>
+                    setLedgerPage((p) =>
+                      Math.min(ledgerPagination.totalPages, p + 1)
+                    )
+                  }
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </TabsContent>
+      </Tabs>
+
       <FeeDetailsModal
         visible={modalVisible}
         onClose={handleCloseModal}

@@ -24,6 +24,34 @@ const updateSettingsSchema = z
         platformConfig: z
           .record(z.any())
           .optional(),
+        /** School admin only: inbox for deletion OTPs. Empty string or null clears to default (admin email). */
+        deletionOtpEmail: z
+          .union([z.string().email("Invalid email"), z.literal(""), z.null()])
+          .optional(),
+        feeReceiptNumberPrefix: z
+          .string()
+          .min(1, "Prefix required")
+          .max(32, "Prefix too long")
+          .optional(),
+        feeReceiptNextSequence: z.number().int().min(1).optional(),
+        feeReceiptUseGst: z.boolean().optional(),
+        feeReceiptCgstPercent: z
+          .number()
+          .min(0)
+          .max(100)
+          .optional()
+          .nullable(),
+        feeReceiptSgstPercent: z
+          .number()
+          .min(0)
+          .max(100)
+          .optional()
+          .nullable(),
+        feeReceiptPanCardNumber: z
+          .string()
+          .max(20)
+          .optional()
+          .nullable(),
       })
       ,
     query: z.object({}),

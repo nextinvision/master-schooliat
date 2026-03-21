@@ -7,6 +7,11 @@ import createTransportSchema from "../schemas/transport/create-transport.schema.
 import updateTransportSchema from "../schemas/transport/update-transport.schema.js";
 import getTransportsSchema from "../schemas/transport/get-transports.schema.js";
 import deleteTransportSchema from "../schemas/transport/delete-transport.schema.js";
+import { bulkDeleteTransportsSchema } from "../schemas/transport/bulk-delete-transports.schema.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
+import otpDeletionService from "../services/otp-deletion.service.js";
+import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
 import transportEnhancedService from "../services/transport-enhanced.service.js";
 import createRouteSchema from "../schemas/transport/create-route.schema.js";
 import addStopSchema from "../schemas/transport/add-stop.schema.js";
@@ -144,11 +149,63 @@ router.patch(
   },
 );
 
+router.post(
+  "/bulk-delete",
+  withPermission(Permission.DELETE_TRANSPORT),
+  validateRequest(bulkDeleteTransportsSchema),
+  async (req, res) => {
+    try {
+      const { otp, transportIds } = req.body.request;
+      const currentUser = req.context.user;
+      const recipient = await resolveDeletionOtpRecipientEmail(currentUser);
+      if (!recipient) {
+        return res.status(400).json({ message: "No email available for deletion verification" });
+      }
+      const ok = await otpDeletionService.verifyDeletionOTP({
+        otpRecipientEmail: recipient,
+        otpCode: String(otp).trim(),
+        entityType: "Transport",
+        entityId: `bulk:${transportIds.length}`,
+      });
+      if (!ok) {
+        return res.status(403).json({
+          message:
+            "Invalid or expired OTP. Request a new verification code and try again.",
+          errorCode: "DELETION_OTP_INVALID",
+        });
+      }
+
+      const result = await prisma.transport.updateMany({
+        where: {
+          id: { in: transportIds },
+          schoolId: currentUser.schoolId,
+          deletedAt: null,
+          deletedBy: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.json({
+        message: `${result.count} transport(s) deleted`,
+        data: { count: result.count },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk delete transports",
+      });
+    }
+  },
+);
+
 // DELETE endpoint for soft deletion of transport
 router.delete(
   "/:id",
   withPermission(Permission.DELETE_TRANSPORT),
   validateRequest(deleteTransportSchema),
+  requireDeletionOTP({ entityType: "Transport" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;
@@ -271,6 +328,8 @@ router.put(
 router.delete(
   "/routes/:id",
   withPermission(Permission.MANAGE_ROUTES),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "TransportRoute" }),
   async (req, res) => {
     try {
       const { id } = req.params;

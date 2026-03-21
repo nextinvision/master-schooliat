@@ -26,8 +26,8 @@ function updateSubjectApi(id: string, data: Partial<SubjectData>) {
 }
 
 // Delete subject
-function deleteSubjectApi(id: string) {
-  return del(`/subjects/${id}`);
+function deleteSubjectApi(id: string, otp: string) {
+  return del(`/subjects/${id}`, { request: { otp } });
 }
 
 // Hooks
@@ -66,7 +66,7 @@ export function useDeleteSubject() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => deleteSubjectApi(id),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteSubjectApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["subjects"] });
     },

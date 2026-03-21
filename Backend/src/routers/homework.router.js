@@ -8,6 +8,8 @@ import submitHomeworkSchema from "../schemas/homework/submit-homework.schema.js"
 import gradeHomeworkSchema from "../schemas/homework/grade-homework.schema.js";
 import getHomeworkSchema from "../schemas/homework/get-homework.schema.js";
 import updateHomeworkSchema from "../schemas/homework/update-homework.schema.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import homeworkService from "../services/homework.service.js";
 import logger from "../config/logger.js";
 
@@ -580,6 +582,8 @@ router.patch(
 router.delete(
   "/:id",
   withPermission([Permission.DELETE_HOMEWORK]),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "Homework" }),
   async (req, res) => {
     const currentUser = req.context.user;
     const { id } = req.params;

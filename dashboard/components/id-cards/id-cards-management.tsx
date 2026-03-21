@@ -91,7 +91,7 @@ export function IDCardsManagement() {
 
   const handleGenerateAll = async () => {
     if (!hasConfig) {
-      toast.error("Please configure an ID card template first (Settings → Configure)");
+      toast.error("Configure an ID card template first (School Settings → Templates tab, then ID Cards).");
       return;
     }
 
@@ -130,7 +130,7 @@ export function IDCardsManagement() {
 
   const handleGenerateRow = async (item: IdCardStatus) => {
     if (!hasConfig) {
-      toast.error("Please configure an ID card template first (Settings → Configure)");
+      toast.error("Configure an ID card template first (School Settings → Templates tab, then ID Cards).");
       return;
     }
 
@@ -215,7 +215,7 @@ export function IDCardsManagement() {
           <Info className="h-4 w-4" />
           <AlertDescription>
             No ID card template is configured. Templates define the layout for student ID cards.
-            Configure the ID card template in Settings to generate cards.
+            Browse all layouts under School Settings → Templates, then choose one with Configure below.
             <Button
               variant="link"
               className="ml-2 h-auto p-0 text-primary font-medium"

@@ -3,39 +3,39 @@ import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
 import emergencyContactService from "../services/emergency-contact.service.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import { z } from "zod";
 
 const router = Router();
 
-// Create emergency contact schema
+// Must match validate-request.middleware shape: { request, query, params } (not nested under `body`).
 const createEmergencyContactSchema = z.object({
-  body: z.object({
-    request: z.object({
-      studentId: z.string().uuid(),
-      name: z.string().min(1),
-      relationship: z.enum(["FATHER", "MOTHER", "GUARDIAN", "RELATIVE", "OTHER"]),
-      contact: z.string().min(1),
-      alternateContact: z.string().optional(),
-      address: z.string().optional(),
-      isPrimary: z.boolean().optional(),
-    }),
+  request: z.object({
+    studentId: z.string().uuid(),
+    name: z.string().min(1),
+    relationship: z.enum(["FATHER", "MOTHER", "GUARDIAN", "RELATIVE", "OTHER"]),
+    contact: z.string().min(1),
+    alternateContact: z.string().optional(),
+    address: z.string().optional(),
+    isPrimary: z.boolean().optional(),
   }),
+  query: z.object({}),
+  params: z.object({}),
 });
 
-// Update emergency contact schema
 const updateEmergencyContactSchema = z.object({
+  request: z.object({
+    name: z.string().min(1).optional(),
+    relationship: z.enum(["FATHER", "MOTHER", "GUARDIAN", "RELATIVE", "OTHER"]).optional(),
+    contact: z.string().min(1).optional(),
+    alternateContact: z.string().optional(),
+    address: z.string().optional(),
+    isPrimary: z.boolean().optional(),
+  }),
+  query: z.object({}),
   params: z.object({
     id: z.string().uuid(),
-  }),
-  body: z.object({
-    request: z.object({
-      name: z.string().min(1).optional(),
-      relationship: z.enum(["FATHER", "MOTHER", "GUARDIAN", "RELATIVE", "OTHER"]).optional(),
-      contact: z.string().min(1).optional(),
-      alternateContact: z.string().optional(),
-      address: z.string().optional(),
-      isPrimary: z.boolean().optional(),
-    }),
   }),
 });
 
@@ -164,6 +164,8 @@ router.patch(
 router.delete(
   "/:id",
   withPermission(Permission.DELETE_STUDENT),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "EmergencyContact" }),
   async (req, res) => {
     try {
       const { id } = req.params;

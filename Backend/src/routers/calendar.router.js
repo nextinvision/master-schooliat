@@ -22,7 +22,11 @@ import createEventSchema from "../schemas/calendar/create-event.schema.js";
 import createHolidaySchema from "../schemas/calendar/create-holiday.schema.js";
 import updateNoticeSchema from "../schemas/calendar/update-notice.schema.js";
 import deleteNoticeSchema from "../schemas/calendar/delete-notice.schema.js";
+import { bulkDeleteNoticesSchema } from "../schemas/calendar/bulk-delete-notices.schema.js";
 import createNoticeSchema from "../schemas/calendar/create-notice.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
+import otpDeletionService from "../services/otp-deletion.service.js";
+import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
 
 const router = Router();
 
@@ -195,6 +199,7 @@ router.delete(
   "/events/:id",
   withPermission(Permission.DELETE_EVENT),
   validateRequest(deleteEventSchema),
+  requireDeletionOTP({ entityType: "CalendarEvent" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;
@@ -352,6 +357,7 @@ router.delete(
   "/holidays/:id",
   withPermission(Permission.DELETE_HOLIDAY),
   validateRequest(deleteHolidaySchema),
+  requireDeletionOTP({ entityType: "Holiday" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;
@@ -675,6 +681,7 @@ router.delete(
   "/exam-calendars/:id",
   withPermission(Permission.DELETE_EXAM_CALENDAR),
   validateRequest(deleteExamCalendarSchema),
+  requireDeletionOTP({ entityType: "ExamCalendar" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;
@@ -785,10 +792,62 @@ router.patch(
   },
 );
 
+router.post(
+  "/notices/bulk-delete",
+  withPermission(Permission.DELETE_NOTICE),
+  validateRequest(bulkDeleteNoticesSchema),
+  async (req, res) => {
+    try {
+      const { otp, noticeIds } = req.body.request;
+      const currentUser = req.context.user;
+      const recipient = await resolveDeletionOtpRecipientEmail(currentUser);
+      if (!recipient) {
+        return res.status(400).json({ message: "No email available for deletion verification" });
+      }
+      const ok = await otpDeletionService.verifyDeletionOTP({
+        otpRecipientEmail: recipient,
+        otpCode: String(otp).trim(),
+        entityType: "Notice",
+        entityId: `bulk:${noticeIds.length}`,
+      });
+      if (!ok) {
+        return res.status(403).json({
+          message:
+            "Invalid or expired OTP. Request a new verification code and try again.",
+          errorCode: "DELETION_OTP_INVALID",
+        });
+      }
+
+      const result = await prisma.notice.updateMany({
+        where: {
+          id: { in: noticeIds },
+          schoolId: currentUser.schoolId,
+          deletedAt: null,
+          deletedBy: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.json({
+        message: `${result.count} notice(s) deleted`,
+        data: { count: result.count },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk delete notices",
+      });
+    }
+  },
+);
+
 router.delete(
   "/notices/:id",
   withPermission(Permission.DELETE_NOTICE),
   validateRequest(deleteNoticeSchema),
+  requireDeletionOTP({ entityType: "Notice" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;

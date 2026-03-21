@@ -5,6 +5,8 @@ import { Permission } from "../prisma/generated/index.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
 import circularService from "../services/circular.service.js";
 import createCircularSchema from "../schemas/circular/create-circular.schema.js";
+import deleteCircularSchema from "../schemas/circular/delete-circular.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -125,6 +127,8 @@ router.get(
 router.delete(
   "/:id",
   withPermission(Permission.DELETE_CIRCULAR),
+  validateRequest(deleteCircularSchema),
+  requireDeletionOTP({ entityType: "Circular" }),
   async (req, res) => {
     try {
       const { id } = req.params;

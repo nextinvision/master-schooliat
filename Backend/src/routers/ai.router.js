@@ -2,6 +2,9 @@ import { Router } from "express";
 import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
+import validateRequest from "../middlewares/validate-request.middleware.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import aiService from "../services/ai.service.js";
 
 const router = Router();
@@ -209,6 +212,8 @@ router.put(
 router.delete(
   "/faqs/:id",
   withPermission(Permission.MANAGE_FAQ),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "FAQ" }),
   async (req, res) => {
     try {
       const { id } = req.params;

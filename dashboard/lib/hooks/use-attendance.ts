@@ -13,6 +13,7 @@ function fetchAttendance(params: {
   date?: string;
   page?: number;
   limit?: number;
+  periodId?: string;
 }) {
   return get("/attendance", params);
 }
@@ -23,6 +24,7 @@ function fetchAttendanceStatistics(params: {
   classId?: string;
   startDate?: string;
   endDate?: string;
+  periodId?: string;
 }) {
   return get("/attendance/statistics", params);
 }
@@ -91,10 +93,17 @@ export function useAttendance(params: {
   date?: string;
   page?: number;
   limit?: number;
+  periodId?: string;
 }) {
+  const enabled =
+    !!params.studentId ||
+    !!(params.classId && params.date) ||
+    !!(params.startDate && params.endDate);
+
   return useQuery({
     queryKey: ["attendance", params],
     queryFn: () => fetchAttendance(params),
+    enabled,
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
   });
@@ -105,6 +114,7 @@ export function useAttendanceStatistics(params: {
   classId?: string;
   startDate?: string;
   endDate?: string;
+  periodId?: string;
 }) {
   return useQuery({
     queryKey: ["attendance-statistics", params],

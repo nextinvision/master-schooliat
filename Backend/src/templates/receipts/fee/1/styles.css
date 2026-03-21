@@ -29,6 +29,20 @@ body {
     color: var(--text-primary);
 }
 
+.gst-section {
+    margin: 1.25rem 0;
+    padding: 1rem;
+    background: var(--background-light);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.gst-section .gst-note {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
 .receipt-container {
     width: 100%;
     max-width: 800px;

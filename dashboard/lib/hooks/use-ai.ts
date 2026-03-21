@@ -45,8 +45,8 @@ function updateFAQ(faqId: string, data: {
 }
 
 // Delete FAQ
-function deleteFAQ(faqId: string) {
-  return del(`/ai/faqs/${faqId}`);
+function deleteFAQ(faqId: string, otp: string) {
+  return del(`/ai/faqs/${faqId}`, { request: { otp } });
 }
 
 // Hooks
@@ -139,7 +139,7 @@ export function useDeleteFAQ() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (faqId: string) => deleteFAQ(faqId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteFAQ(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["ai", "faqs"] });
     },

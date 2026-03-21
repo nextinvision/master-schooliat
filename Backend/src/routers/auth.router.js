@@ -57,13 +57,18 @@ router.post(
   validateRequest(authenticateSchema),
   async (req, res) => {
     const { email: identifier, password } = req.body.request;
+    const raw =
+      typeof identifier === "string" ? identifier.trim() : identifier;
+    if (!raw) {
+      throw ApiErrors.USER_NOT_FOUND;
+    }
 
-    // Find user by email OR publicUserId
+    // Email match is case-insensitive (stored emails are normalized on create/update).
     const user = await prisma.user.findFirst({
       where: {
         OR: [
-          { email: identifier },
-          { publicUserId: identifier },
+          { email: { equals: raw, mode: "insensitive" } },
+          { publicUserId: raw },
         ],
       },
     });

@@ -46,8 +46,8 @@ function publishCircularApi(circularId: string) {
 }
 
 // Delete circular
-function deleteCircularApi(circularId: string) {
-  return del(`/circulars/${circularId}`);
+function deleteCircularApi(circularId: string, otp: string) {
+  return del(`/circulars/${circularId}`, { request: { otp } });
 }
 
 // Hooks
@@ -119,7 +119,7 @@ export function useDeleteCircular() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (circularId: string) => deleteCircularApi(circularId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteCircularApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["circulars"] });
     },

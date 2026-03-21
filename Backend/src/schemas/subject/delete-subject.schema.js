@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { deletionOtpRequestSchema } from "../common/deletion-otp-request.schema.js";
 
 const deleteSubjectSchema = z.object({
-    params: z.object({
-        id: z.string().uuid("Invalid subject ID"),
-    }),
-    request: z.object({}),
-    query: z.object({}),
+  request: deletionOtpRequestSchema,
+  query: z.object({}),
+  params: z.object({
+    id: z.string().uuid("ID must be a valid UUID"),
+  }),
 });
 
 export default deleteSubjectSchema;

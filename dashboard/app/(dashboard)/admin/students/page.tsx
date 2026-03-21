@@ -4,7 +4,15 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { StudentsTable } from "@/components/students/students-table";
-import { useStudentsPage, useCreateStudent, useDeleteStudent, useBulkUploadStudents } from "@/lib/hooks/use-students";
+import {
+  useStudentsPage,
+  useCreateStudent,
+  useDeleteStudent,
+  useBulkDeleteStudents,
+  useBulkUploadStudents,
+} from "@/lib/hooks/use-students";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { BulkUploadDialog } from "@/components/common/bulk-upload-dialog";
 import { useTCs, useCreateTC, useUpdateTCStatus } from "@/lib/hooks/use-tc";
 import { useStudents } from "@/lib/hooks/use-students";
@@ -77,6 +85,10 @@ const createTCSchema = z.object({
 
 type CreateTCFormData = z.infer<typeof createTCSchema>;
 
+type StudentOtpTarget =
+  | { mode: "one"; id: string }
+  | { mode: "bulk"; ids: string[] };
+
 export default function StudentsPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("all");
@@ -100,6 +112,7 @@ export default function StudentsPage() {
   const [isAddStudentDialogOpen, setIsAddStudentDialogOpen] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [studentOtpTarget, setStudentOtpTarget] = useState<StudentOtpTarget | null>(null);
   const limit = 15;
 
   // Students data
@@ -123,6 +136,7 @@ export default function StudentsPage() {
   // Mutations
   const createStudent = useCreateStudent();
   const deleteStudent = useDeleteStudent();
+  const bulkDeleteStudents = useBulkDeleteStudents();
   const createTC = useCreateTC();
   const updateTCStatus = useUpdateTCStatus();
   const bulkUploadStudents = useBulkUploadStudents();
@@ -184,27 +198,13 @@ export default function StudentsPage() {
     }
   }, [createStudent, studentForm, refetchStudents]);
 
-  const handleDeleteStudent = useCallback(async (studentId: string) => {
-    if (!confirm("Are you sure you want to delete this student?")) return;
-    try {
-      await deleteStudent.mutateAsync(studentId);
-      toast.success("Student deleted successfully!");
-      refetchStudents();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete student");
-    }
-  }, [deleteStudent, refetchStudents]);
+  const handleDeleteStudent = useCallback((studentId: string) => {
+    setStudentOtpTarget({ mode: "one", id: studentId });
+  }, []);
 
-  const handleBulkDelete = useCallback(async (ids: string[]) => {
-    if (!confirm(`Are you sure you want to delete ${ids.length} student(s)?`)) return;
-    try {
-      await Promise.all(ids.map(id => deleteStudent.mutateAsync(id)));
-      toast.success(`${ids.length} student(s) deleted successfully!`);
-      refetchStudents();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete students");
-    }
-  }, [deleteStudent, refetchStudents]);
+  const handleBulkDelete = useCallback((ids: string[]) => {
+    setStudentOtpTarget({ mode: "bulk", ids });
+  }, []);
 
   const handleEditStudent = useCallback((student: any) => {
     router.push(`/admin/students/${student.id}/edit`);
@@ -1068,6 +1068,42 @@ export default function StudentsPage() {
           "FatherName", "MotherName", "FatherContact", "MotherContact",
           "ClassName", "ApaarId", "RollNumber"
         ]}
+      />
+
+      <DeletionOtpDialog
+        open={!!studentOtpTarget}
+        onOpenChange={(open) => !open && setStudentOtpTarget(null)}
+        audience="school-admin"
+        title={
+          studentOtpTarget?.mode === "bulk"
+            ? `Delete ${studentOtpTarget.ids.length} student(s)`
+            : "Delete student"
+        }
+        description="This removes the student from your school. Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.STUDENT}
+        entityId={
+          studentOtpTarget?.mode === "one"
+            ? studentOtpTarget.id
+            : studentOtpTarget
+              ? `bulk:${studentOtpTarget.ids.length}`
+              : ""
+        }
+        isDeleting={deleteStudent.isPending || bulkDeleteStudents.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!studentOtpTarget) return;
+          if (studentOtpTarget.mode === "one") {
+            await deleteStudent.mutateAsync({ id: studentOtpTarget.id, otp });
+            toast.success("Student deleted");
+          } else {
+            const res = await bulkDeleteStudents.mutateAsync({
+              studentIds: studentOtpTarget.ids,
+              otp,
+            });
+            const n = (res as { data?: { count?: number } })?.data?.count ?? studentOtpTarget.ids.length;
+            toast.success(`${n} student(s) deleted`);
+          }
+          refetchStudents();
+        }}
       />
     </div >
   );

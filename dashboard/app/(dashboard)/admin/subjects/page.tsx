@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
     useSubjects,
     useCreateSubject,
@@ -30,6 +30,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 
 export default function SubjectsPage() {
     const [page, setPage] = useState(1);
@@ -39,7 +41,7 @@ export default function SubjectsPage() {
     const deleteSubject = useDeleteSubject();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [subjectOtpId, setSubjectOtpId] = useState<string | null>(null);
     const [selectedSubject, setSelectedSubject] = useState<any>(null);
 
     // Form states
@@ -66,10 +68,9 @@ export default function SubjectsPage() {
         setIsDialogOpen(true);
     };
 
-    const openDeleteDialog = (subject: any) => {
-        setSelectedSubject(subject);
-        setIsDeleteDialogOpen(true);
-    };
+    const openDeleteDialog = useCallback((subject: any) => {
+        setSubjectOtpId(subject.id);
+    }, []);
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -95,18 +96,6 @@ export default function SubjectsPage() {
             refetch();
         } catch (error: any) {
             toast.error(error?.message || "Failed to save subject");
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!selectedSubject) return;
-        try {
-            await deleteSubject.mutateAsync(selectedSubject.id);
-            toast.success("Subject deleted successfully");
-            setIsDeleteDialogOpen(false);
-            refetch();
-        } catch (error: any) {
-            toast.error(error?.message || "Failed to delete subject");
         }
     };
 
@@ -264,25 +253,22 @@ export default function SubjectsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Dialog */}
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Delete Subject</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete <strong>{selectedSubject?.name}</strong>? This action will remove it from the list of available subjects.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isProcessing}>
-                            Cancel
-                        </Button>
-                        <Button variant="destructive" onClick={handleDelete} disabled={isProcessing}>
-                            {isProcessing ? "Deleting..." : "Delete"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <DeletionOtpDialog
+                open={!!subjectOtpId}
+                onOpenChange={(open) => !open && setSubjectOtpId(null)}
+                audience="school-admin"
+                title="Delete subject"
+                description="This removes the subject from your school. Confirm with the code sent to your deletion email."
+                entityType={SCHOOL_DELETION_ENTITY.SUBJECT}
+                entityId={subjectOtpId ?? ""}
+                isDeleting={deleteSubject.isPending}
+                onDeleteWithOtp={async (otp) => {
+                    if (!subjectOtpId) return;
+                    await deleteSubject.mutateAsync({ id: subjectOtpId, otp });
+                    toast.success("Subject deleted successfully");
+                    refetch();
+                }}
+            />
         </div>
     );
 }

@@ -20,31 +20,36 @@ router.post(
   withPermission([Permission.MARK_ATTENDANCE]),
   validateRequest(markAttendanceSchema),
   async (req, res) => {
-    const currentUser = req.context.user;
-    const { studentId, classId, date, status, periodId, lateArrivalTime, absenceReason } = req.body.request;
+    try {
+      const currentUser = req.context.user;
+      const { studentId, classId, date, status, periodId, lateArrivalTime, absenceReason } = req.body.request;
 
-    // Verify user has access to this class (for teachers)
-    if (currentUser.role.name === "TEACHER") {
-      // TODO: Add class-teacher relationship check
-      // For now, allow if user is teacher
+      if (currentUser.role.name === "TEACHER") {
+        // TODO: class-teacher relationship check
+      }
+
+      const attendance = await attendanceService.markAttendance({
+        studentId,
+        classId,
+        date: new Date(date),
+        status,
+        periodId: periodId || null,
+        lateArrivalTime: lateArrivalTime ?? null,
+        absenceReason: absenceReason || null,
+        markedBy: currentUser.id,
+        schoolId: currentUser.schoolId,
+      });
+
+      return res.json({
+        message: "Attendance marked successfully",
+        data: attendance,
+      });
+    } catch (error) {
+      logger.error({ err: error }, "mark attendance failed");
+      return res.status(400).json({
+        message: error?.message || "Failed to mark attendance",
+      });
     }
-
-    const attendance = await attendanceService.markAttendance({
-      studentId,
-      classId,
-      date: new Date(date),
-      status,
-      periodId: periodId || null,
-      lateArrivalTime: lateArrivalTime ? new Date(lateArrivalTime) : null,
-      absenceReason: absenceReason || null,
-      markedBy: currentUser.id,
-      schoolId: currentUser.schoolId,
-    });
-
-    res.json({
-      message: "Attendance marked successfully",
-      data: attendance,
-    });
   },
 );
 
@@ -54,28 +59,38 @@ router.post(
   withPermission([Permission.MARK_ATTENDANCE]),
   validateRequest(markBulkAttendanceSchema),
   async (req, res) => {
-    const currentUser = req.context.user;
-    const { attendances } = req.body.request;
+    try {
+      const currentUser = req.context.user;
+      const { attendances } = req.body.request;
 
-    // Add schoolId and markedBy to each attendance record
-    const attendanceData = attendances.map((att) => ({
-      ...att,
-      date: new Date(att.date),
-      lateArrivalTime: att.lateArrivalTime ? new Date(att.lateArrivalTime) : null,
-      schoolId: currentUser.schoolId,
-      markedBy: currentUser.id,
-    }));
+      const attendanceData = attendances.map((att) => ({
+        studentId: att.studentId,
+        classId: att.classId,
+        date: new Date(att.date),
+        status: att.status,
+        periodId: att.periodId ?? null,
+        lateArrivalTime: att.lateArrivalTime ?? null,
+        absenceReason: att.absenceReason ?? null,
+        schoolId: currentUser.schoolId,
+        markedBy: currentUser.id,
+      }));
 
-    const result = await attendanceService.markBulkAttendance(attendanceData, currentUser.id);
+      const result = await attendanceService.markBulkAttendance(attendanceData, currentUser.id);
 
-    res.json({
-      message: "Bulk attendance marked successfully",
-      data: {
-        created: result.created,
-        updated: result.updated,
-        errors: result.errors,
-      },
-    });
+      return res.json({
+        message: "Bulk attendance marked successfully",
+        data: {
+          created: result.created,
+          updated: result.updated,
+          errors: result.errors,
+        },
+      });
+    } catch (error) {
+      logger.error({ err: error }, "mark bulk attendance failed");
+      return res.status(400).json({
+        message: error?.message || "Failed to mark bulk attendance",
+      });
+    }
   },
 );
 
@@ -86,7 +101,7 @@ router.get(
   validateRequest(getAttendanceSchema),
   async (req, res) => {
     const currentUser = req.context.user;
-    const { studentId, classId, startDate, endDate, date, page, limit } = req.query;
+    const { studentId, classId, startDate, endDate, date, page, limit, periodId } = req.query;
 
     // Role-based access control
     if (currentUser.role.name === "STUDENT") {
@@ -141,11 +156,12 @@ router.get(
 
     // For teachers and admins
     if (date && classId) {
-      // Get class attendance for specific date
+      const periodFilter =
+        periodId && periodId !== "all" ? periodId : null;
       const attendance = await attendanceService.getClassAttendance(
         classId,
         new Date(date),
-        periodId || null,
+        periodFilter,
       );
 
       return res.json({
@@ -287,12 +303,10 @@ router.get(
       return res.send(csv);
     }
 
-    if (format === "json") {
-      return res.json({
-        message: "Attendance report retrieved successfully",
-        data: reportData,
-      });
-    }
+    return res.json({
+      message: "Attendance report retrieved successfully",
+      data: reportData,
+    });
   },
 );
 

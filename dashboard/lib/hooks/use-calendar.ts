@@ -60,8 +60,8 @@ function updateCalendarEventApi(eventId: string, form: any) {
   return patch(`/calendar/events/${eventId}`, payload);
 }
 
-function deleteCalendarEventApi(eventId: string) {
-  return del(`/calendar/events/${eventId}`);
+function deleteCalendarEventApi(eventId: string, otp: string) {
+  return del(`/calendar/events/${eventId}`, { request: { otp } });
 }
 
 function fetchHolidays({ month, date }: { month?: string; date?: string } = {}) {
@@ -97,8 +97,8 @@ function updateHolidayApi(id: string, form: any) {
   return patch(`/calendar/holidays/${id}`, payload);
 }
 
-function deleteHolidayApi(holidayId: string) {
-  return del(`/calendar/holidays/${holidayId}`);
+function deleteHolidayApi(holidayId: string, otp: string) {
+  return del(`/calendar/holidays/${holidayId}`, { request: { otp } });
 }
 
 export function useCalendarEventsPage(
@@ -164,7 +164,7 @@ export function useDeleteCalendarEvent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (eventId: string) => deleteCalendarEventApi(eventId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteCalendarEventApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
     },
@@ -206,7 +206,7 @@ export function useDeleteHoliday() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (holidayId: string) => deleteHolidayApi(holidayId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteHolidayApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["holidays"] });
     },

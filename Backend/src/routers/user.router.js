@@ -13,6 +13,15 @@ import csvUtil from "../utils/csv.util.js";
 import experienceCertificateService from "../services/experience-certificate.service.js";
 import feeService from "../services/fee.service.js";
 import logger from "../config/logger.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import {
+  bulkDeleteTeachersSchema,
+  bulkDeleteStaffSchema,
+  bulkDeleteStudentsSchema,
+} from "../schemas/user/bulk-delete-users.schema.js";
+import otpDeletionService from "../services/otp-deletion.service.js";
+import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
 
 const router = Router();
 
@@ -67,11 +76,13 @@ router.post(
         publicUserId = `${school.code}T${String(existingTeachers + 1).padStart(4, "0")}`;
       }
 
-      // Create user
+      const emailNormalized = request.email.trim().toLowerCase();
+
+      // Create user (hashed password enables mobile TEACHER login)
       const user = await prisma.user.create({
         data: {
           publicUserId,
-          email: req.body.request.email.trim(),
+          email: emailNormalized,
           password: await bcryptjs.hash(generatedPassword, 10),
           firstName: request.firstName.trim(),
           lastName: request.lastName?.trim() || "",
@@ -270,7 +281,7 @@ router.patch(
       if (request.lastName !== undefined)
         userUpdateData.lastName = request.lastName.trim();
       if (request.email !== undefined)
-        userUpdateData.email = request.email.trim();
+        userUpdateData.email = request.email.trim().toLowerCase();
       if (request.contact !== undefined)
         userUpdateData.contact = request.contact.trim();
       if (request.gender !== undefined) userUpdateData.gender = request.gender;
@@ -340,10 +351,66 @@ router.patch(
   },
 );
 
+// Bulk delete teachers (single OTP for entire batch)
+router.post(
+  "/teachers/bulk-delete",
+  withPermission(Permission.DELETE_TEACHER),
+  validateRequest(bulkDeleteTeachersSchema),
+  async (req, res) => {
+    try {
+      const { otp, teacherIds } = req.body.request;
+      const currentUser = req.context.user;
+      const recipient = await resolveDeletionOtpRecipientEmail(currentUser);
+      if (!recipient) {
+        return res.status(400).json({ message: "No email available for deletion verification" });
+      }
+      const ok = await otpDeletionService.verifyDeletionOTP({
+        otpRecipientEmail: recipient,
+        otpCode: String(otp).trim(),
+        entityType: "Teacher",
+        entityId: `bulk:${teacherIds.length}`,
+      });
+      if (!ok) {
+        return res.status(403).json({
+          message:
+            "Invalid or expired OTP. Request a new verification code and try again.",
+          errorCode: "DELETION_OTP_INVALID",
+        });
+      }
+
+      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const result = await prisma.user.updateMany({
+        where: {
+          id: { in: teacherIds },
+          schoolId: currentUser.schoolId,
+          roleId: teacherRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.json({
+        message: `${result.count} teacher(s) deleted`,
+        data: { count: result.count },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk delete teachers",
+      });
+    }
+  },
+);
+
 // Delete teacher
 router.delete(
   "/teachers/:id",
   withPermission(Permission.DELETE_TEACHER),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "Teacher" }),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -693,10 +760,66 @@ router.patch(
   },
 );
 
+// Bulk delete staff (single OTP)
+router.post(
+  "/staff/bulk-delete",
+  withPermission(Permission.DELETE_STAFF),
+  validateRequest(bulkDeleteStaffSchema),
+  async (req, res) => {
+    try {
+      const { otp, staffIds } = req.body.request;
+      const currentUser = req.context.user;
+      const recipient = await resolveDeletionOtpRecipientEmail(currentUser);
+      if (!recipient) {
+        return res.status(400).json({ message: "No email available for deletion verification" });
+      }
+      const ok = await otpDeletionService.verifyDeletionOTP({
+        otpRecipientEmail: recipient,
+        otpCode: String(otp).trim(),
+        entityType: "Staff",
+        entityId: `bulk:${staffIds.length}`,
+      });
+      if (!ok) {
+        return res.status(403).json({
+          message:
+            "Invalid or expired OTP. Request a new verification code and try again.",
+          errorCode: "DELETION_OTP_INVALID",
+        });
+      }
+
+      const staffRole = await roleService.getRoleByName(RoleName.STAFF);
+      const result = await prisma.user.updateMany({
+        where: {
+          id: { in: staffIds },
+          schoolId: currentUser.schoolId,
+          roleId: staffRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.json({
+        message: `${result.count} staff member(s) deleted`,
+        data: { count: result.count },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk delete staff",
+      });
+    }
+  },
+);
+
 // Delete staff
 router.delete(
   "/staff/:id",
   withPermission(Permission.DELETE_STAFF),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "Staff" }),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -1073,8 +1196,12 @@ router.patch(
         userUpdateData.firstName = request.firstName.trim();
       if (request.lastName !== undefined)
         userUpdateData.lastName = request.lastName?.trim() || null;
-      if (request.email !== undefined)
-        userUpdateData.email = request.email.trim();
+      if (request.email !== undefined) {
+        const nextEmail = String(request.email).trim().toLowerCase();
+        if (nextEmail.length > 0) {
+          userUpdateData.email = nextEmail;
+        }
+      }
       if (request.contact !== undefined)
         userUpdateData.contact = request.contact.trim();
       if (request.gender !== undefined) userUpdateData.gender = request.gender;
@@ -1097,8 +1224,14 @@ router.patch(
 
       // Update student profile
       const profileUpdateData = {};
-      if (request.rollNumber !== undefined)
-        profileUpdateData.rollNumber = request.rollNumber || 0;
+      if (request.rollNumber !== undefined) {
+        const raw = request.rollNumber;
+        const n =
+          raw === null || raw === ""
+            ? 0
+            : Number.parseInt(String(raw), 10);
+        profileUpdateData.rollNumber = Number.isFinite(n) ? n : 0;
+      }
       if (request.apaarId !== undefined)
         profileUpdateData.apaarId = request.apaarId?.trim() || null;
       if (request.classId !== undefined)
@@ -1167,10 +1300,66 @@ router.patch(
   },
 );
 
+// Bulk delete students (single OTP)
+router.post(
+  "/students/bulk-delete",
+  withPermission(Permission.DELETE_STUDENT),
+  validateRequest(bulkDeleteStudentsSchema),
+  async (req, res) => {
+    try {
+      const { otp, studentIds } = req.body.request;
+      const currentUser = req.context.user;
+      const recipient = await resolveDeletionOtpRecipientEmail(currentUser);
+      if (!recipient) {
+        return res.status(400).json({ message: "No email available for deletion verification" });
+      }
+      const ok = await otpDeletionService.verifyDeletionOTP({
+        otpRecipientEmail: recipient,
+        otpCode: String(otp).trim(),
+        entityType: "Student",
+        entityId: `bulk:${studentIds.length}`,
+      });
+      if (!ok) {
+        return res.status(403).json({
+          message:
+            "Invalid or expired OTP. Request a new verification code and try again.",
+          errorCode: "DELETION_OTP_INVALID",
+        });
+      }
+
+      const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
+      const result = await prisma.user.updateMany({
+        where: {
+          id: { in: studentIds },
+          schoolId: currentUser.schoolId,
+          roleId: studentRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+        data: {
+          deletedAt: new Date(),
+          deletedBy: currentUser.id,
+        },
+      });
+
+      return res.json({
+        message: `${result.count} student(s) deleted`,
+        data: { count: result.count },
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to bulk delete students",
+      });
+    }
+  },
+);
+
 // Delete student
 router.delete(
   "/students/:id",
   withPermission(Permission.DELETE_STUDENT),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "Student" }),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -1296,6 +1485,8 @@ router.post(
         success: 0,
         failed: 0,
         errors: [],
+        /** One-time mobile login details per successful row (same contract as single POST /teachers). */
+        credentials: [],
       };
 
       let currentTeacherCount = await prisma.user.count({
@@ -1309,17 +1500,19 @@ router.post(
         try {
           const publicUserId = `${school.code}T${String(++currentTeacherCount).padStart(4, "0")}`;
           const generatedPassword = stringUtil.generateRandomString(15);
+          const emailNorm = String(row.email).trim().toLowerCase();
 
           await prisma.$transaction(async (tx) => {
             const user = await tx.user.create({
               data: {
-                email: row.email.toLowerCase(),
+                email: emailNorm,
                 password: await bcryptjs.hash(generatedPassword, 10),
                 firstName: row.firstname,
                 lastName: row.lastname || "",
                 contact: row.contact,
                 gender: row.gender?.toUpperCase() === "FEMALE" ? "FEMALE" : "MALE",
                 dateOfBirth: new Date(row.dateofbirth),
+                address: [],
                 userType: UserType.SCHOOL,
                 roleId: teacherRole.id,
                 schoolId: currentUser.schoolId,
@@ -1343,6 +1536,11 @@ router.post(
             });
           });
 
+          results.credentials.push({
+            email: emailNorm,
+            publicUserId,
+            password: generatedPassword,
+          });
           results.success++;
         } catch (error) {
           results.failed++;

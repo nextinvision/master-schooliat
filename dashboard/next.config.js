@@ -1,5 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    return [
+      {
+        source: "/super-admin/templates",
+        destination: "/admin/settings?tab=templates",
+        permanent: true,
+      },
+      {
+        source: "/admin/templates",
+        destination: "/admin/settings?tab=templates",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     return [
       {

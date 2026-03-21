@@ -2,6 +2,7 @@ import { Router } from "express";
 import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
 import otpDeletionService from "../services/otp-deletion.service.js";
+import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
 
 const router = Router();
 
@@ -28,9 +29,17 @@ router.post(
         req.connection?.remoteAddress ||
         "unknown";
 
+      const otpRecipientEmail = await resolveDeletionOtpRecipientEmail(currentUser);
+      if (!otpRecipientEmail) {
+        return res.status(400).json({
+          message: "No email configured to receive deletion codes",
+        });
+      }
+
       const result = await otpDeletionService.requestDeletionOTP({
         userId: currentUser.id,
-        userEmail: currentUser.email,
+        requestedByEmail: currentUser.email,
+        otpRecipientEmail,
         entityType,
         entityId,
         ipAddress,

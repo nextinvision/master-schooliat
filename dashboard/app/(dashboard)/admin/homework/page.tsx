@@ -61,9 +61,11 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { useHomework, useDeleteHomework, useGradeHomework, useHomeworkById } from "@/lib/hooks/use-homework";
-import { useClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses } from "@/lib/hooks/use-classes";
 import { useSubjects } from "@/lib/hooks/use-subjects";
 import { cn } from "@/lib/utils";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 
 export default function HomeworkPage() {
   const router = useRouter();
@@ -75,7 +77,7 @@ export default function HomeworkPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [selectedHomework, setSelectedHomework] = useState<any>(null);
   const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [homeworkOtpId, setHomeworkOtpId] = useState<string | null>(null);
   const [isGradeDialogOpen, setIsGradeDialogOpen] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState<any>(null);
   const [gradingData, setGradingData] = useState({
@@ -85,7 +87,7 @@ export default function HomeworkPage() {
   const limit = 15;
 
   // Fetch classes and subjects
-  const { data: classesData } = useClasses({ page: 1, limit: 1000 });
+  const { data: classesData } = useAllClasses();
   const classes = classesData?.data || [];
 
   const { data: subjectsData } = useSubjects({
@@ -165,22 +167,7 @@ export default function HomeworkPage() {
   };
 
   const handleDelete = (homework: any) => {
-    setSelectedHomework(homework);
-    setIsDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = async () => {
-    if (!selectedHomework) return;
-
-    try {
-      await deleteHomework.mutateAsync(selectedHomework.id);
-      toast.success("Homework deleted successfully");
-      setIsDeleteDialogOpen(false);
-      setSelectedHomework(null);
-      refetch();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete homework");
-    }
+    setHomeworkOtpId(homework.id);
   };
 
   const handleGrade = (submission: any) => {
@@ -730,29 +717,22 @@ export default function HomeworkPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Homework</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete "{selectedHomework?.title}"? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={deleteHomework.isPending}
-            >
-              {deleteHomework.isPending ? "Deleting..." : "Delete"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <DeletionOtpDialog
+        open={!!homeworkOtpId}
+        onOpenChange={(open) => !open && setHomeworkOtpId(null)}
+        audience="school-admin"
+        title="Delete homework"
+        description="This removes the homework assignment. Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.HOMEWORK}
+        entityId={homeworkOtpId ?? ""}
+        isDeleting={deleteHomework.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!homeworkOtpId) return;
+          await deleteHomework.mutateAsync({ id: homeworkOtpId, otp });
+          toast.success("Homework deleted successfully");
+          refetch();
+        }}
+      />
 
       {/* Grade Dialog */}
       <Dialog open={isGradeDialogOpen} onOpenChange={setIsGradeDialogOpen}>

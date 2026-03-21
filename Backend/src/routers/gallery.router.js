@@ -7,6 +7,8 @@ import galleryService from "../services/gallery.service.js";
 import createGallerySchema from "../schemas/gallery/create-gallery.schema.js";
 import uploadImageSchema from "../schemas/gallery/upload-image.schema.js";
 import getGalleriesSchema from "../schemas/gallery/get-galleries.schema.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -134,6 +136,8 @@ router.get(
 router.delete(
   "/:id",
   withPermission(Permission.DELETE_GALLERY),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "Gallery" }),
   async (req, res) => {
     try {
       const { id } = req.params;
@@ -190,6 +194,8 @@ router.post(
 router.delete(
   "/images/:id",
   withPermission(Permission.DELETE_GALLERY_IMAGE),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "GalleryImage" }),
   async (req, res) => {
     try {
       const { id } = req.params;

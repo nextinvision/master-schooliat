@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -78,9 +79,18 @@ export function IdCardTemplateConfig({ open, onOpenChange }: IdCardTemplateConfi
                             <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
                         </div>
                     ) : templates.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
+                        <div className="text-center py-8 text-gray-500 space-y-3">
                             <p className="font-medium">No ID card templates available</p>
-                            <p className="text-sm mt-1">Templates need to be added by the Super Admin</p>
+                            <p className="text-sm">
+                                Layouts are supplied by Schooliat. If none appear here, contact support or check{" "}
+                                <Link
+                                    href="/admin/settings?tab=templates"
+                                    className="text-primary underline underline-offset-2"
+                                >
+                                    School Settings → Templates
+                                </Link>{" "}
+                                after templates are published for your account.
+                            </p>
                         </div>
                     ) : (
                         <>

@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { FormTopBar } from "@/components/forms/form-top-bar";
 import { FormCard } from "@/components/forms/form-card";
 import { ClassFormTable } from "@/components/classes/class-form-table";
-import { useClassesPage, useCreateClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses, useCreateClasses } from "@/lib/hooks/use-classes";
 import { useTeachersPage } from "@/lib/hooks/use-teachers";
 import { ClassItem, classesSchema } from "@/lib/schemas/class-schema";
 import { toast } from "sonner";
@@ -27,9 +27,9 @@ export default function UpdateClassesPage() {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const { mutateAsync: createClasses, isPending: isSaving } = useCreateClasses();
 
-  // Fetch all classes
-  const { data: classesData, isLoading: isLoadingClasses } = useClassesPage(1, 1000);
-  const allClasses = classesData?.data ?? [];
+  const { data: classesData, isLoading: isLoadingClasses } = useAllClasses();
+  const apiClassRows = classesData?.data;
+  const allClasses = useMemo(() => apiClassRows ?? [], [apiClassRows]);
 
   // Fetch teachers
   const { data: teachersData, isLoading: isLoadingTeachers } = useTeachersPage(1, 1000);

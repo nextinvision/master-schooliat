@@ -15,6 +15,35 @@ export const feesConfigSchema = z.object({
       const num = Number(val);
       return !isNaN(num) && num >= 0;
     }, "Fee amount must be 0 or greater"),
+  feeReceiptNumberPrefix: z
+    .string()
+    .min(1, "Receipt prefix is required")
+    .max(32, "Max 32 characters"),
+  feeReceiptNextSequence: z
+    .string()
+    .min(1, "Next sequence is required")
+    .refine((val) => {
+      const num = Number(val);
+      return !isNaN(num) && num >= 1;
+    }, "Sequence must be at least 1"),
+  feeReceiptUseGst: z.boolean(),
+  feeReceiptCgstPercent: z
+    .string()
+    .optional()
+    .refine((v) => {
+      if (v === undefined || v === "") return true;
+      const n = Number(v);
+      return !isNaN(n) && n >= 0 && n <= 100;
+    }, "CGST must be 0–100"),
+  feeReceiptSgstPercent: z
+    .string()
+    .optional()
+    .refine((v) => {
+      if (v === undefined || v === "") return true;
+      const n = Number(v);
+      return !isNaN(n) && n >= 0 && n <= 100;
+    }, "SGST must be 0–100"),
+  feeReceiptPanCardNumber: z.union([z.string().max(20), z.literal("")]).optional(),
 });
 
 export const schoolProfileSchema = z.object({

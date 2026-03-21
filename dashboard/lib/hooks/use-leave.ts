@@ -142,7 +142,8 @@ export function useUpdateLeaveType() {
 export function useDeleteLeaveType() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => del(`/leave/types/${id}`),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) =>
+      del(`/leave/types/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leave-types"] });
     },

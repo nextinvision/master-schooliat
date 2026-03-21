@@ -7,7 +7,13 @@ interface FormTopBarProps {
   title: string;
   onCancel?: () => void;
   onReset?: () => void;
+  /** Called when Save is clicked (use with react-hook-form `handleSubmit(onValid, onInvalid)`). */
   onSave?: () => void;
+  /**
+   * When set, Save is a native submit control for that form id (works outside the `<form>` element).
+   * Prefer this over `onSave` alone so the browser submits the correct form.
+   */
+  submitFormId?: string;
   saveLabel?: string;
   cancelLabel?: string;
   resetLabel?: string;
@@ -20,6 +26,7 @@ export function FormTopBar({
   onCancel,
   onReset,
   onSave,
+  submitFormId,
   saveLabel = "Save",
   cancelLabel = "Cancel",
   resetLabel = "Reset",
@@ -43,9 +50,11 @@ export function FormTopBar({
             {resetLabel}
           </Button>
         )}
-        {onSave && (
+        {(onSave || submitFormId) && (
           <Button
-            onClick={onSave}
+            type={submitFormId ? "submit" : "button"}
+            form={submitFormId}
+            onClick={submitFormId ? undefined : onSave}
             disabled={isSaving}
             size="sm"
             className="bg-[#4CAF50] hover:bg-[#45a049]"

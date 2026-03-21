@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useEmergencyContacts, useCreateEmergencyContact, useUpdateEmergencyContact, useDeleteEmergencyContact } from "@/lib/hooks/use-emergency-contact";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -48,6 +50,7 @@ interface EmergencyContactsSectionProps {
 export function EmergencyContactsSection({ studentId }: EmergencyContactsSectionProps) {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<any>(null);
+  const [contactOtpId, setContactOtpId] = useState<string | null>(null);
 
   const { data: contactsData, isLoading, refetch } = useEmergencyContacts(studentId);
   const createContact = useCreateEmergencyContact();
@@ -99,15 +102,8 @@ export function EmergencyContactsSection({ studentId }: EmergencyContactsSection
     }
   };
 
-  const handleDelete = async (contactId: string) => {
-    if (!confirm("Are you sure you want to delete this emergency contact?")) return;
-    try {
-      await deleteContact.mutateAsync(contactId);
-      toast.success("Emergency contact deleted successfully!");
-      refetch();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete emergency contact");
-    }
+  const handleDelete = (contactId: string) => {
+    setContactOtpId(contactId);
   };
 
   const handleEdit = (contact: any) => {
@@ -375,6 +371,23 @@ export function EmergencyContactsSection({ studentId }: EmergencyContactsSection
           </form>
         </DialogContent>
       </Dialog>
+
+      <DeletionOtpDialog
+        open={!!contactOtpId}
+        onOpenChange={(open) => !open && setContactOtpId(null)}
+        audience="school-admin"
+        title="Delete emergency contact"
+        description="Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.EMERGENCY_CONTACT}
+        entityId={contactOtpId ?? ""}
+        isDeleting={deleteContact.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!contactOtpId) return;
+          await deleteContact.mutateAsync({ id: contactOtpId, otp });
+          toast.success("Emergency contact deleted successfully!");
+          refetch();
+        }}
+      />
     </Card>
   );
 }

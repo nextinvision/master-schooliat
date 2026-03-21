@@ -36,8 +36,14 @@ function updateNoticeApi(noticeId: string, form: any) {
   return patch(`/calendar/notices/${noticeId}`, payload);
 }
 
-function deleteNoticeApi(noticeId: string) {
-  return del(`/calendar/notices/${noticeId}`);
+function deleteNoticeApi(noticeId: string, otp: string) {
+  return del(`/calendar/notices/${noticeId}`, { request: { otp } });
+}
+
+function bulkDeleteNoticesApi(noticeIds: string[], otp: string) {
+  return post("/calendar/notices/bulk-delete", {
+    request: { noticeIds, otp },
+  });
 }
 
 export function useNoticesPage(page: number, limit = 15) {
@@ -99,7 +105,19 @@ export function useDeleteNotice() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (noticeId: string) => deleteNoticeApi(noticeId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteNoticeApi(id, otp),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notices"] });
+    },
+  });
+}
+
+export function useBulkDeleteNotices() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ noticeIds, otp }: { noticeIds: string[]; otp: string }) =>
+      bulkDeleteNoticesApi(noticeIds, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notices"] });
     },

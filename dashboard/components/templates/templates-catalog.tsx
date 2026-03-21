@@ -24,7 +24,7 @@ import {
   useTemplates,
   useTemplateDefaults,
   type Template,
-} from "@/lib/hooks/use-super-admin";
+} from "@/lib/hooks/use-templates";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { downloadFromApi } from "@/lib/api/client";
@@ -123,7 +123,15 @@ function TemplateFullPreview({ templateId }: { templateId: string }) {
   );
 }
 
-export default function TemplatesPage() {
+export type TemplatesCatalogVariant = "page" | "embedded";
+
+export type TemplatesCatalogProps = {
+  /** `embedded`: used inside Settings (no page-level title). `page`: standalone route. */
+  variant?: TemplatesCatalogVariant;
+};
+
+export function TemplatesCatalog({ variant = "page" }: TemplatesCatalogProps) {
+  const embedded = variant === "embedded";
   const [filterType, setFilterType] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateWithUrls | null>(null);
@@ -132,13 +140,11 @@ export default function TemplatesPage() {
   const { toast } = useToast();
 
   const { data, isLoading } = useTemplates(filterType === "all" ? undefined : filterType);
-  const { data: defaultsData } = useTemplateDefaults(
-    selectedTemplate?.id || ""
-  );
+  const { data: defaultsData } = useTemplateDefaults(selectedTemplate?.id || "");
 
   const templates = (data?.data || []) as TemplateWithUrls[];
   const filteredTemplates = templates.filter((template: TemplateWithUrls) =>
-    template.title?.toLowerCase().includes(searchQuery.toLowerCase())
+    template.title?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   const templateTypes = Array.from(new Set(templates.map((t: TemplateWithUrls) => t.type)));
@@ -173,17 +179,29 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-xl font-bold">Template Management</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Templates define layouts for ID cards, result cards, fee receipts, and inventory receipts. Schools use the selected template when generating these documents.
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-xl font-bold">Templates</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Browse layouts for ID cards, result cards, fee receipts, and other school documents. Your school
+            selects these when configuring features such as ID cards or printing. This library is read-only;
+            new templates are provided by Schooliat.
+          </p>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4">
-            <CardTitle>All Templates</CardTitle>
+            <div>
+              <CardTitle>{embedded ? "Document templates" : "Available templates"}</CardTitle>
+              {embedded && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Layouts used across the app (ID cards, results, receipts, and more). Choose a template where
+                  each feature offers configuration—for example ID Cards uses the ID_CARD type here.
+                </p>
+              )}
+            </div>
             <div className="flex gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
@@ -273,18 +291,18 @@ export default function TemplatesPage() {
         </CardContent>
       </Card>
 
-      {/* Preview Dialog */}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>{selectedTemplate?.title}</DialogTitle>
-            <DialogDescription>
-              Template Type: {selectedTemplate?.type}
-            </DialogDescription>
+            <DialogDescription>Template Type: {selectedTemplate?.type}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             {selectedTemplate && (
-              <div className="relative w-full bg-gray-100 rounded-lg overflow-hidden" style={{ height: "500px" }}>
+              <div
+                className="relative w-full bg-gray-100 rounded-lg overflow-hidden"
+                style={{ height: "500px" }}
+              >
                 <TemplateFullPreview templateId={selectedTemplate.id} />
               </div>
             )}

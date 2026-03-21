@@ -9,7 +9,7 @@ import {
   useDashboardSummary,
   useExamsForReports,
 } from "@/lib/hooks/use-reports";
-import { useClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses } from "@/lib/hooks/use-classes";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getDateRangeForPreset } from "@/lib/utils/analytics";
 import { useAcademicYear } from "@/lib/context/academic-year-context";
@@ -68,7 +68,7 @@ export default function ReportsPage() {
   }, [portalMonth, portalDateSync, getMonthDateRange]);
 
   const { selectedYear } = useAcademicYear();
-  const { data: classesData } = useClasses({ page: 1, limit: 1000 });
+  const { data: classesData } = useAllClasses();
   const { data: examsData } = useExamsForReports({ limit: 500 });
   const { data: summaryData, isLoading: summaryLoading } = useDashboardSummary({
     academicYear: selectedYear

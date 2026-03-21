@@ -3,17 +3,25 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { CircularsTable } from "@/components/circulars/circulars-table";
-import { useNoticesPage, useDeleteNotice } from "@/lib/hooks/use-notices";
+import { useNoticesPage, useDeleteNotice, useBulkDeleteNotices } from "@/lib/hooks/use-notices";
 import { useToast } from "@/hooks/use-toast";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
+
+type NoticeOtpTarget =
+  | { mode: "one"; id: string }
+  | { mode: "bulk"; ids: string[] };
 
 export default function CircularsPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [page, setPage] = useState(1);
+  const [noticeOtpTarget, setNoticeOtpTarget] = useState<NoticeOtpTarget | null>(null);
   const limit = 15;
 
   const { data, isLoading, isError, error, isFetching, refetch } = useNoticesPage(page, limit);
   const deleteNotice = useDeleteNotice();
+  const bulkDeleteNotices = useBulkDeleteNotices();
 
   const notices = data?.data ?? [];
   const totalPages = data?.totalPages ?? 1;
@@ -30,55 +38,13 @@ export default function CircularsPage() {
     [router]
   );
 
-  const handleDelete = useCallback(
-    async (noticeId: string) => {
-      if (!confirm("Are you sure you want to delete this notice?")) {
-        return;
-      }
+  const handleDelete = useCallback((noticeId: string) => {
+    setNoticeOtpTarget({ mode: "one", id: noticeId });
+  }, []);
 
-      try {
-        await deleteNotice.mutateAsync(noticeId);
-        toast({
-          title: "Success",
-          description: "Notice deleted successfully!",
-          variant: "default",
-        });
-      } catch (error: any) {
-        console.error("Delete notice failed:", error);
-        toast({
-          title: "Error",
-          description: error?.message || "Failed to delete notice. Please try again.",
-          variant: "destructive",
-        });
-      }
-    },
-    [deleteNotice, toast]
-  );
-
-  const handleBulkDelete = useCallback(
-    async (ids: string[]) => {
-      if (!confirm(`Are you sure you want to delete ${ids.length} notice(s)?`)) {
-        return;
-      }
-
-      try {
-        await Promise.all(ids.map((id) => deleteNotice.mutateAsync(id)));
-        toast({
-          title: "Success",
-          description: `${ids.length} notice(s) deleted successfully!`,
-          variant: "default",
-        });
-      } catch (error: any) {
-        console.error("Bulk delete failed:", error);
-        toast({
-          title: "Error",
-          description: "Failed to delete some notices. Please try again.",
-          variant: "destructive",
-        });
-      }
-    },
-    [deleteNotice, toast]
-  );
+  const handleBulkDelete = useCallback((ids: string[]) => {
+    setNoticeOtpTarget({ mode: "bulk", ids });
+  }, []);
 
   if (isLoading && !data) {
     return (
@@ -118,8 +84,56 @@ export default function CircularsPage() {
         page={page - 1}
         onPageChange={(newPage) => setPage(newPage + 1)}
         serverTotalPages={totalPages}
-        loading={isFetching || deleteNotice.isPending}
+        loading={
+          isFetching || deleteNotice.isPending || bulkDeleteNotices.isPending
+        }
         onRefresh={refetch}
+      />
+
+      <DeletionOtpDialog
+        open={!!noticeOtpTarget}
+        onOpenChange={(open) => !open && setNoticeOtpTarget(null)}
+        audience="school-admin"
+        title={
+          noticeOtpTarget?.mode === "bulk"
+            ? `Delete ${noticeOtpTarget.ids.length} notice(s)`
+            : "Delete notice"
+        }
+        description="This removes the notice from your school. Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.NOTICE}
+        entityId={
+          noticeOtpTarget?.mode === "one"
+            ? noticeOtpTarget.id
+            : noticeOtpTarget
+              ? `bulk:${noticeOtpTarget.ids.length}`
+              : ""
+        }
+        isDeleting={deleteNotice.isPending || bulkDeleteNotices.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!noticeOtpTarget) return;
+          if (noticeOtpTarget.mode === "one") {
+            await deleteNotice.mutateAsync({ id: noticeOtpTarget.id, otp });
+            toast({
+              title: "Success",
+              description: "Notice deleted successfully!",
+              variant: "default",
+            });
+          } else {
+            const res = await bulkDeleteNotices.mutateAsync({
+              noticeIds: noticeOtpTarget.ids,
+              otp,
+            });
+            const n =
+              (res as { data?: { count?: number } })?.data?.count ??
+              noticeOtpTarget.ids.length;
+            toast({
+              title: "Success",
+              description: `${n} notice(s) deleted successfully!`,
+              variant: "default",
+            });
+          }
+          refetch();
+        }}
       />
     </div>
   );

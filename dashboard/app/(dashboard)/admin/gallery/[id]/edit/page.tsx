@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -28,12 +28,15 @@ import {
 import { ArrowLeft, Upload, Trash2, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 
 export default function GalleryEditPage() {
   const params = useParams();
   const router = useRouter();
   const id = typeof params.id === "string" ? params.id : "";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [imageOtpId, setImageOtpId] = useState<string | null>(null);
 
   const { data, isLoading, refetch } = useGalleryById(id);
   const gallery = data?.data;
@@ -106,15 +109,8 @@ export default function GalleryEditPage() {
     }
   };
 
-  const handleDeleteImage = async (imageId: string) => {
-    if (!confirm("Remove this image from the gallery?")) return;
-    try {
-      await deleteImage.mutateAsync({ galleryId: id, imageId });
-      toast.success("Image removed.");
-      refetch();
-    } catch (err: unknown) {
-      toast.error("Failed to remove image.");
-    }
+  const handleDeleteImage = (imageId: string) => {
+    setImageOtpId(imageId);
   };
 
   if (isLoading || !gallery) {
@@ -256,6 +252,23 @@ export default function GalleryEditPage() {
           )}
         </CardContent>
       </Card>
+
+      <DeletionOtpDialog
+        open={!!imageOtpId}
+        onOpenChange={(open) => !open && setImageOtpId(null)}
+        audience="school-admin"
+        title="Remove gallery image"
+        description="Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.GALLERY_IMAGE}
+        entityId={imageOtpId ?? ""}
+        isDeleting={deleteImage.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!imageOtpId) return;
+          await deleteImage.mutateAsync({ galleryId: id, imageId: imageOtpId, otp });
+          toast.success("Image removed.");
+          refetch();
+        }}
+      />
     </div>
   );
 }

@@ -8,6 +8,7 @@ import createExamSchema from "../schemas/exam/create-exam.schema.js";
 import getExamsSchema from "../schemas/exam/get-exams.schema.js";
 import updateExamSchema from "../schemas/exam/update-exam.schema.js";
 import deleteExamSchema from "../schemas/exam/delete-exam.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 
 const router = Router();
 
@@ -107,6 +108,7 @@ router.delete(
   "/:id",
   withPermission(Permission.DELETE_EXAM),
   validateRequest(deleteExamSchema),
+  requireDeletionOTP({ entityType: "Exam" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;

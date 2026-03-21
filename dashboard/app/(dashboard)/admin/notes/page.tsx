@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useNotes, useDeleteNote } from "@/lib/hooks/use-notes";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,6 +28,7 @@ export default function NotesPage() {
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"notes" | "syllabus">("notes");
   const [searchQuery, setSearchQuery] = useState("");
+  const [noteOtpId, setNoteOtpId] = useState<string | null>(null);
   const limit = 15;
 
   const { data: notesData, isLoading: notesLoading, refetch: refetchNotes } = useNotes({
@@ -63,22 +66,9 @@ export default function NotesPage() {
     [router, activeTab]
   );
 
-  const handleDelete = useCallback(
-    async (noteId: string) => {
-      if (!confirm("Are you sure you want to delete this note?")) {
-        return;
-      }
-
-      try {
-        await deleteNote.mutateAsync(noteId);
-        toast.success("Note deleted successfully!");
-        refetchNotes();
-      } catch (error: any) {
-        toast.error(error?.message || "Failed to delete note");
-      }
-    },
-    [deleteNote, refetchNotes]
-  );
+  const handleDelete = useCallback((noteId: string) => {
+    setNoteOtpId(noteId);
+  }, []);
 
   const handleAddNew = useCallback(() => {
     if (activeTab === "notes") {
@@ -315,6 +305,23 @@ export default function NotesPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <DeletionOtpDialog
+        open={!!noteOtpId}
+        onOpenChange={(open) => !open && setNoteOtpId(null)}
+        audience="school-admin"
+        title="Delete note"
+        description="This permanently removes the note. Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.NOTE}
+        entityId={noteOtpId ?? ""}
+        isDeleting={deleteNote.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!noteOtpId) return;
+          await deleteNote.mutateAsync({ id: noteOtpId, otp });
+          toast.success("Note deleted successfully!");
+          refetchNotes();
+        }}
+      />
     </div>
   );
 }

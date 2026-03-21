@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -78,17 +78,42 @@ export function AttendanceMarkingTable({
       return rollA - rollB;
     });
   }, [students]);
+  const studentsSyncKey = useMemo(
+    () =>
+      students
+        .map(
+          (s) =>
+            `${s.id}:${s.attendance?.status ?? ""}:${s.attendance?.lateArrivalTime ?? ""}:${s.attendance?.absenceReason ?? ""}`
+        )
+        .join("|"),
+    [students]
+  );
+
   const [attendanceData, setAttendanceData] = useState<Record<string, {
     status: MarkableAttendanceStatus;
     lateArrivalTime?: string;
     absenceReason?: string;
-  }>>(() => {
-    const initial: Record<string, any> = {};
-    students.forEach((student) => {
-      initial[student.id] = student.attendance || { status: "PRESENT" };
+  }>>({});
+
+  useEffect(() => {
+    setAttendanceData(() => {
+      const next: Record<string, {
+        status: MarkableAttendanceStatus;
+        lateArrivalTime?: string;
+        absenceReason?: string;
+      }> = {};
+      students.forEach((student) => {
+        next[student.id] = student.attendance
+          ? {
+              status: student.attendance.status,
+              lateArrivalTime: student.attendance.lateArrivalTime || undefined,
+              absenceReason: student.attendance.absenceReason || undefined,
+            }
+          : { status: "PRESENT" };
+      });
+      return next;
     });
-    return initial;
-  });
+  }, [studentsSyncKey, students]);
 
   const [selectedStudents, setSelectedStudents] = useState<Set<string>>(new Set());
 

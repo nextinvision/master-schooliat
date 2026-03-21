@@ -46,6 +46,14 @@ export interface Settings {
   logoUrl?: string;
   studentFeeInstallments?: number;
   studentFeeAmount?: number;
+  /** School: where deletion OTP emails are delivered when set */
+  deletionOtpEmail?: string | null;
+  feeReceiptNumberPrefix?: string | null;
+  feeReceiptNextSequence?: number | null;
+  feeReceiptUseGst?: boolean;
+  feeReceiptCgstPercent?: number | string | null;
+  feeReceiptSgstPercent?: number | string | null;
+  feeReceiptPanCardNumber?: string | null;
   platformConfig?: PlatformConfig;
   createdAt: string;
   updatedAt: string;

@@ -85,11 +85,17 @@ async function handleResponseStatus(response: Response): Promise<any> {
     } catch {
       errorData = { message: errorText };
     }
-    throw new ApiError(
-      errorData?.message || `Request failed with status ${response.status}`,
-      response.status,
-      errorData
-    );
+    const validationErrors = errorData?.errors;
+    const firstValidation =
+      errorData?.errorCode === "VALIDATION_ERROR" &&
+      Array.isArray(validationErrors) &&
+      validationErrors.length > 0
+        ? validationErrors[0]
+        : null;
+    const message = firstValidation?.message
+      ? `${firstValidation.message}${firstValidation.path ? ` (${firstValidation.path})` : ""}`
+      : errorData?.message || `Request failed with status ${response.status}`;
+    throw new ApiError(message, response.status, errorData);
   }
 
   // Handle empty responses

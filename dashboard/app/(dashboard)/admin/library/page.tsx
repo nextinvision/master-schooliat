@@ -11,6 +11,8 @@ import {
   useReturnBook,
   useBulkUploadBooks,
 } from "@/lib/hooks/use-library";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -52,6 +54,7 @@ export default function LibraryPage() {
   const [activeTab, setActiveTab] = useState<"books" | "history" | "dashboard">("books");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchType, setSearchType] = useState<"title" | "author" | "isbn">("title");
+  const [bookOtpId, setBookOtpId] = useState<string | null>(null);
   const limit = 15;
 
   const { data: booksData, isLoading: booksLoading, refetch: refetchBooks } = useBooks({
@@ -94,22 +97,9 @@ export default function LibraryPage() {
     [router]
   );
 
-  const handleDelete = useCallback(
-    async (bookId: string) => {
-      if (!confirm("Are you sure you want to delete this book?")) {
-        return;
-      }
-
-      try {
-        await deleteBook.mutateAsync(bookId);
-        toast.success("Book deleted successfully!");
-        refetchBooks();
-      } catch (error: any) {
-        toast.error(error?.message || "Failed to delete book");
-      }
-    },
-    [deleteBook, refetchBooks]
-  );
+  const handleDelete = useCallback((bookId: string) => {
+    setBookOtpId(bookId);
+  }, []);
 
   const handleAddNew = useCallback(() => {
     router.push("/admin/library/add");
@@ -571,6 +561,23 @@ export default function LibraryPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      <DeletionOtpDialog
+        open={!!bookOtpId}
+        onOpenChange={(open) => !open && setBookOtpId(null)}
+        audience="school-admin"
+        title="Delete book"
+        description="This removes the book from your library catalog. Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.LIBRARY_BOOK}
+        entityId={bookOtpId ?? ""}
+        isDeleting={deleteBook.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!bookOtpId) return;
+          await deleteBook.mutateAsync({ id: bookOtpId, otp });
+          toast.success("Book deleted successfully!");
+          refetchBooks();
+        }}
+      />
     </div>
   );
 }

@@ -5,7 +5,6 @@ import { Permission, RoleName, UserType } from "../prisma/generated/index.js";
 import userService from "../services/user.service.js";
 import { Prisma } from "../prisma/generated/index.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
-import paginateUtil from "../utils/paginate.util.js";
 import idCardService from "../services/id-card.service.js";
 import createSchoolSchema from "../schemas/school/create-school.schema.js";
 import createClassesSchema from "../schemas/school/create-classes.schema.js";
@@ -15,9 +14,75 @@ import getSchoolsSchema from "../schemas/school/get-schools.schema.js";
 import getMySchoolSchema from "../schemas/school/get-my-school.schema.js";
 import updateMySchoolSchema from "../schemas/school/update-my-school.schema.js";
 import getClassesSchema from "../schemas/school/get-classes.schema.js";
+import getClassByIdSchema from "../schemas/school/get-class-by-id.schema.js";
+import getClassStudentsSchema from "../schemas/school/get-class-students.schema.js";
+import {
+  getClassDetailForSchool,
+  listStudentsInClass,
+} from "../services/school-class-detail.service.js";
 import deleteSchoolSchema from "../schemas/school/delete-school.schema.js";
 import deleteClassSchema from "../schemas/school/delete-class.schema.js";
 import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
+
+/**
+ * Build Prisma where for GET /schools/classes (filters combine with AND; search ORs grade/division/teacher).
+ */
+async function buildClassesListWhere(schoolId, query) {
+  const and = [];
+
+  const grade = typeof query.grade === "string" ? query.grade.trim() : "";
+  if (grade) {
+    and.push({ grade: { contains: grade, mode: "insensitive" } });
+  }
+
+  const division = typeof query.division === "string" ? query.division.trim() : "";
+  if (division === "__NULL__") {
+    and.push({ division: null });
+  } else if (division) {
+    and.push({ division: { contains: division, mode: "insensitive" } });
+  }
+
+  if (query.classTeacherId) {
+    and.push({ classTeacherId: query.classTeacherId });
+  }
+
+  if (query.hasClassTeacher === "assigned") {
+    and.push({ classTeacherId: { not: null } });
+  }
+  if (query.hasClassTeacher === "unassigned") {
+    and.push({ classTeacherId: null });
+  }
+
+  const search = typeof query.search === "string" ? query.search.trim() : "";
+  if (search) {
+    const teachers = await prisma.user.findMany({
+      where: {
+        schoolId,
+        deletedAt: null,
+        deletedBy: null,
+        OR: [
+          { firstName: { contains: search, mode: "insensitive" } },
+          { lastName: { contains: search, mode: "insensitive" } },
+        ],
+      },
+      select: { id: true },
+      take: 400,
+    });
+    const teacherIds = teachers.map((u) => u.id);
+    const or = [
+      { grade: { contains: search, mode: "insensitive" } },
+      { division: { contains: search, mode: "insensitive" } },
+    ];
+    if (teacherIds.length > 0) {
+      or.push({ classTeacherId: { in: teacherIds } });
+    }
+    and.push({ OR: or });
+  }
+
+  const base = { schoolId, deletedAt: null, deletedBy: null };
+  if (and.length === 0) return base;
+  return { AND: [base, ...and] };
+}
 
 const router = Router();
 
@@ -199,22 +264,53 @@ router.get(
   validateRequest(getClassesSchema),
   async (req, res) => {
     const currentUser = req.context.user;
-    const where = {
-      schoolId: currentUser.schoolId,
-      deletedAt: null,
-      deletedBy: null,
-    };
+    const schoolId = currentUser.schoolId;
+    const q = req.query;
 
-    const pageNumber = parseInt(req.query.pageNumber) || 1;
-    const pageSize = parseInt(req.query.pageSize) || 10;
+    const pageNumber = Math.max(1, parseInt(q.pageNumber, 10) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(q.pageSize, 10) || 15));
+    const skip = (pageNumber - 1) * pageSize;
 
-    const classes = await prisma.class.findMany({
-      where,
-      ...paginateUtil.getPaginationParams(req),
-      orderBy: { createdAt: "desc" },
-    });
+    const where = await buildClassesListWhere(schoolId, q);
 
-    const totalCount = await prisma.class.count({ where });
+    const sortable = new Set([
+      "createdAt",
+      "grade",
+      "division",
+      "defaultAnnualFee",
+      "defaultMonthlyFee",
+    ]);
+    const sortBy = sortable.has(q.sortBy) ? q.sortBy : "createdAt";
+    const sortOrder =
+      q.sortOrder === "asc" || q.sortOrder === "desc"
+        ? q.sortOrder
+        : sortBy === "createdAt"
+          ? "desc"
+          : "asc";
+    const orderBy = { [sortBy]: sortOrder };
+
+    const baseSchoolWhere = { schoolId, deletedAt: null, deletedBy: null };
+
+    const [classes, totalCount, gradeRows, divisionRows] = await Promise.all([
+      prisma.class.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy,
+      }),
+      prisma.class.count({ where }),
+      prisma.class.findMany({
+        where: baseSchoolWhere,
+        distinct: ["grade"],
+        select: { grade: true },
+        orderBy: { grade: "asc" },
+      }),
+      prisma.class.findMany({
+        where: baseSchoolWhere,
+        distinct: ["division"],
+        select: { division: true },
+      }),
+    ]);
 
     const classTeacherIds = classes
       .map((cls) => cls.classTeacherId)
@@ -250,15 +346,104 @@ router.get(
         : null,
     }));
 
-    const totalPages = Math.ceil(totalCount / pageSize);
+    const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
     const hasNext = pageNumber < totalPages;
+
+    const divisions = divisionRows
+      .map((r) => r.division)
+      .sort((a, b) => {
+        if (a == null && b == null) return 0;
+        if (a == null) return 1;
+        if (b == null) return -1;
+        return String(a).localeCompare(String(b), undefined, { numeric: true });
+      });
 
     return res.json({
       message: "Classes fetched!",
       data: classesWithTeachers,
       totalPages,
       hasNext,
+      meta: {
+        grades: gradeRows.map((r) => r.grade),
+        divisions,
+      },
     });
+  },
+);
+
+// GET /schools/classes/:id/students — paginated roster (school admin)
+router.get(
+  "/classes/:id/students",
+  withPermission(Permission.GET_CLASSES),
+  validateRequest(getClassStudentsSchema),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const schoolId = currentUser.schoolId;
+      if (!schoolId) {
+        return res.status(403).json({ message: "School context required." });
+      }
+      const { id } = req.params;
+      const q = req.query;
+      const pageNumber = Math.max(1, parseInt(q.pageNumber, 10) || 1);
+      const pageSize = Math.min(100, Math.max(1, parseInt(q.pageSize, 10) || 20));
+      const result = await listStudentsInClass({
+        classId: id,
+        schoolId,
+        pageNumber,
+        pageSize,
+        sortBy: q.sortBy,
+        sortOrder: q.sortOrder,
+        search: q.search,
+      });
+      if (!result) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+      return res.json({
+        message: "Class students fetched!",
+        data: result.students,
+        totalCount: result.totalCount,
+        totalPages: result.totalPages,
+        hasNext: result.hasNext,
+        page: result.page,
+        pageSize: result.pageSize,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to list class students",
+      });
+    }
+  },
+);
+
+// GET /schools/classes/:id — class detail (school admin)
+router.get(
+  "/classes/:id",
+  withPermission(Permission.GET_CLASSES),
+  validateRequest(getClassByIdSchema),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+      const schoolId = currentUser.schoolId;
+      if (!schoolId) {
+        return res.status(403).json({ message: "School context required." });
+      }
+      const detail = await getClassDetailForSchool(
+        req.params.id,
+        schoolId,
+      );
+      if (!detail) {
+        return res.status(404).json({ message: "Class not found" });
+      }
+      return res.json({
+        message: "Class fetched!",
+        data: detail,
+      });
+    } catch (error) {
+      return res.status(400).json({
+        message: error.message || "Failed to fetch class",
+      });
+    }
   },
 );
 
@@ -686,6 +871,7 @@ router.delete(
   "/classes/:id",
   withPermission(Permission.DELETE_CLASSES),
   validateRequest(deleteClassSchema),
+  requireDeletionOTP({ entityType: "Class" }),
   async (req, res) => {
     const { id } = req.params;
     const currentUser = req.context.user;

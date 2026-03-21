@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useStudent } from "@/lib/hooks/use-students";
-import { useStudentFees } from "@/lib/hooks/use-fees";
+import { useStudentFees, useStudentFeeLedger } from "@/lib/hooks/use-fees";
 import { useMarks, useResults } from "@/lib/hooks/use-marks";
 import { useHomework } from "@/lib/hooks/use-homework";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,13 @@ export default function StudentProfilePage() {
   const { data: feesRes, isLoading: loadingFees } = useStudentFees(studentId, {
     enabled: !!studentId,
   });
+  const { data: ledgerRes, isLoading: loadingLedger } = useStudentFeeLedger(studentId, {
+    enabled: !!studentId,
+    limit: 200,
+  });
   const feePayload = feesRes?.data;
   const installments = feePayload?.installments ?? [];
+  const ledgerEntries = ledgerRes?.data?.entries ?? [];
 
   const { data: marksRes, isLoading: loadingMarks } = useMarks({ studentId });
   const marks = marksRes?.data ?? [];
@@ -165,7 +170,7 @@ export default function StudentProfilePage() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <IndianRupee className="h-4 w-4" />
-            Fee ledger (installments)
+            Installment schedule
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -182,6 +187,7 @@ export default function StudentProfilePage() {
                     <TableHead>Amount</TableHead>
                     <TableHead>Paid</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Last receipt</TableHead>
                     <TableHead>Paid at</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -194,10 +200,78 @@ export default function StudentProfilePage() {
                       <TableCell>
                         <Badge variant="secondary">{row.paymentStatus || "—"}</Badge>
                       </TableCell>
+                      <TableCell className="text-sm">
+                        {row.lastReceiptNumber || "—"}
+                      </TableCell>
                       <TableCell>
                         {row.paidAt
                           ? new Date(row.paidAt).toLocaleDateString("en-IN")
                           : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Payment history
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loadingLedger ? (
+            <Skeleton className="h-32 w-full" />
+          ) : ledgerEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No payments or adjustments recorded yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount (₹)</TableHead>
+                    <TableHead>Receipt</TableHead>
+                    <TableHead>Method</TableHead>
+                    <TableHead>Receipt link</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ledgerEntries.map((e: any) => (
+                    <TableRow key={e.id}>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {e.createdAt
+                          ? new Date(e.createdAt).toLocaleString("en-IN", {
+                              dateStyle: "medium",
+                              timeStyle: "short",
+                            })
+                          : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{e.entryType || "—"}</Badge>
+                      </TableCell>
+                      <TableCell>{Number(e.amount || 0).toLocaleString("en-IN")}</TableCell>
+                      <TableCell className="text-sm">{e.receiptNumber || "—"}</TableCell>
+                      <TableCell className="text-sm">{e.paymentMethod || "—"}</TableCell>
+                      <TableCell>
+                        {e.receiptFileUrl ? (
+                          <a
+                            href={e.receiptFileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary text-sm underline"
+                          >
+                            Open
+                          </a>
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}

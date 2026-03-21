@@ -11,14 +11,6 @@ function generateClassIdCardsApi(classId: string) {
   return post(`/id-cards/classes/${classId}/generate`);
 }
 
-function fetchTemplates(type: string = "ID_CARD") {
-  return get("/templates", { type });
-}
-
-function fetchTemplateDefaultConfig(templateId: string) {
-  return get(`/templates/${templateId}/default`);
-}
-
 function fetchIdCardConfig() {
   return get("/id-cards/config");
 }
@@ -67,14 +59,7 @@ export function useGenerateClassIdCards() {
   });
 }
 
-export function useTemplates(type: string = "ID_CARD") {
-  return useQuery({
-    queryKey: ["templates", type],
-    queryFn: () => fetchTemplates(type),
-    staleTime: 5 * 60 * 1000,
-    enabled: !!type,
-  });
-}
+export { useTemplates } from "./use-templates";
 
 export function useSaveIdCardConfig() {
   const queryClient = useQueryClient();
@@ -86,15 +71,6 @@ export function useSaveIdCardConfig() {
       queryClient.invalidateQueries({ queryKey: ["id-cards"] });
       queryClient.invalidateQueries({ queryKey: ["id-cards", "config"] });
     },
-  });
-}
-
-export function useTemplateDefaultConfig(templateId: string | null) {
-  return useQuery({
-    queryKey: ["templates", templateId, "default-config"],
-    queryFn: () => fetchTemplateDefaultConfig(templateId!),
-    enabled: !!templateId,
-    staleTime: 5 * 60 * 1000,
   });
 }
 

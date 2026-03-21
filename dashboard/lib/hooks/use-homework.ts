@@ -60,8 +60,8 @@ function updateHomeworkApi(homeworkId: string, data: {
 }
 
 // Delete homework
-function deleteHomeworkApi(homeworkId: string) {
-  return del(`/homework/${homeworkId}`);
+function deleteHomeworkApi(homeworkId: string, otp: string) {
+  return del(`/homework/${homeworkId}`, { request: { otp } });
 }
 
 // Submit homework
@@ -156,7 +156,7 @@ export function useDeleteHomework() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (homeworkId: string) => deleteHomeworkApi(homeworkId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteHomeworkApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["homework"] });
     },

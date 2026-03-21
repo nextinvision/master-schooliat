@@ -29,7 +29,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Copy, KeyRound } from "lucide-react";
 
-type CreatedCredentials = { email: string; password: string } | null;
+type CreatedCredentials = {
+  email: string;
+  password: string;
+  publicUserId?: string | null;
+} | null;
 
 export default function AddTeacherPage() {
   const router = useRouter();
@@ -81,7 +85,12 @@ export default function AddTeacherPage() {
       const created = result?.data;
       const password = created?.password;
       if (password && created?.email) {
-        setCreatedCredentials({ email: created.email, password });
+        setCreatedCredentials({
+          email: created.email,
+          password,
+          publicUserId: created.publicUserId,
+        });
+        toast.success("Teacher created — save mobile login details below.");
       } else {
         toast.success("Teacher saved successfully");
         reset();
@@ -261,13 +270,15 @@ export default function AddTeacherPage() {
                 </div>
 
                 <div className="space-y-2 col-span-2">
-                  <Label htmlFor="panCardNumber">PAN Card Number</Label>
+                  <Label htmlFor="panCardNumber">PAN card number</Label>
                   <Input
                     id="panCardNumber"
                     {...methods.register("panCardNumber")}
-                    placeholder="eg. ABCDE1234F"
+                    placeholder="e.g. ABCDE1234F"
                     maxLength={10}
-                    style={{ textTransform: "uppercase" }}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
                     className={errors.panCardNumber ? "border-red-500 uppercase" : "uppercase"}
                   />
                   {errors.panCardNumber && (
@@ -532,13 +543,15 @@ export default function AddTeacherPage() {
             Teacher login credentials
           </DialogTitle>
           <DialogDescription>
-            Share these with the teacher for app and dashboard login. The password cannot be viewed again.
+            Mobile app: email or Login ID plus this password; header{" "}
+            <span className="font-mono text-xs">x-platform: android</span> or{" "}
+            <span className="font-mono text-xs">ios</span>. Shown only once.
           </DialogDescription>
         </DialogHeader>
         {createdCredentials && (
           <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
             <div>
-              <Label className="text-muted-foreground text-xs">Login ID (Email)</Label>
+              <Label className="text-muted-foreground text-xs">Email (mobile login)</Label>
               <div className="flex items-center gap-2 mt-1">
                 <Input readOnly value={createdCredentials.email} className="font-mono" />
                 <Button
@@ -554,6 +567,25 @@ export default function AddTeacherPage() {
                 </Button>
               </div>
             </div>
+            {createdCredentials.publicUserId ? (
+              <div>
+                <Label className="text-muted-foreground text-xs">Login ID (alternate)</Label>
+                <div className="flex items-center gap-2 mt-1">
+                  <Input readOnly value={createdCredentials.publicUserId} className="font-mono" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      navigator.clipboard.writeText(createdCredentials.publicUserId!);
+                      toast.success("Login ID copied");
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ) : null}
             <div>
               <Label className="text-muted-foreground text-xs">Temporary password</Label>
               <div className="flex items-center gap-2 mt-1">

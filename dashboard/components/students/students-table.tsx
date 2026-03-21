@@ -27,7 +27,7 @@ import {
 import { StudentDetailModal } from "./student-detail-modal";
 import { PasswordResetModal } from "./password-reset-modal";
 import { useBulkAssignClass } from "@/lib/hooks/use-students";
-import { useClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses } from "@/lib/hooks/use-classes";
 import {
   Dialog,
   DialogContent,
@@ -88,7 +88,7 @@ export function StudentsTable({
   const [resetStudent, setResetStudent] = useState<any>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const bulkAssign = useBulkAssignClass();
-  const { data: classesData } = useClasses({ page: 1, limit: 1000 });
+  const { data: classesData } = useAllClasses();
   const classesList = classesData?.data || [];
 
   // Filter and search

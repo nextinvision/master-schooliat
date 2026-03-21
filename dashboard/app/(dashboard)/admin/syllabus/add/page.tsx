@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCreateSyllabus } from "@/lib/hooks/use-notes";
 import { useSubjects } from "@/lib/hooks/use-subjects";
-import { useClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses } from "@/lib/hooks/use-classes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ export default function AddSyllabusPage() {
     const router = useRouter();
     const createSyllabus = useCreateSyllabus();
     const { data: subjectsData } = useSubjects({ limit: 1000 });
-    const { data: classesData } = useClasses({ limit: 1000 });
+    const { data: classesData } = useAllClasses();
 
     const [formData, setFormData] = useState({
         subjectId: "",

@@ -67,8 +67,8 @@ function updateBookApi(bookId: string, data: {
 }
 
 // Delete book
-function deleteBookApi(bookId: string) {
-  return del(`/library/books/${bookId}`);
+function deleteBookApi(bookId: string, otp: string) {
+  return del(`/library/books/${bookId}`, { request: { otp } });
 }
 
 // Issue book
@@ -259,7 +259,7 @@ export function useDeleteBook() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (bookId: string) => deleteBookApi(bookId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteBookApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["library-books"] });
       queryClient.invalidateQueries({ queryKey: ["library-dashboard"] });

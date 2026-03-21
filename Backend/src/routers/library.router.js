@@ -11,6 +11,8 @@ import returnBookSchema from "../schemas/library/return-book.schema.js";
 import reserveBookSchema from "../schemas/library/reserve-book.schema.js";
 import getBooksSchema from "../schemas/library/get-books.schema.js";
 import getBookByIdSchema from "../schemas/library/get-book-by-id.schema.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import getHistorySchema from "../schemas/library/get-history.schema.js";
 
 const router = Router();
@@ -187,7 +189,8 @@ router.get(
 router.delete(
   "/books/:id",
   withPermission(Permission.EDIT_LIBRARY_BOOK),
-  validateRequest(getBookByIdSchema),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "LibraryBook" }),
   async (req, res) => {
     try {
       const { id } = req.params;

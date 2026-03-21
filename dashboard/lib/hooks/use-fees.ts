@@ -5,12 +5,45 @@ import { get, patch, post } from "@/lib/api/client";
 
 function fetchInstallments(installmentNumber: number, endInstallmentNumber?: number, academicYear?: string) {
   const query = endInstallmentNumber ? `?end=${endInstallmentNumber}` : "";
-  const academicQuery = academicYear ? `${query ? "&" : "?"}academicYear=${academicYear}` : "";
+  const academicQuery = academicYear
+    ? `${query ? "&" : "?"}academicYear=${encodeURIComponent(academicYear)}`
+    : "";
   return get(`/fees/installments/${installmentNumber}${query}${academicQuery}`);
 }
 
 function fetchStudentFees(studentId: string) {
   return get(`/fees/student/${studentId}`);
+}
+
+function fetchStudentFeeLedger(studentId: string, limit = 200) {
+  return get(`/fees/student/${studentId}/ledger?limit=${limit}`);
+}
+
+export type SchoolFeeLedgerFilters = {
+  studentId?: string;
+  entryType?: string;
+  academicYear?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  limit?: number;
+};
+
+function buildSchoolLedgerQuery(filters: SchoolFeeLedgerFilters): string {
+  const p = new URLSearchParams();
+  if (filters.studentId) p.set("studentId", filters.studentId);
+  if (filters.entryType) p.set("entryType", filters.entryType);
+  if (filters.academicYear) p.set("academicYear", filters.academicYear);
+  if (filters.dateFrom) p.set("dateFrom", filters.dateFrom);
+  if (filters.dateTo) p.set("dateTo", filters.dateTo);
+  if (filters.page != null && filters.page > 0) p.set("page", String(filters.page));
+  if (filters.limit != null && filters.limit > 0) p.set("limit", String(filters.limit));
+  const qs = p.toString();
+  return qs ? `?${qs}` : "";
+}
+
+function fetchSchoolFeeLedger(filters: SchoolFeeLedgerFilters) {
+  return get(`/fees/ledger${buildSchoolLedgerQuery(filters)}`);
 }
 
 function recordPaymentApi(
@@ -60,6 +93,33 @@ export function useStudentFees(studentId: string, options: { enabled?: boolean }
   });
 }
 
+export function useStudentFeeLedger(studentId: string, options: { enabled?: boolean; limit?: number } = {}) {
+  const { enabled = true, limit = 200 } = options;
+
+  return useQuery({
+    queryKey: ["fees", "ledger", studentId, limit],
+    queryFn: () => fetchStudentFeeLedger(studentId, limit),
+    enabled: !!studentId && enabled,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useSchoolFeeLedger(
+  filters: SchoolFeeLedgerFilters,
+  options: { enabled?: boolean } = {}
+) {
+  const { enabled = true } = options;
+
+  return useQuery({
+    queryKey: ["fees", "school-ledger", filters],
+    queryFn: () => fetchSchoolFeeLedger(filters),
+    enabled,
+    staleTime: 30 * 1000,
+  });
+}
+
+export { buildSchoolLedgerQuery };
+
 export function useRecordPayment() {
   const queryClient = useQueryClient();
 
@@ -84,6 +144,8 @@ export function useRecordPayment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fees", "installments"] });
       queryClient.invalidateQueries({ queryKey: ["fees", "student"] });
+      queryClient.invalidateQueries({ queryKey: ["fees", "ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["fees", "school-ledger"] });
     },
   });
 }
@@ -110,6 +172,8 @@ export function useCancelFeeInstallment() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fees", "installments"] });
       queryClient.invalidateQueries({ queryKey: ["fees", "student"] });
+      queryClient.invalidateQueries({ queryKey: ["fees", "ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["fees", "school-ledger"] });
     },
   });
 }

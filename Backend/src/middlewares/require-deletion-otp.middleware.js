@@ -1,4 +1,5 @@
 import otpDeletionService from "../services/otp-deletion.service.js";
+import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
 import logger from "../config/logger.js";
 
 /**
@@ -11,8 +12,15 @@ export function requireDeletionOTP({ entityType }) {
   return async function requireDeletionOTPMiddleware(req, res, next) {
     try {
       const user = req.context?.user;
-      if (!user?.email) {
+      if (!user) {
         return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const otpRecipientEmail = await resolveDeletionOtpRecipientEmail(user);
+      if (!otpRecipientEmail) {
+        return res.status(401).json({
+          message: "No email available for deletion verification",
+        });
       }
 
       const otp =
@@ -29,7 +37,7 @@ export function requireDeletionOTP({ entityType }) {
 
       const entityId = req.params.id || req.params[Object.keys(req.params || {})[0]];
       const ok = await otpDeletionService.verifyDeletionOTP({
-        userEmail: user.email,
+        otpRecipientEmail,
         otpCode: otp.trim(),
         entityType,
         entityId,

@@ -41,8 +41,12 @@ function updateInventoryItem(id: string, data: Partial<InventoryItem>) {
     return patch(`/inventory/${id}`, { request: data });
 }
 
-function deleteInventoryItem(id: string) {
-    return del(`/inventory/${id}`);
+function deleteInventoryItem(id: string, otp: string) {
+    return del(`/inventory/${id}`, { request: { otp } });
+}
+
+function bulkDeleteInventoryItems(itemIds: string[], otp: string) {
+    return post("/inventory/bulk-delete", { request: { itemIds, otp } });
 }
 
 export function useInventory(filters: InventoryFilters = {}) {
@@ -77,7 +81,18 @@ export function useUpdateInventoryItem() {
 export function useDeleteInventoryItem() {
     const queryClient = useQueryClient();
     return useMutation({
-        mutationFn: (id: string) => deleteInventoryItem(id),
+        mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteInventoryItem(id, otp),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["inventory"] });
+        },
+    });
+}
+
+export function useBulkDeleteInventoryItems() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: ({ itemIds, otp }: { itemIds: string[]; otp: string }) =>
+            bulkDeleteInventoryItems(itemIds, otp),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["inventory"] });
         },

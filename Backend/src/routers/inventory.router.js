@@ -2,6 +2,12 @@ import { Router } from "express";
 import prisma from "../prisma/client.js";
 import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
+import validateRequest from "../middlewares/validate-request.middleware.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
+import { bulkDeleteInventorySchema } from "../schemas/inventory/bulk-delete-inventory.schema.js";
+import otpDeletionService from "../services/otp-deletion.service.js";
+import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
 import logger from "../config/logger.js";
 
 const router = Router();
@@ -148,10 +154,68 @@ router.patch(
     },
 );
 
+router.post(
+    "/bulk-delete",
+    withPermission(Permission.DELETE_INVENTORY_ITEM),
+    validateRequest(bulkDeleteInventorySchema),
+    async (req, res) => {
+        try {
+            const { otp, itemIds } = req.body.request;
+            const currentUser = req.context.user;
+            const schoolId = currentUser.schoolId;
+
+            if (!schoolId) {
+                return res.status(400).json({ message: "User is not associated with a school!" });
+            }
+
+            const recipient = await resolveDeletionOtpRecipientEmail(currentUser);
+            if (!recipient) {
+                return res.status(400).json({ message: "No email available for deletion verification" });
+            }
+            const ok = await otpDeletionService.verifyDeletionOTP({
+                otpRecipientEmail: recipient,
+                otpCode: String(otp).trim(),
+                entityType: "InventoryItem",
+                entityId: `bulk:${itemIds.length}`,
+            });
+            if (!ok) {
+                return res.status(403).json({
+                    message:
+                        "Invalid or expired OTP. Request a new verification code and try again.",
+                    errorCode: "DELETION_OTP_INVALID",
+                });
+            }
+
+            const result = await prisma.inventoryItem.updateMany({
+                where: {
+                    id: { in: itemIds },
+                    schoolId,
+                    deletedAt: null,
+                },
+                data: {
+                    deletedAt: new Date(),
+                    deletedBy: currentUser.id,
+                },
+            });
+
+            return res.json({
+                message: `${result.count} item(s) deleted`,
+                data: { count: result.count },
+            });
+        } catch (error) {
+            return res.status(400).json({
+                message: error.message || "Failed to bulk delete inventory items",
+            });
+        }
+    },
+);
+
 // DELETE inventory item (soft delete)
 router.delete(
     "/:id",
     withPermission(Permission.DELETE_INVENTORY_ITEM),
+    validateRequest(deleteByIdWithOtpSchema),
+    requireDeletionOTP({ entityType: "InventoryItem" }),
     async (req, res) => {
         const currentUser = req.context.user;
         const schoolId = currentUser.schoolId;

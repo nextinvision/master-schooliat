@@ -6,8 +6,12 @@ const baseStudentSchema = z.object({
   lastName: z.string().min(1, "Last Name is required"),
   gender: z.enum(["MALE", "FEMALE"], { message: "Gender is required" }),
   dob: z.string().min(1, "Date of birth is required"),
-  phone: z.string().default(""),
-  email: z.string().default(""),
+  phone: z
+    .string()
+    .min(10, "Student mobile must be 10 digits")
+    .max(10, "Student mobile must be 10 digits")
+    .regex(/^[6-9]\d{9}$/, "Student mobile must be a valid 10-digit Indian number"),
+  email: z.string().trim().min(1, "Email is required").email("Invalid email address"),
   areaStreet: z.string().default(""),
   location: z.string().default(""),
   district: z.string().default(""),

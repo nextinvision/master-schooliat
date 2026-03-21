@@ -3,7 +3,9 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { StaffTable } from "@/components/staff/staff-table";
-import { useStaffPage, useCreateStaff, useDeleteStaff } from "@/lib/hooks/use-staff";
+import { useStaffPage, useCreateStaff, useDeleteStaff, useBulkDeleteStaff } from "@/lib/hooks/use-staff";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -27,11 +29,16 @@ import { UserPlus, Copy, KeyRound } from "lucide-react";
 
 type CreatedCredentials = { email: string; password: string } | null;
 
+type StaffOtpTarget =
+    | { mode: "one"; id: string }
+    | { mode: "bulk"; ids: string[] };
+
 export default function StaffPage() {
     const router = useRouter();
     const [page, setPage] = useState(1);
     const [isAddStaffDialogOpen, setIsAddStaffDialogOpen] = useState(false);
     const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials>(null);
+    const [staffOtpTarget, setStaffOtpTarget] = useState<StaffOtpTarget | null>(null);
     const limit = 15;
 
     // Staff data
@@ -42,6 +49,7 @@ export default function StaffPage() {
     // Mutations
     const createStaff = useCreateStaff();
     const deleteStaff = useDeleteStaff();
+    const bulkDeleteStaff = useBulkDeleteStaff();
 
     // Staff form
     const staffForm = useForm<StaffFormData>({
@@ -83,25 +91,13 @@ export default function StaffPage() {
         }
     }, [createStaff, staffForm, refetchStaff]);
 
-    const handleDeleteStaff = useCallback(async (staffId: string) => {
-        try {
-            await deleteStaff.mutateAsync(staffId);
-            toast.success("Staff member deleted successfully!");
-            refetchStaff();
-        } catch (error: any) {
-            toast.error(error?.message || "Failed to delete staff member");
-        }
-    }, [deleteStaff, refetchStaff]);
+    const handleDeleteStaff = useCallback((staffId: string) => {
+        setStaffOtpTarget({ mode: "one", id: staffId });
+    }, []);
 
-    const handleBulkDelete = useCallback(async (ids: string[]) => {
-        try {
-            await Promise.all(ids.map(id => deleteStaff.mutateAsync(id)));
-            toast.success(`${ids.length} staff member(s) deleted successfully!`);
-            refetchStaff();
-        } catch (error: any) {
-            toast.error(error?.message || "Failed to delete staff members");
-        }
-    }, [deleteStaff, refetchStaff]);
+    const handleBulkDelete = useCallback((ids: string[]) => {
+        setStaffOtpTarget({ mode: "bulk", ids });
+    }, []);
 
     const handleEditStaff = useCallback((member: any) => {
         if (member?.id) {
@@ -390,6 +386,44 @@ export default function StaffPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <DeletionOtpDialog
+                open={!!staffOtpTarget}
+                onOpenChange={(open) => !open && setStaffOtpTarget(null)}
+                audience="school-admin"
+                title={
+                    staffOtpTarget?.mode === "bulk"
+                        ? `Delete ${staffOtpTarget.ids.length} staff member(s)`
+                        : "Delete staff member"
+                }
+                description="This removes the staff member from your school. You must confirm with an email code."
+                entityType={SCHOOL_DELETION_ENTITY.STAFF}
+                entityId={
+                    staffOtpTarget?.mode === "one"
+                        ? staffOtpTarget.id
+                        : staffOtpTarget
+                            ? `bulk:${staffOtpTarget.ids.length}`
+                            : ""
+                }
+                isDeleting={deleteStaff.isPending || bulkDeleteStaff.isPending}
+                onDeleteWithOtp={async (otp) => {
+                    if (!staffOtpTarget) return;
+                    if (staffOtpTarget.mode === "one") {
+                        await deleteStaff.mutateAsync({ id: staffOtpTarget.id, otp });
+                        toast.success("Staff member deleted");
+                    } else {
+                        const res = await bulkDeleteStaff.mutateAsync({
+                            staffIds: staffOtpTarget.ids,
+                            otp,
+                        });
+                        const n =
+                            (res as { data?: { count?: number } })?.data?.count ??
+                            staffOtpTarget.ids.length;
+                        toast.success(`${n} staff member(s) deleted`);
+                    }
+                    refetchStaff();
+                }}
+            />
         </div>
     );
 }

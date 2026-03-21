@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
     useLeaveTypes,
     useCreateLeaveType,
@@ -16,6 +16,8 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Edit, Trash2, Settings2 } from "lucide-react";
 import { toast } from "sonner";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 
 export function AdminLeaveTypesSetup() {
     const { data: response, isLoading } = useLeaveTypes();
@@ -24,7 +26,7 @@ export function AdminLeaveTypesSetup() {
     const deleteLeaveType = useDeleteLeaveType();
 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const [leaveTypeOtpId, setLeaveTypeOtpId] = useState<string | null>(null);
     const [selectedType, setSelectedType] = useState<any>(null);
 
     const [name, setName] = useState("");
@@ -47,10 +49,9 @@ export function AdminLeaveTypesSetup() {
         setIsDialogOpen(true);
     };
 
-    const openDeleteDialog = (type: any) => {
-        setSelectedType(type);
-        setIsDeleteDialogOpen(true);
-    };
+    const openDeleteDialog = useCallback((type: any) => {
+        setLeaveTypeOtpId(type.id);
+    }, []);
 
     const handleSave = async () => {
         if (!name.trim()) {
@@ -74,17 +75,6 @@ export function AdminLeaveTypesSetup() {
             setIsDialogOpen(false);
         } catch (error: any) {
             toast.error(error?.message || "Failed to save leave type");
-        }
-    };
-
-    const handleDelete = async () => {
-        if (!selectedType) return;
-        try {
-            await deleteLeaveType.mutateAsync(selectedType.id);
-            toast.success("Leave type deleted successfully");
-            setIsDeleteDialogOpen(false);
-        } catch (error: any) {
-            toast.error(error?.message || "Failed to delete leave type");
         }
     };
 
@@ -200,24 +190,21 @@ export function AdminLeaveTypesSetup() {
                 </DialogContent>
             </Dialog>
 
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Delete Leave Type</DialogTitle>
-                        <DialogDescription>
-                            Are you sure you want to delete <strong>{selectedType?.name}</strong>? It cannot be deleted if there are existing requests using this type.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} disabled={isProcessing}>
-                            Cancel
-                        </Button>
-                        <Button variant="destructive" onClick={handleDelete} disabled={isProcessing}>
-                            {isProcessing ? "Deleting..." : "Delete"}
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
+            <DeletionOtpDialog
+                open={!!leaveTypeOtpId}
+                onOpenChange={(open) => !open && setLeaveTypeOtpId(null)}
+                audience="school-admin"
+                title="Delete leave type"
+                description="It cannot be deleted if there are existing requests using this type. Confirm with the code sent to your deletion email."
+                entityType={SCHOOL_DELETION_ENTITY.LEAVE_TYPE}
+                entityId={leaveTypeOtpId ?? ""}
+                isDeleting={deleteLeaveType.isPending}
+                onDeleteWithOtp={async (otp) => {
+                    if (!leaveTypeOtpId) return;
+                    await deleteLeaveType.mutateAsync({ id: leaveTypeOtpId, otp });
+                    toast.success("Leave type deleted successfully");
+                }}
+            />
         </Card>
     );
 }

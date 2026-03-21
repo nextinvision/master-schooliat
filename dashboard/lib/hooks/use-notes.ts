@@ -60,8 +60,8 @@ function updateNoteApi(noteId: string, data: {
 }
 
 // Delete note
-function deleteNoteApi(noteId: string) {
-  return del(`/notes/notes/${noteId}`);
+function deleteNoteApi(noteId: string, otp: string) {
+  return del(`/notes/notes/${noteId}`, { request: { otp } });
 }
 
 // Create syllabus
@@ -114,8 +114,8 @@ function updateSyllabusApi(
 }
 
 // Delete syllabus
-function deleteSyllabusApi(syllabusId: string) {
-  return del(`/notes/syllabus/${syllabusId}`);
+function deleteSyllabusApi(syllabusId: string, otp: string) {
+  return del(`/notes/syllabus/${syllabusId}`, { request: { otp } });
 }
 
 // Hooks
@@ -201,7 +201,7 @@ export function useDeleteNote() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (noteId: string) => deleteNoteApi(noteId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteNoteApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
@@ -246,7 +246,7 @@ export function useDeleteSyllabus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (syllabusId: string) => deleteSyllabusApi(syllabusId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteSyllabusApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["syllabus"] });
     },

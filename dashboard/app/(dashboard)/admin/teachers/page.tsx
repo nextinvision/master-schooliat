@@ -3,7 +3,15 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { TeachersTable } from "@/components/teachers/teachers-table";
-import { useTeachersPage, useCreateTeacher, useDeleteTeacher, useBulkUploadTeachers } from "@/lib/hooks/use-teachers";
+import {
+  useTeachersPage,
+  useCreateTeacher,
+  useDeleteTeacher,
+  useBulkDeleteTeachers,
+  useBulkUploadTeachers,
+} from "@/lib/hooks/use-teachers";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { BulkUploadDialog } from "@/components/common/bulk-upload-dialog";
 import { FileDown, FileUp, Loader2, Plus, Search, Trash2, Mail, Phone, MapPin, User, ShieldCheck } from "lucide-react";
 import { downloadFromApi } from "@/lib/api/client";
@@ -18,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useForm, FormProvider, Controller } from "react-hook-form";
+import { useForm, FormProvider, Controller, type FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   addTeacherSchemaWithRefinement,
@@ -33,7 +41,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
 import { UserPlus, Copy, KeyRound } from "lucide-react";
 
-type CreatedCredentials = { email: string; password: string } | null;
+type CreatedCredentials = {
+  email: string;
+  password: string;
+  publicUserId?: string | null;
+} | null;
+
+type TeacherOtpTarget =
+  | { mode: "one"; id: string }
+  | { mode: "bulk"; ids: string[] };
 
 export default function TeachersPage() {
   const router = useRouter();
@@ -42,6 +58,7 @@ export default function TeachersPage() {
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState<CreatedCredentials>(null);
+  const [teacherOtpTarget, setTeacherOtpTarget] = useState<TeacherOtpTarget | null>(null);
   const limit = 15;
 
   // Teachers data
@@ -52,6 +69,7 @@ export default function TeachersPage() {
   // Mutations
   const createTeacher = useCreateTeacher();
   const deleteTeacher = useDeleteTeacher();
+  const bulkDeleteTeachers = useBulkDeleteTeachers();
   const bulkUploadTeachers = useBulkUploadTeachers();
 
   // Teacher form
@@ -79,9 +97,17 @@ export default function TeachersPage() {
       registrationPhotoId: null,
       aadhaarId: "",
       panCardNumber: "",
+      subjects: "",
     },
     mode: "onBlur",
   });
+
+  const onCreateTeacherInvalid = useCallback((errors: FieldErrors<AddTeacherFormData>) => {
+    const first = Object.values(errors).find(
+      (e): e is { message?: string } => !!e && typeof e === "object" && "message" in e && !!e.message
+    );
+    toast.error(first?.message ?? "Please complete all required fields (including subjects and transport if applicable).");
+  }, []);
 
   const handleCreateTeacher = useCallback(async (data: AddTeacherFormData) => {
     try {
@@ -92,7 +118,12 @@ export default function TeachersPage() {
       setIsAddTeacherDialogOpen(false);
       refetchTeachers();
       if (password && created?.email) {
-        setCreatedCredentials({ email: created.email, password });
+        setCreatedCredentials({
+          email: created.email,
+          password,
+          publicUserId: created.publicUserId,
+        });
+        toast.success("Teacher created — save mobile login details in the dialog.");
       } else {
         toast.success("Teacher created successfully!");
       }
@@ -101,27 +132,13 @@ export default function TeachersPage() {
     }
   }, [createTeacher, teacherForm, refetchTeachers]);
 
-  const handleDeleteTeacher = useCallback(async (teacherId: string) => {
-    if (!confirm("Are you sure you want to delete this teacher?")) return;
-    try {
-      await deleteTeacher.mutateAsync(teacherId);
-      toast.success("Teacher deleted successfully!");
-      refetchTeachers();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete teacher");
-    }
-  }, [deleteTeacher, refetchTeachers]);
+  const handleDeleteTeacher = useCallback((teacherId: string) => {
+    setTeacherOtpTarget({ mode: "one", id: teacherId });
+  }, []);
 
-  const handleBulkDelete = useCallback(async (ids: string[]) => {
-    if (!confirm(`Are you sure you want to delete ${ids.length} teacher(s)?`)) return;
-    try {
-      await Promise.all(ids.map(id => deleteTeacher.mutateAsync(id)));
-      toast.success(`${ids.length} teacher(s) deleted successfully!`);
-      refetchTeachers();
-    } catch (error: any) {
-      toast.error(error?.message || "Failed to delete teachers");
-    }
-  }, [deleteTeacher, refetchTeachers]);
+  const handleBulkDelete = useCallback((ids: string[]) => {
+    setTeacherOtpTarget({ mode: "bulk", ids });
+  }, []);
 
   const handleEditTeacher = useCallback((teacher: any) => {
     router.push(`/admin/teachers/${teacher.id}/edit`);
@@ -204,7 +221,11 @@ export default function TeachersPage() {
           </DialogHeader>
           <div className="flex-1 overflow-y-auto pr-4 min-h-0">
             <FormProvider {...teacherForm}>
-              <form onSubmit={teacherForm.handleSubmit(handleCreateTeacher)} className="space-y-6">
+              <form
+                id="add-teacher-dialog-form"
+                onSubmit={teacherForm.handleSubmit(handleCreateTeacher, onCreateTeacherInvalid)}
+                className="space-y-6"
+              >
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Basic Information */}
                   <FormCard title="Basic Information">
@@ -326,13 +347,15 @@ export default function TeachersPage() {
                       </div>
 
                       <div className="space-y-2 col-span-2">
-                        <Label htmlFor="panCardNumber">PAN Card Number *</Label>
+                        <Label htmlFor="panCardNumber">PAN card number</Label>
                         <Input
                           id="panCardNumber"
                           {...teacherForm.register("panCardNumber")}
-                          placeholder="eg. ABCDE1234F"
+                          placeholder="e.g. ABCDE1234F"
                           maxLength={10}
-                          style={{ textTransform: "uppercase" }}
+                          autoCapitalize="characters"
+                          autoCorrect="off"
+                          spellCheck={false}
                           className={teacherForm.formState.errors.panCardNumber ? "border-red-500 uppercase" : "uppercase"}
                         />
                         {teacherForm.formState.errors.panCardNumber && (
@@ -521,6 +544,21 @@ export default function TeachersPage() {
                           </p>
                         )}
                       </div>
+
+                      <div className="space-y-2 col-span-2">
+                        <Label htmlFor="subjects">Subjects taught *</Label>
+                        <Input
+                          id="subjects"
+                          {...teacherForm.register("subjects")}
+                          placeholder="e.g. Mathematics, Physics"
+                          className={teacherForm.formState.errors.subjects ? "border-red-500" : ""}
+                        />
+                        {teacherForm.formState.errors.subjects && (
+                          <p className="text-sm text-red-500">
+                            {teacherForm.formState.errors.subjects.message}
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </FormCard>
 
@@ -605,8 +643,8 @@ export default function TeachersPage() {
               Reset
             </Button>
             <Button
-              type="button"
-              onClick={teacherForm.handleSubmit(handleCreateTeacher)}
+              type="submit"
+              form="add-teacher-dialog-form"
               disabled={createTeacher.isPending}
             >
               {createTeacher.isPending ? "Creating..." : "Create Teacher"}
@@ -624,13 +662,15 @@ export default function TeachersPage() {
               Teacher login credentials
             </DialogTitle>
             <DialogDescription>
-              Share these with the teacher for app and dashboard login. The password cannot be viewed again.
+              Mobile app: use email or Login ID with this password and header{" "}
+              <span className="font-mono text-xs">x-platform: android</span> or{" "}
+              <span className="font-mono text-xs">ios</span>. This password is shown only once.
             </DialogDescription>
           </DialogHeader>
           {createdCredentials && (
             <div className="space-y-4 rounded-lg border p-4 bg-muted/50">
               <div>
-                <Label className="text-muted-foreground text-xs">Login ID (Email)</Label>
+                <Label className="text-muted-foreground text-xs">Email (mobile login)</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input readOnly value={createdCredentials.email} className="font-mono" />
                   <Button
@@ -646,6 +686,25 @@ export default function TeachersPage() {
                   </Button>
                 </div>
               </div>
+              {createdCredentials.publicUserId ? (
+                <div>
+                  <Label className="text-muted-foreground text-xs">Login ID (alternate)</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input readOnly value={createdCredentials.publicUserId} className="font-mono" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(createdCredentials.publicUserId!);
+                        toast.success("Login ID copied");
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
               <div>
                 <Label className="text-muted-foreground text-xs">Temporary password</Label>
                 <div className="flex items-center gap-2 mt-1">
@@ -676,7 +735,7 @@ export default function TeachersPage() {
         open={isBulkUploadDialogOpen}
         onOpenChange={setIsBulkUploadDialogOpen}
         title="Bulk Upload Teachers"
-        description="Upload a CSV file with teacher details. Passwords will be generated automatically."
+        description="Upload a CSV file with teacher details. A mobile login password is created for each successful row; download the credentials CSV from the results (shown once)."
         onUpload={(csv) => bulkUploadTeachers.mutateAsync(csv)}
         templateFilename="teachers_template.csv"
         templateHeaders={[
@@ -684,6 +743,42 @@ export default function TeachersPage() {
           "Designation", "HighestQualification", "University", "YearOfPassing",
           "Grade", "AadhaarId", "PanCardNumber"
         ]}
+      />
+
+      <DeletionOtpDialog
+        open={!!teacherOtpTarget}
+        onOpenChange={(open) => !open && setTeacherOtpTarget(null)}
+        audience="school-admin"
+        title={
+          teacherOtpTarget?.mode === "bulk"
+            ? `Delete ${teacherOtpTarget.ids.length} teacher(s)`
+            : "Delete teacher"
+        }
+        description="This removes the teacher from your school. You must confirm with an email code."
+        entityType={SCHOOL_DELETION_ENTITY.TEACHER}
+        entityId={
+          teacherOtpTarget?.mode === "one"
+            ? teacherOtpTarget.id
+            : teacherOtpTarget
+              ? `bulk:${teacherOtpTarget.ids.length}`
+              : ""
+        }
+        isDeleting={deleteTeacher.isPending || bulkDeleteTeachers.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!teacherOtpTarget) return;
+          if (teacherOtpTarget.mode === "one") {
+            await deleteTeacher.mutateAsync({ id: teacherOtpTarget.id, otp });
+            toast.success("Teacher deleted");
+          } else {
+            const res = await bulkDeleteTeachers.mutateAsync({
+              teacherIds: teacherOtpTarget.ids,
+              otp,
+            });
+            const n = (res as { data?: { count?: number } })?.data?.count ?? teacherOtpTarget.ids.length;
+            toast.success(`${n} teacher(s) deleted`);
+          }
+          refetchTeachers();
+        }}
       />
     </div >
   );

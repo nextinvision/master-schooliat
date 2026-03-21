@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAttendance, useMarkAttendance, useMarkBulkAttendance, useAttendanceStatistics, useAttendancePeriods } from "@/lib/hooks/use-attendance";
 import { AttendanceMarkingTable } from "@/components/attendance/attendance-marking-table";
@@ -23,13 +23,19 @@ import { Calendar, Download, BarChart3 } from "lucide-react";
 import { format } from "date-fns";
 import { useClassesContext } from "@/lib/context/classes-context";
 import { useStudents } from "@/lib/hooks/use-students";
+import { resolveStudentAttendanceRow } from "@/lib/attendance/resolve-student-attendance";
 
 export default function AttendancePage() {
   const router = useRouter();
   const { classes, isLoading: classesLoading } = useClassesContext();
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
+  /** `"all"` = every period + daily rows; otherwise attendance period UUID */
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"mark" | "view" | "report">("mark");
+
+  const periodQueryParam =
+    selectedPeriodId && selectedPeriodId !== "all" ? selectedPeriodId : undefined;
 
   // Fetch students for the selected class
   const { data: studentsData, isLoading: studentsLoading } = useStudents({
@@ -42,15 +48,17 @@ export default function AttendancePage() {
 
   // Fetch attendance for selected date and class
   const { data: attendanceData, isLoading: attendanceLoading, refetch } = useAttendance({
-    classId: selectedClassId,
+    classId: selectedClassId || undefined,
     date: selectedDate,
+    periodId: periodQueryParam,
   });
 
   // Fetch attendance statistics
   const { data: statisticsData } = useAttendanceStatistics({
-    classId: selectedClassId,
+    classId: selectedClassId || undefined,
     startDate: format(new Date(new Date().setMonth(new Date().getMonth() - 1)), "yyyy-MM-dd"),
     endDate: format(new Date(), "yyyy-MM-dd"),
+    periodId: periodQueryParam,
   });
 
   // Fetch attendance periods
@@ -77,6 +85,7 @@ export default function AttendancePage() {
           ...data,
           classId: selectedClassId,
           date: selectedDate,
+          ...(periodQueryParam ? { periodId: periodQueryParam } : {}),
         });
         toast.success("Attendance marked successfully");
         refetch();
@@ -84,7 +93,7 @@ export default function AttendancePage() {
         toast.error(error?.message || "Failed to mark attendance");
       }
     },
-    [selectedClassId, selectedDate, markAttendance, refetch]
+    [selectedClassId, selectedDate, periodQueryParam, markAttendance, refetch]
   );
 
   const handleBulkMark = useCallback(
@@ -105,6 +114,7 @@ export default function AttendancePage() {
           classId: selectedClassId,
           date: selectedDate,
           status,
+          ...(periodQueryParam ? { periodId: periodQueryParam } : {}),
         }));
 
         await markBulkAttendance.mutateAsync({ attendances });
@@ -114,8 +124,23 @@ export default function AttendancePage() {
         toast.error(error?.message || "Failed to mark bulk attendance");
       }
     },
-    [selectedClassId, selectedDate, filteredStudents, markBulkAttendance, refetch]
+    [selectedClassId, selectedDate, periodQueryParam, filteredStudents, markBulkAttendance, refetch]
   );
+
+  const tableStudents = useMemo(() => {
+    const rows = attendanceData?.data;
+    return filteredStudents.map((student: any) => ({
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      rollNumber: student.studentProfile?.rollNumber,
+      attendance: resolveStudentAttendanceRow(
+        rows,
+        student.id,
+        periodQueryParam ?? null
+      ),
+    }));
+  }, [filteredStudents, attendanceData?.data, periodQueryParam]);
 
   const statistics = statisticsData?.data || {};
   const presentCount = statistics.present ?? statistics.presentCount ?? 0;
@@ -184,7 +209,10 @@ export default function AttendancePage() {
             </div>
             <div className="space-y-2">
               <Label>Period (Optional)</Label>
-              <Select>
+              <Select
+                value={selectedPeriodId}
+                onValueChange={setSelectedPeriodId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="All Periods" />
                 </SelectTrigger>
@@ -273,15 +301,8 @@ export default function AttendancePage() {
             </CardHeader>
             <CardContent>
               <AttendanceMarkingTable
-                students={filteredStudents.map((student: any) => ({
-                  id: student.id,
-                  firstName: student.firstName,
-                  lastName: student.lastName,
-                  rollNumber: student.studentProfile?.rollNumber,
-                  attendance: attendanceData?.data?.find(
-                    (a: any) => a.studentId === student.id
-                  ),
-                }))}
+                key={`${selectedClassId}-${selectedDate}-${selectedPeriodId}`}
+                students={tableStudents}
                 date={selectedDate}
                 classId={selectedClassId}
                 onMarkAttendance={handleMarkAttendance}

@@ -100,7 +100,8 @@ export function useUpdateCourier() {
 export function useDeleteCourier() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => del(`/couriers/${id}`),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) =>
+      del(`/couriers/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["couriers"] });
     },

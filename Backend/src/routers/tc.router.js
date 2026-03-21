@@ -3,6 +3,8 @@ import withPermission from "../middlewares/with-permission.middleware.js";
 import { Permission } from "../prisma/generated/index.js";
 import tcService from "../services/tc.service.js";
 import validateRequest from "../middlewares/validate-request.middleware.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import { parsePagination } from "../utils/pagination.util.js";
 import { z } from "zod";
 
@@ -207,6 +209,8 @@ router.patch(
 router.delete(
   "/:id",
   withPermission(Permission.DELETE_STUDENT),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "TransferCertificate" }),
   async (req, res) => {
     try {
       const { id } = req.params;

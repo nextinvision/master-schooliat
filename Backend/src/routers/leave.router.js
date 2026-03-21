@@ -7,6 +7,8 @@ import createLeaveRequestSchema from "../schemas/leave/create-leave-request.sche
 import approveLeaveSchema from "../schemas/leave/approve-leave.schema.js";
 import rejectLeaveSchema from "../schemas/leave/reject-leave.schema.js";
 import leaveService from "../services/leave.service.js";
+import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import logger from "../config/logger.js";
 
 const router = Router();
@@ -410,6 +412,8 @@ router.patch(
 router.delete(
   "/types/:id",
   withPermission([Permission.APPROVE_LEAVE]),
+  validateRequest(deleteByIdWithOtpSchema),
+  requireDeletionOTP({ entityType: "LeaveType" }),
   async (req, res) => {
     const currentUser = req.context.user;
     const { id } = req.params;

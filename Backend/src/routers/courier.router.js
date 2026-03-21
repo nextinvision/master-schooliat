@@ -6,6 +6,7 @@ import listCouriersSchema from "../schemas/courier/list-couriers.schema.js";
 import createCourierSchema from "../schemas/courier/create-courier.schema.js";
 import updateCourierSchema from "../schemas/courier/update-courier.schema.js";
 import deleteCourierSchema from "../schemas/courier/delete-courier.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import {
   listSchoolCouriers,
   createSchoolCourier,
@@ -133,6 +134,7 @@ router.delete(
   "/:id",
   withPermission(Permission.DELETE_COURIER_ENTRY),
   validateRequest(deleteCourierSchema),
+  requireDeletionOTP({ entityType: "Courier" }),
   async (req, res) => {
     const currentUser = req.context.user;
     const schoolId = currentUser.schoolId;

@@ -8,6 +8,8 @@ import createTimetableSchema from "../schemas/timetable/create-timetable.schema.
 import updateTimetableSchema from "../schemas/timetable/update-timetable.schema.js";
 import getTimetableSchema from "../schemas/timetable/get-timetable.schema.js";
 import checkConflictsSchema from "../schemas/timetable/check-conflicts.schema.js";
+import { deleteTimetableSchema } from "../schemas/timetable/delete-timetable.schema.js";
+import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import timetableService from "../services/timetable.service.js";
 import logger from "../config/logger.js";
 
@@ -461,6 +463,8 @@ router.get(
 router.delete(
   "/:timetableId",
   withPermission([Permission.DELETE_TIMETABLE]),
+  validateRequest(deleteTimetableSchema),
+  requireDeletionOTP({ entityType: "Timetable" }),
   async (req, res) => {
     const currentUser = req.context.user;
     const { timetableId } = req.params;

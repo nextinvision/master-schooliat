@@ -276,6 +276,12 @@ router.patch(
         createdBy: currentUser.id,
       };
 
+      if (!isPlatformSettings && updateData.deletionOtpEmail !== undefined) {
+        const v = updateData.deletionOtpEmail;
+        createData.deletionOtpEmail =
+          v === null || v === "" ? null : String(v).trim();
+      }
+
       // Only include platformConfig if provided (migration may not be applied yet)
       if (updateData.platformConfig !== undefined) {
         createData.platformConfig = updateData.platformConfig;
@@ -327,6 +333,44 @@ router.patch(
         ...existingConfig,
         ...updateData.platformConfig,
       };
+    }
+
+    if (updateData.deletionOtpEmail !== undefined) {
+      if (isPlatformSettings) {
+        return res.status(400).json({
+          message: "deletionOtpEmail can only be set for school settings",
+        });
+      }
+      const v = updateData.deletionOtpEmail;
+      settingsUpdateData.deletionOtpEmail =
+        v === null || v === "" ? null : String(v).trim();
+    }
+
+    if (!isPlatformSettings) {
+      if (updateData.feeReceiptNumberPrefix !== undefined) {
+        settingsUpdateData.feeReceiptNumberPrefix =
+          String(updateData.feeReceiptNumberPrefix).trim() || "REC";
+      }
+      if (updateData.feeReceiptNextSequence !== undefined) {
+        settingsUpdateData.feeReceiptNextSequence =
+          updateData.feeReceiptNextSequence;
+      }
+      if (updateData.feeReceiptUseGst !== undefined) {
+        settingsUpdateData.feeReceiptUseGst = updateData.feeReceiptUseGst;
+      }
+      if (updateData.feeReceiptCgstPercent !== undefined) {
+        settingsUpdateData.feeReceiptCgstPercent =
+          updateData.feeReceiptCgstPercent;
+      }
+      if (updateData.feeReceiptSgstPercent !== undefined) {
+        settingsUpdateData.feeReceiptSgstPercent =
+          updateData.feeReceiptSgstPercent;
+      }
+      if (updateData.feeReceiptPanCardNumber !== undefined) {
+        const p = updateData.feeReceiptPanCardNumber;
+        settingsUpdateData.feeReceiptPanCardNumber =
+          p === null || p === "" ? null : String(p).trim();
+      }
     }
 
     settingsUpdateData.updatedBy = currentUser.id;

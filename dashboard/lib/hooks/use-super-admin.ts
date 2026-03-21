@@ -712,23 +712,11 @@ export function useDeleteRegion() {
   });
 }
 
-// Templates
-export function useTemplates(type?: string) {
-  return useQuery({
-    queryKey: ["templates", type],
-    queryFn: () => get("/templates", type ? { type } : {}),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useTemplateDefaults(templateId: string) {
-  return useQuery({
-    queryKey: ["templateDefaults", templateId],
-    queryFn: () => get(`/templates/${templateId}/default`),
-    enabled: !!templateId,
-    staleTime: 5 * 60 * 1000,
-  });
-}
+export {
+  useTemplates,
+  useTemplateDefaults,
+  type Template,
+} from "./use-templates";
 
 // Audit Logs
 export function useAuditLogs(params?: {
@@ -785,19 +773,6 @@ export interface CreateLocationData {
   name: string;
   regionId: string;
   employeeId: string;
-}
-
-export interface Template {
-  id: string;
-  title: string;
-  type: string;
-  description?: string;
-  imageId?: string;
-  imageUrl?: string;
-  sampleId?: string;
-  sampleUrl?: string;
-  previewUrl?: string;
-  downloadUrl?: string;
 }
 
 export interface AuditLog {

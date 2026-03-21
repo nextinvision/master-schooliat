@@ -10,7 +10,9 @@ const getAttendanceSchema = z
         startDate: z.string().or(z.date()).optional(),
         endDate: z.string().or(z.date()).optional(),
         date: z.string().or(z.date()).optional(),
-        periodId: z.string().uuid("Invalid period ID").optional(),
+        periodId: z
+          .union([z.literal("all"), z.string().uuid("Invalid period ID")])
+          .optional(),
         page: z.string().regex(/^\d+$/).transform(Number).optional().default("1"),
         limit: z.string().regex(/^\d+$/).transform(Number).optional().default("20"),
       })

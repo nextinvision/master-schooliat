@@ -20,7 +20,7 @@ function createStudentApi(form: any) {
       gender: form.gender,
       dateOfBirth: form.dob,
       contact: form.phone?.trim(),
-      email: form.email?.trim(),
+      email: form.email?.trim().toLowerCase(),
       classId: form.classId,
       address: [
         `${form.areaStreet}`,
@@ -40,47 +40,55 @@ function createStudentApi(form: any) {
       transport: form.transportMode,
       transportId: form.transportMode === "Transport" ? form.transportId : null,
       registrationPhotoId: form.registrationPhotoId || null,
-      bloodGroup: form.bloodGroup,
+      bloodGroup: form.bloodGroup?.trim() || null,
     },
   };
   return post("/users/students", payload);
 }
 
 function updateStudentApi(studentId: string, form: any) {
-  const payload = {
-    request: {
-      firstName: form.firstName?.trim(),
-      lastName: form.lastName?.trim(),
-      gender: form.gender,
-      dateOfBirth: form.dob,
-      contact: form.phone?.trim(),
-      email: form.email?.trim(),
-      classId: form.classId,
-      address: [
-        `${form.areaStreet}`,
-        `${form.location}, ${form.district}`,
-        `${form.state} - ${form.pincode}`,
-      ].filter(Boolean),
-      fatherName: form.fatherName?.trim(),
-      fatherContact: form.fatherContact?.trim(),
-      motherName: form.motherName?.trim(),
-      motherContact: form.motherContact?.trim(),
-      annualIncome: form.fatherIncome,
-      fatherOccupation: form.fatherOccupation?.trim(),
-      aadhaarId: form.aadhaarNumber?.trim() || null,
-      apaarId: form.apaarId?.trim() || null,
-      rollNumber: form.rollNumber?.trim() || null,
-      accommodationType: form.accommodationType,
-      transport: form.transportMode,
-      transportId: form.transportMode === "Transport" ? form.transportId : null,
-      registrationPhotoId: form.registrationPhotoId || null,
-    },
+  const emailTrim = (form.email ?? "").trim().toLowerCase();
+  const request: Record<string, unknown> = {
+    firstName: form.firstName?.trim(),
+    lastName: form.lastName?.trim(),
+    gender: form.gender,
+    dateOfBirth: form.dob,
+    contact: form.phone?.trim(),
+    classId: form.classId,
+    address: [
+      `${form.areaStreet}`,
+      `${form.location}, ${form.district}`,
+      `${form.state} - ${form.pincode}`,
+    ].filter(Boolean),
+    fatherName: form.fatherName?.trim(),
+    fatherContact: form.fatherContact?.trim(),
+    motherName: form.motherName?.trim(),
+    motherContact: form.motherContact?.trim(),
+    annualIncome: form.fatherIncome,
+    fatherOccupation: form.fatherOccupation?.trim(),
+    aadhaarId: form.aadhaarNumber?.trim() || null,
+    apaarId: form.apaarId?.trim() || null,
+    rollNumber: form.rollNumber?.trim() || null,
+    accommodationType: form.accommodationType,
+    transport: form.transportMode,
+    transportId: form.transportMode === "Transport" ? form.transportId : null,
+    registrationPhotoId: form.registrationPhotoId || null,
+    bloodGroup: form.bloodGroup?.trim() || null,
   };
-  return patch(`/users/students/${studentId}`, payload);
+  if (emailTrim) {
+    request.email = emailTrim;
+  }
+  return patch(`/users/students/${studentId}`, { request });
 }
 
-function deleteStudentApi(studentId: string) {
-  return del(`/users/students/${studentId}`);
+function deleteStudentApi(studentId: string, otp: string) {
+  return del(`/users/students/${studentId}`, { request: { otp } });
+}
+
+function bulkDeleteStudentsApi(studentIds: string[], otp: string) {
+  return post("/users/students/bulk-delete", {
+    request: { studentIds, otp },
+  });
 }
 
 export function useStudentsPage(page: number, limit = 15, academicYear?: string) {
@@ -142,7 +150,19 @@ export function useDeleteStudent() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (studentId: string) => deleteStudentApi(studentId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteStudentApi(id, otp),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+    },
+  });
+}
+
+export function useBulkDeleteStudents() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ studentIds, otp }: { studentIds: string[]; otp: string }) =>
+      bulkDeleteStudentsApi(studentIds, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["students"] });
     },

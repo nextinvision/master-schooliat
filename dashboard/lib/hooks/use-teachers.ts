@@ -19,7 +19,7 @@ function createTeacherApi(form: any) {
     request: {
       firstName: form.firstName?.trim(),
       lastName: form.lastName?.trim(),
-      email: form.email?.trim(),
+      email: form.email?.trim().toLowerCase(),
       contact: form.contact?.trim(),
       gender: form.gender,
       dateOfBirth: form.dob,
@@ -29,7 +29,9 @@ function createTeacherApi(form: any) {
         `${form.state} - ${form.pincode}`,
       ].filter(Boolean),
       aadhaarId: form.aadhaarId?.trim(),
-      panCardNumber: form.panCardNumber?.trim(),
+      panCardNumber: form.panCardNumber?.trim()
+        ? form.panCardNumber.trim().toUpperCase()
+        : undefined,
       subjects: form.subjects?.trim(),
       designation: form.designation?.trim(),
       highestQualification: form.highestQualification?.trim(),
@@ -52,7 +54,7 @@ function updateTeacherApi(id: string, form: any) {
     request: {
       firstName: form.firstName?.trim(),
       lastName: form.lastName?.trim(),
-      email: form.email?.trim(),
+      email: form.email?.trim().toLowerCase(),
       contact: form.contact?.trim(),
       gender: form.gender,
       dateOfBirth: form.dateOfBirth,
@@ -63,7 +65,9 @@ function updateTeacherApi(id: string, form: any) {
       ].filter(Boolean),
       aadhaarId: form.aadhaarId?.trim(),
       subjects: form.subjects?.trim(),
-      panCardNumber: form.panCardNumber?.trim(),
+      panCardNumber: form.panCardNumber?.trim()
+        ? form.panCardNumber.trim().toUpperCase()
+        : undefined,
       designation: form.designation?.trim(),
       highestQualification: form.highestQualification?.trim(),
       university: form.university?.trim(),
@@ -77,8 +81,14 @@ function updateTeacherApi(id: string, form: any) {
   return patch(`/users/teachers/${id}`, payload);
 }
 
-function deleteTeacherApi(teacherId: string) {
-  return del(`/users/teachers/${teacherId}`);
+function deleteTeacherApi(teacherId: string, otp: string) {
+  return del(`/users/teachers/${teacherId}`, { request: { otp } });
+}
+
+function bulkDeleteTeachersApi(teacherIds: string[], otp: string) {
+  return post("/users/teachers/bulk-delete", {
+    request: { teacherIds, otp },
+  });
 }
 
 export function useTeachersPage(page: number, limit = 15, academicYear?: string) {
@@ -140,7 +150,19 @@ export function useDeleteTeacher() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (teacherId: string) => deleteTeacherApi(teacherId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteTeacherApi(id, otp),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+    },
+  });
+}
+
+export function useBulkDeleteTeachers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ teacherIds, otp }: { teacherIds: string[]; otp: string }) =>
+      bulkDeleteTeachersApi(teacherIds, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teachers"] });
     },

@@ -3,8 +3,18 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { useStudentFees } from "@/lib/hooks/use-fees";
+import { useStudentFees, useStudentFeeLedger } from "@/lib/hooks/use-fees";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { DownloadCloud } from "lucide-react";
 
 function formatCurrency(num: number | string | null | undefined): string {
@@ -24,6 +34,18 @@ function formatDate(iso: string | null | undefined): string {
   }
 }
 
+function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("en-IN", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  } catch {
+    return "—";
+  }
+}
+
 interface FeeDetailsModalProps {
   visible: boolean;
   onClose: () => void;
@@ -34,8 +56,13 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
   const { data, isLoading } = useStudentFees(studentId || "", {
     enabled: !!studentId && visible,
   });
+  const { data: ledgerRes, isLoading: loadingLedger } = useStudentFeeLedger(
+    studentId || "",
+    { enabled: !!studentId && visible, limit: 300 }
+  );
 
   const fees = data?.data || null;
+  const ledgerEntries = ledgerRes?.data?.entries ?? [];
 
   return (
     <Dialog open={visible} onOpenChange={onClose}>
@@ -68,74 +95,146 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
                 </div>
               </div>
 
-              <div className="border rounded-lg p-4">
-                <h3 className="font-semibold mb-4">Installments</h3>
-                <div className="space-y-2">
-                  {fees.installments?.map((installment: any, index: number) => {
-                    const statusLabel =
-                      installment.paymentStatus === "PAID"
-                        ? "Paid"
-                        : installment.paymentStatus === "PARTIALLY_PAID"
-                          ? "Partially Paid"
-                          : installment.paymentStatus === "CANCELLED"
-                            ? "Cancelled"
-                            : installment.paymentStatus === "WAIVED"
-                              ? "Waived"
-                              : "Pending";
-                    const statusClass =
-                      installment.paymentStatus === "PAID"
-                        ? "bg-schooliat-tint text-primary"
-                        : installment.paymentStatus === "PARTIALLY_PAID"
-                          ? "bg-amber-100 text-amber-800"
-                          : installment.paymentStatus === "CANCELLED"
-                            ? "bg-slate-200 text-slate-800"
-                            : installment.paymentStatus === "WAIVED"
-                              ? "bg-slate-100 text-slate-700"
-                              : "bg-orange-100 text-orange-800";
-                    return (
-                      <div
-                        key={installment.id}
-                        className="flex justify-between items-center p-3 bg-gray-50 rounded-lg gap-3"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="font-medium">Installment {index + 1}</div>
-                          <div className="text-sm text-gray-600">
-                            Amount: {formatCurrency(installment.amount)} | Paid:{" "}
-                            {formatCurrency(installment.paidAmount)} | Remaining:{" "}
-                            {formatCurrency(installment.remainingAmount)}
-                          </div>
-                          {installment.paidAt && (
-                            <div className="text-xs text-gray-500">
-                              Paid at: {formatDate(installment.paidAt)}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${statusClass}`}
+              <Tabs defaultValue="installments">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="installments">Installments</TabsTrigger>
+                  <TabsTrigger value="ledger">Payment history</TabsTrigger>
+                </TabsList>
+                <TabsContent value="installments" className="mt-4">
+                  <div className="border rounded-lg p-4">
+                    <h3 className="font-semibold mb-4">Installments</h3>
+                    <div className="space-y-2">
+                      {fees.installments?.map((installment: any, index: number) => {
+                        const statusLabel =
+                          installment.paymentStatus === "PAID"
+                            ? "Paid"
+                            : installment.paymentStatus === "PARTIALLY_PAID"
+                              ? "Partially Paid"
+                              : installment.paymentStatus === "CANCELLED"
+                                ? "Cancelled"
+                                : installment.paymentStatus === "WAIVED"
+                                  ? "Waived"
+                                  : "Pending";
+                        const statusClass =
+                          installment.paymentStatus === "PAID"
+                            ? "bg-schooliat-tint text-primary"
+                            : installment.paymentStatus === "PARTIALLY_PAID"
+                              ? "bg-amber-100 text-amber-800"
+                              : installment.paymentStatus === "CANCELLED"
+                                ? "bg-slate-200 text-slate-800"
+                                : installment.paymentStatus === "WAIVED"
+                                  ? "bg-slate-100 text-slate-700"
+                                  : "bg-orange-100 text-orange-800";
+                        return (
+                          <div
+                            key={installment.id}
+                            className="flex justify-between items-center p-3 bg-gray-50 rounded-lg gap-3"
                           >
-                            {statusLabel}
-                          </span>
-                          {installment.receiptFileUrl && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 gap-1 text-primary"
-                              onClick={() =>
-                                window.open(installment.receiptFileUrl, "_blank")
-                              }
-                              title="Download receipt"
-                            >
-                              <DownloadCloud className="h-4 w-4" />
-                              Receipt
-                            </Button>
-                          )}
-                        </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium">Installment {index + 1}</div>
+                              <div className="text-sm text-gray-600">
+                                Amount: {formatCurrency(installment.amount)} | Paid:{" "}
+                                {formatCurrency(installment.paidAmount)} | Remaining:{" "}
+                                {formatCurrency(installment.remainingAmount)}
+                              </div>
+                              {installment.lastReceiptNumber ? (
+                                <div className="text-xs text-gray-500">
+                                  Last receipt: {installment.lastReceiptNumber}
+                                </div>
+                              ) : null}
+                              {installment.paidAt && (
+                                <div className="text-xs text-gray-500">
+                                  Paid at: {formatDate(installment.paidAt)}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span
+                                className={`px-3 py-1 rounded-full text-xs font-medium ${statusClass}`}
+                              >
+                                {statusLabel}
+                              </span>
+                              {installment.receiptFileUrl && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 gap-1 text-primary"
+                                  onClick={() =>
+                                    window.open(installment.receiptFileUrl, "_blank")
+                                  }
+                                  title="Download receipt"
+                                >
+                                  <DownloadCloud className="h-4 w-4" />
+                                  Receipt
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="ledger" className="mt-4">
+                  <div className="border rounded-lg p-2">
+                    {loadingLedger ? (
+                      <Skeleton className="h-32 w-full" />
+                    ) : ledgerEntries.length === 0 ? (
+                      <p className="text-sm text-muted-foreground p-4">
+                        No ledger entries yet.
+                      </p>
+                    ) : (
+                      <div className="overflow-x-auto max-h-[40vh]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>When</TableHead>
+                              <TableHead>Type</TableHead>
+                              <TableHead className="text-right">₹</TableHead>
+                              <TableHead>Receipt</TableHead>
+                              <TableHead />
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {ledgerEntries.map((e: any) => (
+                              <TableRow key={e.id}>
+                                <TableCell className="text-sm whitespace-nowrap">
+                                  {formatDateTime(e.createdAt)}
+                                </TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="font-normal">
+                                    {e.entryType}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right tabular-nums text-sm">
+                                  {Number(e.amount || 0).toLocaleString("en-IN")}
+                                </TableCell>
+                                <TableCell className="text-sm max-w-[100px] truncate">
+                                  {e.receiptNumber || "—"}
+                                </TableCell>
+                                <TableCell>
+                                  {e.receiptFileUrl ? (
+                                    <Button
+                                      variant="link"
+                                      size="sm"
+                                      className="h-8 px-1"
+                                      onClick={() => window.open(e.receiptFileUrl, "_blank")}
+                                    >
+                                      Open
+                                    </Button>
+                                  ) : (
+                                    "—"
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">

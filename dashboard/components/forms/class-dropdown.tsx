@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useFormContext, Controller } from "react-hook-form";
 import {
   Select,
@@ -16,21 +17,30 @@ interface ClassDropdownProps {
   name?: string;
   label?: string;
   rules?: any;
+  /** Ensures the Select has an item for the current value (e.g. class not returned in the first page of the list). */
+  additionalOptions?: { value: string; label: string }[];
 }
 
 export function ClassDropdown({
   name = "classId",
   label = "Class",
   rules,
+  additionalOptions = [],
 }: ClassDropdownProps) {
   const { control } = useFormContext();
   const { classes, isLoading } = useClassesContext();
 
-  const classOptions =
-    classes?.map((cls) => ({
-      value: cls.id,
-      label: cls.division ? `${cls.grade}-${cls.division}` : cls.grade,
-    })) || [];
+  const classOptions = useMemo(() => {
+    const fromApi =
+      classes?.map((cls) => ({
+        value: cls.id,
+        label: cls.division ? `${cls.grade}-${cls.division}` : cls.grade,
+      })) || [];
+    const extras = (additionalOptions || []).filter(
+      (e) => e?.value && !fromApi.some((o) => o.value === e.value)
+    );
+    return [...extras, ...fromApi];
+  }, [classes, additionalOptions]);
 
   return (
     <div className="space-y-2">
@@ -44,7 +54,10 @@ export function ClassDropdown({
             {isLoading ? (
               <Skeleton className="h-10 w-full" />
             ) : (
-              <Select value={value} onValueChange={onChange}>
+              <Select
+                value={value ? value : undefined}
+                onValueChange={onChange}
+              >
                 <SelectTrigger className={error ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select Class" />
                 </SelectTrigger>

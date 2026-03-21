@@ -233,11 +233,6 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     hasSubmenu: true,
   },
   {
-    name: "Templates",
-    icon: "FileText",
-    route: "/super-admin/templates",
-  },
-  {
     name: "Audit Logs",
     icon: "ScrollText",
     route: "/super-admin/audit-logs",
@@ -312,6 +307,10 @@ export function getAdminSearchItems(): { name: string; route: string }[] {
       out.push({ name: item.name, route: item.route });
     }
   }
+  out.push({
+    name: "Templates",
+    route: "/admin/settings?tab=templates",
+  });
   return out;
 }
 

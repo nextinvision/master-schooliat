@@ -3,6 +3,8 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useGalleries, useDeleteGallery } from "@/lib/hooks/use-gallery";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -24,6 +26,7 @@ export default function GalleryPage() {
   const router = useRouter();
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
+  const [galleryOtpId, setGalleryOtpId] = useState<string | null>(null);
   const limit = 15;
 
   const { data, isLoading, refetch } = useGalleries({
@@ -54,22 +57,9 @@ export default function GalleryPage() {
     [router]
   );
 
-  const handleDelete = useCallback(
-    async (galleryId: string) => {
-      if (!confirm("Are you sure you want to delete this gallery?")) {
-        return;
-      }
-
-      try {
-        await deleteGallery.mutateAsync(galleryId);
-        toast.success("Gallery deleted successfully!");
-        refetch();
-      } catch (error: any) {
-        toast.error(error?.message || "Failed to delete gallery");
-      }
-    },
-    [deleteGallery, refetch]
-  );
+  const handleDelete = useCallback((galleryId: string) => {
+    setGalleryOtpId(galleryId);
+  }, []);
 
   const handleAddNew = useCallback(() => {
     router.push("/admin/gallery/add");
@@ -236,6 +226,23 @@ export default function GalleryPage() {
           )}
         </CardContent>
       </Card>
+
+      <DeletionOtpDialog
+        open={!!galleryOtpId}
+        onOpenChange={(open) => !open && setGalleryOtpId(null)}
+        audience="school-admin"
+        title="Delete gallery"
+        description="This removes the gallery and its images from your school. Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.GALLERY}
+        entityId={galleryOtpId ?? ""}
+        isDeleting={deleteGallery.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!galleryOtpId) return;
+          await deleteGallery.mutateAsync({ id: galleryOtpId, otp });
+          toast.success("Gallery deleted successfully!");
+          refetch();
+        }}
+      />
     </div>
   );
 }

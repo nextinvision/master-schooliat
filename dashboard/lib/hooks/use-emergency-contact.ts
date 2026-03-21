@@ -39,8 +39,8 @@ function updateEmergencyContact(contactId: string, data: {
 }
 
 // Delete emergency contact
-function deleteEmergencyContact(contactId: string) {
-  return del(`/emergency-contacts/${contactId}`);
+function deleteEmergencyContact(contactId: string, otp: string) {
+  return del(`/emergency-contacts/${contactId}`, { request: { otp } });
 }
 
 // Hooks
@@ -97,7 +97,7 @@ export function useDeleteEmergencyContact() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (contactId: string) => deleteEmergencyContact(contactId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteEmergencyContact(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["emergency-contacts"] });
     },

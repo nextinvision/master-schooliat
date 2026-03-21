@@ -66,8 +66,12 @@ function updateVehicleApi(id: string, form: any) {
   return patch(`/transports/${id}`, payload);
 }
 
-function deleteVehicleApi(vehicleId: string) {
-  return del(`/transports/${vehicleId}`);
+function deleteVehicleApi(vehicleId: string, otp: string) {
+  return del(`/transports/${vehicleId}`, { request: { otp } });
+}
+
+function bulkDeleteTransportsApi(transportIds: string[], otp: string) {
+  return post("/transports/bulk-delete", { request: { transportIds, otp } });
 }
 
 export function useVehiclesPage(page: number, limit = 15) {
@@ -129,7 +133,19 @@ export function useDeleteVehicle() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (vehicleId: string) => deleteVehicleApi(vehicleId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteVehicleApi(id, otp),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transports"] });
+    },
+  });
+}
+
+export function useBulkDeleteTransports() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ transportIds, otp }: { transportIds: string[]; otp: string }) =>
+      bulkDeleteTransportsApi(transportIds, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transports"] });
     },

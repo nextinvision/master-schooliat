@@ -44,6 +44,8 @@ import {
   type CourierApiStatus,
   type SchoolCourierRow,
 } from "@/lib/hooks/use-courier";
+import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
+import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 
 const STATUS_LABEL: Record<CourierApiStatus, string> = {
   DISPATCHED: "Dispatched",
@@ -96,6 +98,7 @@ export function CourierManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [editId, setEditId] = useState<string | null>(null);
+  const [courierOtpId, setCourierOtpId] = useState<string | null>(null);
 
   const listFilters = useMemo(
     () => ({
@@ -177,18 +180,8 @@ export function CourierManagement() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this courier entry?")) return;
-    try {
-      await deleteMut.mutateAsync(id);
-      toast.success("Courier entry deleted!");
-    } catch (e: unknown) {
-      const msg =
-        e && typeof e === "object" && "message" in e
-          ? String((e as { message: string }).message)
-          : "Request failed";
-      toast.error(msg);
-    }
+  const handleDelete = (id: string) => {
+    setCourierOtpId(id);
   };
 
   const stats = aggregates
@@ -527,6 +520,22 @@ export function CourierManagement() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DeletionOtpDialog
+        open={!!courierOtpId}
+        onOpenChange={(open) => !open && setCourierOtpId(null)}
+        audience="school-admin"
+        title="Delete courier entry"
+        description="Confirm with the code sent to your deletion email."
+        entityType={SCHOOL_DELETION_ENTITY.COURIER}
+        entityId={courierOtpId ?? ""}
+        isDeleting={deleteMut.isPending}
+        onDeleteWithOtp={async (otp) => {
+          if (!courierOtpId) return;
+          await deleteMut.mutateAsync({ id: courierOtpId, otp });
+          toast.success("Courier entry deleted!");
+        }}
+      />
     </div>
   );
 }

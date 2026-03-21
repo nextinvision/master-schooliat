@@ -41,8 +41,8 @@ function updateGalleryApi(galleryId: string, data: {
 }
 
 // Delete gallery
-function deleteGalleryApi(galleryId: string) {
-  return del(`/gallery/${galleryId}`);
+function deleteGalleryApi(galleryId: string, otp: string) {
+  return del(`/gallery/${galleryId}`, { request: { otp } });
 }
 
 // Upload image to gallery (backend: POST /gallery/images with body { request: { galleryId, fileId, caption?, ... } })
@@ -57,8 +57,8 @@ function uploadImageApi(galleryId: string, data: { imageId: string; caption?: st
 }
 
 // Delete image from gallery (backend: DELETE /gallery/images/:id)
-function deleteImageApi(_galleryId: string, imageId: string) {
-  return del(`/gallery/images/${imageId}`);
+function deleteImageApi(imageId: string, otp: string) {
+  return del(`/gallery/images/${imageId}`, { request: { otp } });
 }
 
 // Hooks
@@ -120,7 +120,7 @@ export function useDeleteGallery() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (galleryId: string) => deleteGalleryApi(galleryId),
+    mutationFn: ({ id, otp }: { id: string; otp: string }) => deleteGalleryApi(id, otp),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["galleries"] });
     },
@@ -144,8 +144,15 @@ export function useDeleteImage() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ galleryId, imageId }: { galleryId: string; imageId: string }) =>
-      deleteImageApi(galleryId, imageId),
+    mutationFn: ({
+      galleryId,
+      imageId,
+      otp,
+    }: {
+      galleryId: string;
+      imageId: string;
+      otp: string;
+    }) => deleteImageApi(imageId, otp),
     onSuccess: (_data, { galleryId }) => {
       queryClient.invalidateQueries({ queryKey: ["galleries"] });
       queryClient.invalidateQueries({ queryKey: ["gallery", galleryId] });

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSyllabusById, useUpdateSyllabus } from "@/lib/hooks/use-notes";
 import { useSubjects } from "@/lib/hooks/use-subjects";
-import { useClasses } from "@/lib/hooks/use-classes";
+import { useAllClasses } from "@/lib/hooks/use-classes";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -42,7 +42,7 @@ export default function EditSyllabusPage() {
   const syllabus = syllabusRes?.data;
   const updateSyllabus = useUpdateSyllabus();
   const { data: subjectsData } = useSubjects({ limit: 1000 });
-  const { data: classesData } = useClasses({ limit: 1000 });
+  const { data: classesData } = useAllClasses();
 
   const [formData, setFormData] = useState({
     title: "",
