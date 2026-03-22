@@ -43,6 +43,8 @@
     "migrate:seed": "bash scripts/migrate-and-seed.sh",
     "migrate:seed:production": "bash scripts/migrate-and-seed-production.sh",
     "check:dashboard-db": "node scripts/check-dashboard-db.js",
+    "reconcile:school-regions": "node scripts/reconcile-school-regions.js",
+    "reconcile:school-regions:dry": "node scripts/reconcile-school-regions.js --dry-run",
     "postman:users": "node scripts/fetch-postman-users.js"
   },
   "dependencies": {

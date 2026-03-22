@@ -28,6 +28,7 @@ import emailService from "../services/email.service.js";
 import roleService from "../services/role.service.js";
 import sendSchoolAdminWelcomeSchema from "../schemas/school/send-school-admin-welcome.schema.js";
 import { getSchoolMasterOverview } from "../services/school-master-overview.service.js";
+import { getDefaultSchoolRegionIdForNewSchool } from "../services/school-region-reconciliation.service.js";
 
 function parseOptionalInt(value) {
   if (value === undefined || value === null || value === "") return null;
@@ -112,10 +113,11 @@ router.post(
       const request = req.body.request;
       const currentUser = req.context.user;
 
-      if (request.regionId) {
+      let resolvedRegionId = request.regionId || null;
+      if (resolvedRegionId) {
         const regionEntity = await prisma.region.findFirst({
           where: {
-            id: request.regionId,
+            id: resolvedRegionId,
             deletedAt: null,
             deletedBy: null,
           },
@@ -125,6 +127,8 @@ router.post(
             .status(400)
             .json({ message: "Region not found or deleted!" });
         }
+      } else {
+        resolvedRegionId = await getDefaultSchoolRegionIdForNewSchool(prisma);
       }
 
       const newSchool = await prisma.school.create({
@@ -146,7 +150,7 @@ router.post(
           bankAccountNumber: request.bankAccountNumber ?? undefined,
           bankIfscCode: request.bankIfscCode ?? undefined,
           bankBranchName: request.bankBranchName ?? undefined,
-          regionId: request.regionId || null,
+          regionId: resolvedRegionId,
           createdBy: currentUser.id,
         },
       });
