@@ -23,9 +23,9 @@ import {
   useReceipt,
   useCreateReceipt,
   useUpdateReceipt,
-  useGenerateReceipt,
   School,
 } from "@/lib/hooks/use-super-admin";
+import { downloadReceiptPdf } from "@/lib/super-admin/billing/download-billing-pdf";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Receipt } from "lucide-react";
 import {
@@ -60,7 +60,6 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
   const { data: receiptData } = useReceipt(receiptId || "");
   const createReceipt = useCreateReceipt();
   const updateReceipt = useUpdateReceipt();
-  const generateReceipt = useGenerateReceipt();
 
   interface SchoolOption {
     id: string;
@@ -147,6 +146,7 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
     setIsGenerating(true);
     try {
       let currentReceiptId = receiptId;
+      let newReceiptNumber: string | undefined;
 
       const payload = {
         baseAmount: parseFloat(values.amount),
@@ -170,27 +170,24 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
           ...payload,
         });
         currentReceiptId = result?.data?.id;
+        newReceiptNumber = result?.data?.receiptNumber;
       }
 
       if (currentReceiptId) {
-        const generateResponse = await generateReceipt.mutateAsync({
+        const receiptRow = receiptData?.data as { receiptNumber?: string } | undefined;
+        const filenameBase = isEditMode
+          ? receiptRow?.receiptNumber
+          : newReceiptNumber;
+        await downloadReceiptPdf({
           receiptId: currentReceiptId,
           notes: values.notes?.trim() || undefined,
+          filenameBase,
         });
-        if (generateResponse?.data?.html && typeof window !== "undefined") {
-          const printWindow = window.open("", "_blank");
-          if (printWindow) {
-            printWindow.document.write(generateResponse.data.html);
-            printWindow.document.close();
-            setTimeout(() => {
-              printWindow.focus();
-              printWindow.print();
-            }, 250);
-          }
-        }
         toast({
           title: "Success",
-          description: isEditMode ? "Receipt updated successfully!" : "Receipt generated successfully!",
+          description: isEditMode
+            ? "Receipt updated; PDF download started."
+            : "Receipt created; PDF download started.",
         });
         router.push(BILLING_ROUTES.receiptsTab);
       }

@@ -280,10 +280,25 @@ export function changeUserPassword(
 }
 
 /**
- * Download file from API
+ * Download file from API (GET). Optional query is appended for PDF routes, etc.
  */
-export async function downloadFromApi(path: string): Promise<Blob> {
-  const url = getFullUrl(path);
+export async function downloadFromApi(
+  path: string,
+  options?: { query?: Record<string, string | undefined> }
+): Promise<Blob> {
+  let url = getFullUrl(path);
+  if (options?.query) {
+    const searchParams = new URLSearchParams();
+    Object.entries(options.query).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value) !== "") {
+        searchParams.append(key, String(value));
+      }
+    });
+    const qs = searchParams.toString();
+    if (qs) {
+      url += (url.includes("?") ? "&" : "?") + qs;
+    }
+  }
 
   const token = await getAuthToken();
 

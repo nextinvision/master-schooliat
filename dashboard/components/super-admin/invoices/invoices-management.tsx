@@ -21,7 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Banknote, Eye, FileCheck, Plus, Trash2 } from "lucide-react";
+import { Banknote, Download, Eye, Plus, Trash2 } from "lucide-react";
 import {
     useInvoices,
     useGenerateInvoice,
@@ -42,6 +42,10 @@ import {
     DialogTrigger,
 } from "@/components/ui/dialog";
 import { BILLING_PAYMENT_METHOD_LABELS } from "@/lib/super-admin/billing/constants";
+import {
+    downloadInvoicePdf,
+    downloadReceiptPdf,
+} from "@/lib/super-admin/billing/download-billing-pdf";
 
 const STATUS_OPTIONS = ["All", "DRAFT", "SENT", "PAID", "OVERDUE", "CANCELLED"];
 
@@ -90,7 +94,8 @@ export default function InvoicesManagement({ embedded }: { embedded?: boolean })
         setPage(0);
     }, [searchQuery, statusFilter]);
 
-    const handleViewInvoice = async (invoiceId: string) => {
+    /** HTML preview in a new tab (may be blocked by the browser popup policy). */
+    const handlePreviewInvoiceHtml = async (invoiceId: string) => {
         try {
             const response = await generateInvoice.mutateAsync({ invoiceId });
             if (response?.data?.html && typeof window !== "undefined") {
@@ -99,18 +104,39 @@ export default function InvoicesManagement({ embedded }: { embedded?: boolean })
                     printWindow.document.write(response.data.html);
                     printWindow.document.close();
                     printWindow.focus();
+                } else {
+                    toast({
+                        title: "Popup blocked",
+                        description: "Allow popups for this site, or use Download PDF instead.",
+                        variant: "destructive",
+                    });
                 }
             }
         } catch (err: any) {
             toast({
                 title: "Error",
-                description: err?.message || "Failed to generate invoice",
+                description: err?.message || "Failed to load invoice preview",
                 variant: "destructive",
             });
         }
     };
 
-    const handleViewLinkedReceipt = async (receiptId: string) => {
+    const handleDownloadInvoicePdf = async (
+        invoiceId: string,
+        filenameBase?: string,
+    ) => {
+        try {
+            await downloadInvoicePdf({ invoiceId, filenameBase });
+        } catch (err: any) {
+            toast({
+                title: "Error",
+                description: err?.message || "Failed to download invoice PDF",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handlePreviewReceiptHtml = async (receiptId: string) => {
         try {
             const response = await generateReceipt.mutateAsync({ receiptId });
             if (response?.data?.html && typeof window !== "undefined") {
@@ -119,12 +145,33 @@ export default function InvoicesManagement({ embedded }: { embedded?: boolean })
                     printWindow.document.write(response.data.html);
                     printWindow.document.close();
                     printWindow.focus();
+                } else {
+                    toast({
+                        title: "Popup blocked",
+                        description: "Allow popups for this site, or use Download PDF instead.",
+                        variant: "destructive",
+                    });
                 }
             }
         } catch (err: any) {
             toast({
                 title: "Error",
-                description: err?.message || "Failed to generate receipt",
+                description: err?.message || "Failed to load receipt preview",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const handleDownloadReceiptPdf = async (
+        receiptId: string,
+        filenameBase?: string,
+    ) => {
+        try {
+            await downloadReceiptPdf({ receiptId, filenameBase });
+        } catch (err: any) {
+            toast({
+                title: "Error",
+                description: err?.message || "Failed to download receipt PDF",
                 variant: "destructive",
             });
         }
@@ -144,17 +191,15 @@ export default function InvoicesManagement({ embedded }: { embedded?: boolean })
                 paymentMethod,
                 description: paymentNotes.trim() || undefined,
             });
-            const receiptId = (created as { data?: { id?: string } })?.data?.id;
+            const createdData = (created as { data?: { id?: string; receiptNumber?: string } })
+                ?.data;
+            const receiptId = createdData?.id;
             if (receiptId) {
-                const response = await generateReceipt.mutateAsync({ receiptId });
-                if (response?.data?.html && typeof window !== "undefined") {
-                    const printWindow = window.open("", "_blank");
-                    if (printWindow) {
-                        printWindow.document.write(response.data.html);
-                        printWindow.document.close();
-                        printWindow.focus();
-                    }
-                }
+                await downloadReceiptPdf({
+                    receiptId,
+                    notes: paymentNotes.trim() || undefined,
+                    filenameBase: createdData?.receiptNumber,
+                });
             }
             toast({
                 title: "Payment recorded",
@@ -302,13 +347,57 @@ export default function InvoicesManagement({ embedded }: { embedded?: boolean })
                                     </TableCell>
                                     <TableCell>
                                         <div className="flex items-center justify-center gap-1 flex-wrap">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10" title="View invoice" onClick={() => handleViewInvoice(invoice.id)}>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                                title="Download invoice PDF"
+                                                onClick={() =>
+                                                    void handleDownloadInvoicePdf(
+                                                        invoice.id,
+                                                        invoice.invoiceNumber || undefined,
+                                                    )
+                                                }
+                                            >
+                                                <Download className="w-4 h-4" />
+                                            </Button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                title="Preview invoice in browser"
+                                                onClick={() => void handlePreviewInvoiceHtml(invoice.id)}
+                                            >
                                                 <Eye className="w-4 h-4" />
                                             </Button>
                                             {linked?.id ? (
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10" title="View receipt" onClick={() => handleViewLinkedReceipt(linked.id)}>
-                                                    <FileCheck className="w-4 h-4" />
-                                                </Button>
+                                                <>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10"
+                                                        title="Download receipt PDF"
+                                                        onClick={() =>
+                                                            void handleDownloadReceiptPdf(
+                                                                linked.id,
+                                                                linked.receiptNumber || undefined,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Download className="w-4 h-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                                                        title="Preview receipt in browser"
+                                                        onClick={() =>
+                                                            void handlePreviewReceiptHtml(linked.id)
+                                                        }
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                    </Button>
+                                                </>
                                             ) : null}
                                             {canRecordPayment ? (
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50" title="Record payment" onClick={() => openRecordPayment(invoice)}>
@@ -387,9 +476,9 @@ export default function InvoicesManagement({ embedded }: { embedded?: boolean })
                                 </Button>
                                 <Button
                                     onClick={() => void submitRecordPayment()}
-                                    disabled={createReceipt.isPending || generateReceipt.isPending}
+                                    disabled={createReceipt.isPending}
                                 >
-                                    {createReceipt.isPending || generateReceipt.isPending ? "Saving…" : "Confirm"}
+                                    {createReceipt.isPending ? "Saving…" : "Confirm"}
                                 </Button>
                             </div>
                         </div>

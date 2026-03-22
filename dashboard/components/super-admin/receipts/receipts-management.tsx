@@ -24,6 +24,7 @@ import { Download, Eye, Plus } from "lucide-react";
 import { useReceipts, useGenerateReceipt, Receipt } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { BILLING_ROUTES } from "@/lib/super-admin/billing/constants";
+import { downloadReceiptPdf } from "@/lib/super-admin/billing/download-billing-pdf";
 
 const STATUS_OPTIONS = ["All", "GENERATED", "PENDING", "PAID", "CANCELLED"];
 
@@ -87,7 +88,7 @@ export function ReceiptsManagement({ embedded }: { embedded?: boolean }) {
     setPage(0);
   }, [searchQuery, statusFilter]);
 
-  const handleViewReceipt = async (receiptId: string) => {
+  const handlePreviewReceiptHtml = async (receiptId: string) => {
     try {
       const response = await generateReceipt.mutateAsync({ receiptId });
       if (response?.data?.html && typeof window !== "undefined") {
@@ -96,35 +97,36 @@ export function ReceiptsManagement({ embedded }: { embedded?: boolean }) {
           printWindow.document.write(response.data.html);
           printWindow.document.close();
           printWindow.focus();
+        } else {
+          toast({
+            title: "Popup blocked",
+            description: "Allow popups, or use Download PDF.",
+            variant: "destructive",
+          });
         }
       }
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to generate receipt",
+        description: err?.message || "Failed to load receipt preview",
         variant: "destructive",
       });
     }
   };
 
-  const handleDownloadReceipt = async (receiptId: string) => {
+  const handleDownloadReceiptPdf = async (
+    receiptId: string,
+    receiptNumber?: string,
+  ) => {
     try {
-      const response = await generateReceipt.mutateAsync({ receiptId });
-      if (response?.data?.html && typeof window !== "undefined") {
-        const printWindow = window.open("", "_blank");
-        if (printWindow) {
-          printWindow.document.write(response.data.html);
-          printWindow.document.close();
-          setTimeout(() => {
-            printWindow.focus();
-            printWindow.print();
-          }, 250);
-        }
-      }
+      await downloadReceiptPdf({
+        receiptId,
+        filenameBase: receiptNumber,
+      });
     } catch (err: any) {
       toast({
         title: "Error",
-        description: err?.message || "Failed to download receipt",
+        description: err?.message || "Failed to download receipt PDF",
         variant: "destructive",
       });
     }
@@ -268,17 +270,24 @@ export function ReceiptsManagement({ embedded }: { embedded?: boolean }) {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleViewReceipt(receipt.id)}
+                          title="Download receipt PDF"
+                          onClick={() =>
+                            void handleDownloadReceiptPdf(
+                              receipt.id,
+                              receipt.receiptNumber,
+                            )
+                          }
                         >
-                          <Eye className="w-4 h-4" />
+                          <Download className="w-4 h-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          onClick={() => handleDownloadReceipt(receipt.id)}
+                          title="Preview in browser"
+                          onClick={() => void handlePreviewReceiptHtml(receipt.id)}
                         >
-                          <Download className="w-4 h-4" />
+                          <Eye className="w-4 h-4" />
                         </Button>
                       </div>
                     </TableCell>

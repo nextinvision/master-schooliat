@@ -19,8 +19,8 @@ import {
     useSchools,
     useVendors,
     useCreateInvoice,
-    useGenerateInvoice,
 } from "@/lib/hooks/use-super-admin";
+import { downloadInvoicePdf } from "@/lib/super-admin/billing/download-billing-pdf";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
@@ -47,7 +47,6 @@ export function GenerateInvoiceForm({ onSuccess }: { onSuccess?: () => void }) {
     const { data: schoolsData } = useSchools();
     const { data: vendorsData } = useVendors();
     const createInvoice = useCreateInvoice();
-    const generateInvoice = useGenerateInvoice();
 
     const form = useForm<InvoiceFormData>({
         resolver: zodResolver(invoiceSchema),
@@ -102,21 +101,15 @@ export function GenerateInvoiceForm({ onSuccess }: { onSuccess?: () => void }) {
             const invoiceId = result?.data?.id;
 
             if (invoiceId) {
-                const genResult = await generateInvoice.mutateAsync({
+                await downloadInvoicePdf({
                     invoiceId,
-                    notes: values.notes,
+                    notes: values.notes?.trim() || undefined,
+                    filenameBase: result?.data?.invoiceNumber,
                 });
-
-                if (genResult?.data?.html && typeof window !== "undefined") {
-                    const printWindow = window.open("", "_blank");
-                    if (printWindow) {
-                        printWindow.document.write(genResult.data.html);
-                        printWindow.document.close();
-                        printWindow.focus();
-                    }
-                }
-
-                toast({ title: "Success", description: "Invoice generated successfully" });
+                toast({
+                    title: "Success",
+                    description: "Invoice created and PDF download started.",
+                });
                 onSuccess?.();
             }
         } catch (err: any) {

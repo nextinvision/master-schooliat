@@ -11,6 +11,11 @@ import {
   softDeleteReceiptById,
   updateReceiptFromRequest,
 } from "../billing/billing.receipt.service.js";
+import {
+  renderBillingHtmlToPdfBuffer,
+  safeBillingFilenamePart,
+} from "../billing/billing-html-to-pdf.service.js";
+import logger from "../config/logger.js";
 
 const router = Router();
 
@@ -49,6 +54,41 @@ router.get("/", withPermission(Permission.GET_RECEIPTS), async (req, res) => {
     message: "Receipts fetched!",
     data: receipts,
   });
+});
+
+router.get("/:id/pdf", withPermission(Permission.GET_RECEIPTS), async (req, res) => {
+  const { id } = req.params;
+  const notes =
+    typeof req.query.notes === "string" ? req.query.notes : undefined;
+
+  let receipt;
+  try {
+    receipt = await getReceiptForGenerate(id);
+  } catch (e) {
+    if (e?.code === "P2025") {
+      return res.status(404).json({ message: "Receipt not found" });
+    }
+    throw e;
+  }
+
+  const { html } = buildReceiptHtmlDocument(receipt, notes);
+  let pdfBuffer;
+  try {
+    pdfBuffer = await renderBillingHtmlToPdfBuffer(html);
+  } catch (err) {
+    logger.error({ err }, "Receipt PDF generation failed");
+    return res.status(503).json({
+      message:
+        "PDF generation failed. Ensure headless Chrome (Puppeteer) is available on the server.",
+    });
+  }
+
+  const label = safeBillingFilenamePart(
+    receipt.receiptNumber || `receipt-${id.slice(0, 8)}`,
+  );
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${label}.pdf"`);
+  return res.send(pdfBuffer);
 });
 
 router.get("/:id", withPermission(Permission.GET_RECEIPTS), async (req, res) => {

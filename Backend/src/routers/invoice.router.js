@@ -13,6 +13,11 @@ import {
   getInvoiceForGenerate,
   listInvoicesForApi,
 } from "../billing/billing.invoice.service.js";
+import {
+  renderBillingHtmlToPdfBuffer,
+  safeBillingFilenamePart,
+} from "../billing/billing-html-to-pdf.service.js";
+import logger from "../config/logger.js";
 
 const router = Router();
 
@@ -49,6 +54,42 @@ router.get("/", withPermission(Permission.GET_INVOICES), async (req, res) => {
     message: "Invoices fetched!",
     data: invoices,
   });
+});
+
+// PDF download — must be registered before GET /:id so "pdf" is not captured as :id
+router.get("/:id/pdf", withPermission(Permission.GET_INVOICES), async (req, res) => {
+  const { id } = req.params;
+  const notes =
+    typeof req.query.notes === "string" ? req.query.notes : undefined;
+
+  let invoice;
+  try {
+    invoice = await getInvoiceForGenerate(id);
+  } catch (e) {
+    if (e?.code === "P2025") {
+      return res.status(404).json({ message: "Invoice not found" });
+    }
+    throw e;
+  }
+
+  const { html } = buildInvoiceHtmlDocument(invoice, notes);
+  let pdfBuffer;
+  try {
+    pdfBuffer = await renderBillingHtmlToPdfBuffer(html);
+  } catch (err) {
+    logger.error({ err }, "Invoice PDF generation failed");
+    return res.status(503).json({
+      message:
+        "PDF generation failed. Ensure headless Chrome (Puppeteer) is available on the server.",
+    });
+  }
+
+  const label = safeBillingFilenamePart(
+    invoice.invoiceNumber || `invoice-${id.slice(0, 8)}`,
+  );
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", `attachment; filename="${label}.pdf"`);
+  return res.send(pdfBuffer);
 });
 
 router.get("/:id", withPermission(Permission.GET_INVOICES), async (req, res) => {
