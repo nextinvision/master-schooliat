@@ -64,8 +64,29 @@ export function EnhancedNavbar() {
       .slice(0, 8);
   }, [searchQuery, searchItems]);
 
+  const searchWrapRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!searchOpen) setSearchQuery("");
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = searchWrapRef.current;
+      if (el && !el.contains(e.target as Node)) {
+        setSearchOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSearchOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
   }, [searchOpen]);
 
   const handleSearchSelect = (route: string) => {
@@ -175,50 +196,51 @@ export function EnhancedNavbar() {
 
         {/* Center: Quick navigation search */}
         <div className="hidden md:flex flex-1 justify-center min-w-0 max-w-xl mx-2">
-        <DropdownMenu open={searchOpen} onOpenChange={setSearchOpen}>
-          <DropdownMenuTrigger asChild>
-            <div className="relative w-full max-w-md">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none" />
-              <Input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search pages (e.g. Students, Library, Fees)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchOpen(true)}
-                className="pl-8 pr-3 h-8 w-full text-sm border-gray-200 focus:border-primary focus:ring-primary"
-                aria-label="Quick navigation search"
-              />
-            </div>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="center"
-            className="w-[var(--radix-dropdown-menu-trigger-width)] max-w-md max-h-[min(20rem,60vh)] overflow-y-auto"
-            onCloseAutoFocus={(e) => e.preventDefault()}
-          >
-            {filteredSearchItems.length === 0 ? (
-              <div className="py-6 text-center text-sm text-muted-foreground">
-                {searchQuery.trim() ? "No matching pages" : "Type to search pages"}
+          <div ref={searchWrapRef} className="relative w-full max-w-md">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400 pointer-events-none z-10" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search pages (e.g. Students, Library, Fees)..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchOpen(true)}
+              className="pl-8 pr-3 h-8 w-full text-sm border-gray-200 focus:border-primary focus:ring-primary"
+              aria-label="Quick navigation search"
+              aria-expanded={searchOpen}
+              aria-controls="navbar-quick-search-results"
+              autoComplete="off"
+            />
+            {searchOpen ? (
+              <div
+                id="navbar-quick-search-results"
+                role="listbox"
+                className="absolute left-0 right-0 top-full z-50 mt-1 max-h-[min(20rem,60vh)] overflow-y-auto rounded-md border border-gray-200 bg-popover text-popover-foreground shadow-md"
+              >
+                {filteredSearchItems.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    {searchQuery.trim() ? "No matching pages" : "Type to search pages"}
+                  </div>
+                ) : (
+                  <ul className="py-1">
+                    {filteredSearchItems.map((item) => (
+                      <li key={item.route} role="option">
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between gap-2 px-2 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => handleSearchSelect(item.route)}
+                        >
+                          <span className="truncate">{item.name}</span>
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
-            ) : (
-              <div className="py-1">
-                {filteredSearchItems.map((item) => (
-                  <DropdownMenuItem
-                    key={item.route}
-                    className="flex items-center justify-between gap-2 cursor-pointer py-2"
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      handleSearchSelect(item.route);
-                    }}
-                  >
-                    <span className="truncate">{item.name}</span>
-                    <ArrowRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  </DropdownMenuItem>
-                ))}
-              </div>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            ) : null}
+          </div>
       </div>
 
       {/* Right Section */}

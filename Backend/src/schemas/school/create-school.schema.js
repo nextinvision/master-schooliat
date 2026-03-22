@@ -23,6 +23,10 @@ const createSchoolSchema = z
         bankAccountNumber: z.string().trim().optional(),
         bankIfscCode: z.string().trim().optional(),
         bankBranchName: z.string().trim().optional(),
+        regionId: z.preprocess(
+          (v) => (v === "" || v === undefined || v === null ? undefined : v),
+          z.string().uuid("Please select a valid region").optional(),
+        ),
       })
     ,
     query: z.object({}),

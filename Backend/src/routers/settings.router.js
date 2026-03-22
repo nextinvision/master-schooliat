@@ -8,6 +8,15 @@ import getSettingsSchema from "../schemas/settings/get-settings.schema.js";
 import updateSettingsSchema from "../schemas/settings/update-settings.schema.js";
 import fileService from "../services/file.service.js";
 import authorize from "../middlewares/authorize.middleware.js";
+import {
+  sanitizeSettingsForApiResponse,
+  stripSmtpPasswordFromPlatformConfig,
+} from "../utils/settings-platform-config.util.js";
+import {
+  encryptPlatformSmtpPassword,
+  isPlatformSmtpEncryptionConfigured,
+} from "../utils/platform-smtp-crypto.util.js";
+import emailService from "../services/email.service.js";
 
 const router = Router();
 
@@ -60,9 +69,10 @@ router.get(
         }
       }
 
+      const payload = settingsData ? { ...settingsData, logoUrl } : null;
       return res.json({
         message: "Settings fetched!",
-        data: settingsData ? { ...settingsData, logoUrl } : null,
+        data: payload ? sanitizeSettingsForApiResponse(payload) : null,
       });
     } catch (error) {
       // If error is due to platformConfig column not existing (migration not applied),
@@ -122,7 +132,7 @@ router.get(
 
           return res.json({
             message: "Settings fetched!",
-            data: settingsData,
+            data: settingsData ? sanitizeSettingsForApiResponse(settingsData) : null,
           });
         } catch (rawError) {
           console.error("Error fetching settings (raw query):", rawError);
@@ -284,7 +294,30 @@ router.patch(
 
       // Only include platformConfig if provided (migration may not be applied yet)
       if (updateData.platformConfig !== undefined) {
-        createData.platformConfig = updateData.platformConfig;
+        createData.platformConfig = stripSmtpPasswordFromPlatformConfig(
+          updateData.platformConfig,
+        );
+      }
+
+      if (isPlatformSettings && updateData.platformSmtpPassword !== undefined) {
+        const raw = updateData.platformSmtpPassword;
+        if (raw === null || raw === "") {
+          createData.platformSmtpPasswordEnc = null;
+        } else if (String(raw).length > 0) {
+          if (!isPlatformSmtpEncryptionConfigured()) {
+            return res.status(400).json({
+              message:
+                "PLATFORM_EMAIL_ENCRYPTION_KEY must be set on the server before saving an SMTP password from the admin UI.",
+            });
+          }
+          try {
+            createData.platformSmtpPasswordEnc = encryptPlatformSmtpPassword(String(raw));
+          } catch (e) {
+            return res.status(400).json({
+              message: e.message || "Failed to encrypt SMTP password",
+            });
+          }
+        }
       }
 
       resultSettings = await prisma.settings.create({
@@ -299,9 +332,11 @@ router.patch(
         }
       }
 
+      emailService.resetEmailTransporter();
+
       return res.status(201).json({
         message: "Settings created!",
-        data: { ...resultSettings, logoUrl },
+        data: sanitizeSettingsForApiResponse({ ...resultSettings, logoUrl }),
       });
     }
 
@@ -329,10 +364,33 @@ router.patch(
       if (existingSettings.platformConfig !== undefined && existingSettings.platformConfig !== null) {
         existingConfig = existingSettings.platformConfig;
       }
+      const base = stripSmtpPasswordFromPlatformConfig(existingConfig);
+      const incoming = stripSmtpPasswordFromPlatformConfig(updateData.platformConfig);
       settingsUpdateData.platformConfig = {
-        ...existingConfig,
-        ...updateData.platformConfig,
+        ...base,
+        ...incoming,
       };
+    }
+
+    if (isPlatformSettings && updateData.platformSmtpPassword !== undefined) {
+      const raw = updateData.platformSmtpPassword;
+      if (raw === null || raw === "") {
+        settingsUpdateData.platformSmtpPasswordEnc = null;
+      } else if (String(raw).length > 0) {
+        if (!isPlatformSmtpEncryptionConfigured()) {
+          return res.status(400).json({
+            message:
+              "PLATFORM_EMAIL_ENCRYPTION_KEY must be set on the server before saving an SMTP password from the admin UI.",
+          });
+        }
+        try {
+          settingsUpdateData.platformSmtpPasswordEnc = encryptPlatformSmtpPassword(String(raw));
+        } catch (e) {
+          return res.status(400).json({
+            message: e.message || "Failed to encrypt SMTP password",
+          });
+        }
+      }
     }
 
     if (updateData.deletionOtpEmail !== undefined) {
@@ -402,9 +460,11 @@ router.patch(
       }
     }
 
+    emailService.resetEmailTransporter();
+
     return res.json({
       message: "Settings updated!",
-      data: { ...resultSettings, logoUrl },
+      data: sanitizeSettingsForApiResponse({ ...resultSettings, logoUrl }),
     });
   },
 );

@@ -175,7 +175,7 @@ export function FeesConfigSection() {
           </div>
           <div className="flex items-center justify-between gap-4 rounded-md border p-3">
             <div>
-              <Label htmlFor="feeReceiptUseGst" className="cursor-pointer">
+              <Label htmlFor="feeReceiptUseGst" className="cursor-pointer mb-0">
                 Show GST breakdown on receipts
               </Label>
               <p className="text-xs text-muted-foreground">

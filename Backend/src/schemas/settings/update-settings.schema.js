@@ -52,6 +52,10 @@ const updateSettingsSchema = z
           .max(20)
           .optional()
           .nullable(),
+        /** Super Admin only: new SMTP password (encrypted at rest). Empty string clears stored password. Omit to leave unchanged. */
+        platformSmtpPassword: z
+          .union([z.string().max(2048), z.literal(""), z.null()])
+          .optional(),
       })
       ,
     query: z.object({}),

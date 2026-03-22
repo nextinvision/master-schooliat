@@ -47,8 +47,12 @@ export function AddEmployeeForm() {
   const [regionSearch, setRegionSearch] = useState("");
   const [newRegionName, setNewRegionName] = useState("");
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [credentials, setCredentials] = useState<{ loginId: string; password: string } | null>(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [credentials, setCredentials] = useState<{
+    loginId: string;
+    password: string;
+    publicUserId?: string;
+  } | null>(null);
+  const [showPassword, setShowPassword] = useState(true);
 
   const { data: regionsData } = useRegions();
   const createEmployee = useCreateEmployee();
@@ -126,9 +130,11 @@ export function AddEmployeeForm() {
       });
 
       if (result?.data?.password) {
+        setShowPassword(true);
         setCredentials({
           loginId: result.data.email,
           password: result.data.password,
+          publicUserId: result.data.publicUserId,
         });
         setShowSuccessModal(true);
       } else {
@@ -256,7 +262,9 @@ export function AddEmployeeForm() {
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <Label htmlFor="regionId">Assigned Region</Label>
+                <Label htmlFor="regionId" className="mb-0">
+                  Assigned Region
+                </Label>
                 <Button
                   type="button"
                   variant="outline"
@@ -345,13 +353,32 @@ export function AddEmployeeForm() {
           <DialogHeader>
             <DialogTitle>Employee Created Successfully!</DialogTitle>
             <DialogDescription>
-              Please save these credentials. They will not be shown again.
+              Please save these credentials. They will not be shown again. If SMTP is configured, a
+              welcome email with the same details was sent to this employee&apos;s address.
             </DialogDescription>
           </DialogHeader>
           {credentials && (
             <div className="space-y-4">
+              {credentials.publicUserId ? (
+                <div>
+                  <Label>Public user ID</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Input value={credentials.publicUserId} readOnly className="font-mono" />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(credentials.publicUserId!);
+                        toast({ title: "Copied to clipboard" });
+                      }}
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              ) : null}
               <div>
-                <Label>Login ID</Label>
+                <Label>Email (sign-in)</Label>
                 <div className="flex items-center gap-2 mt-1">
                   <Input value={credentials.loginId} readOnly />
                   <Button

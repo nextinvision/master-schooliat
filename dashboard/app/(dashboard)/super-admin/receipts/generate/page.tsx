@@ -1,12 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
+import { BILLING_ROUTES } from "@/lib/super-admin/billing/constants";
 
-import { GenerateReceiptForm } from "@/components/super-admin/receipts/generate-receipt-form";
-
-export default function GenerateReceiptPage() {
-  return (
-    <div className="container mx-auto py-6 px-4">
-      <GenerateReceiptForm />
-    </div>
-  );
+export default function LegacyGenerateReceiptPage() {
+  redirect(BILLING_ROUTES.standaloneReceiptGenerate);
 }
-

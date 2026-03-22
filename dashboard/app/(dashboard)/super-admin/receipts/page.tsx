@@ -1,12 +1,6 @@
-"use client";
-
-import { ReceiptsManagement } from "@/components/super-admin/receipts/receipts-management";
+import { redirect } from "next/navigation";
+import { BILLING_ROUTES } from "@/lib/super-admin/billing/constants";
 
 export default function ReceiptsPage() {
-  return (
-    <div className="container mx-auto py-6 px-4">
-      <ReceiptsManagement />
-    </div>
-  );
+  redirect(BILLING_ROUTES.receiptsTab);
 }
-

@@ -7,12 +7,13 @@ import validateRequest from "../middlewares/validate-request.middleware.js";
 import paginateUtil from "../utils/paginate.util.js";
 import bcryptjs from "bcryptjs";
 import stringUtil from "../utils/string.util.js";
+import emailService from "../services/email.service.js";
+import logger from "../config/logger.js";
 import fileService from "../services/file.service.js";
 import roleService from "../services/role.service.js";
 import csvUtil from "../utils/csv.util.js";
 import experienceCertificateService from "../services/experience-certificate.service.js";
 import feeService from "../services/fee.service.js";
-import logger from "../config/logger.js";
 import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
 import { deleteByIdWithOtpSchema } from "../schemas/common/delete-with-otp.schema.js";
 import {
@@ -1919,6 +1920,9 @@ router.post(
         userTypeToUse = UserType.SCHOOL;
       }
 
+      const contactRaw =
+        request.contact != null ? String(request.contact).trim() : "";
+
       // Create user
       const user = await prisma.user.create({
         data: {
@@ -1926,7 +1930,7 @@ router.post(
           password: await bcryptjs.hash(generatedPassword, 10),
           firstName: request.firstName.trim(),
           lastName: request.lastName?.trim() || "",
-          contact: request.contact.trim(),
+          contact: contactRaw || "0000000000",
           gender: request.gender,
           dateOfBirth: request.dateOfBirth ? new Date(request.dateOfBirth) : null,
           address: request.address || [],
@@ -1947,10 +1951,26 @@ router.post(
 
       // Attach file URLs
       const usersWithUrls = await userService.attachFileURLs([user]);
+      const payload = { ...usersWithUrls[0], password: generatedPassword };
+
+      try {
+        await emailService.sendEmployeeWelcomeEmail({
+          to: user.email,
+          firstName: user.firstName,
+          loginEmail: user.email,
+          publicUserId: user.publicUserId,
+          password: generatedPassword,
+        });
+      } catch (emailErr) {
+        logger.warn(
+          { err: emailErr, userId: user.id },
+          "Employee created but welcome email failed",
+        );
+      }
 
       return res.status(201).json({
         message: "Employee created!",
-        data: { ...usersWithUrls[0], password: generatedPassword },
+        data: payload,
       });
     } catch (error) {
       if (error.code === "P2002") {

@@ -1,3 +1,6 @@
+import { BILLING_BASE_PATH, BILLING_ROUTES } from "@/lib/super-admin/billing/constants";
+import { MASTER_DATA_ROUTES } from "@/lib/super-admin/master-data/routes";
+
 export interface MenuItem {
   name: string;
   icon: string; // Lucide icon name
@@ -197,14 +200,9 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     route: "/super-admin/schools",
   },
   {
-    name: "Receipts",
-    icon: "Receipt",
-    route: "/super-admin/receipts",
-  },
-  {
-    name: "Invoices",
-    icon: "FileText",
-    route: "/super-admin/invoices",
+    name: "Billing",
+    icon: "Wallet",
+    route: BILLING_BASE_PATH,
   },
   {
     name: "Licenses",
@@ -230,7 +228,6 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
     name: "Master Data",
     icon: "Database",
     route: "/super-admin/master-data",
-    hasSubmenu: true,
   },
   {
     name: "Audit Logs",
@@ -279,12 +276,6 @@ export const SUPER_ADMIN_MENU_ITEMS: MenuItem[] = [
   },
 ];
 
-// Submenu items for Master Data
-export const MASTER_DATA_SUBMENU: SubMenuItem[] = [
-  { name: "Regions", route: "/super-admin/master-data/regions" },
-  { name: "Locations", route: "/super-admin/master-data/locations" },
-];
-
 /** Flat list of { name, route } for navbar quick search (admin + all submenus) */
 export function getAdminSearchItems(): { name: string; route: string }[] {
   const out: { name: string; route: string }[] = [];
@@ -318,12 +309,14 @@ export function getAdminSearchItems(): { name: string; route: string }[] {
 export function getSuperAdminSearchItems(): { name: string; route: string }[] {
   const out: { name: string; route: string }[] = [];
   for (const item of SUPER_ADMIN_MENU_ITEMS) {
-    if (item.hasSubmenu) {
-      MASTER_DATA_SUBMENU.forEach((s) => out.push({ name: s.name, route: s.route }));
-    } else {
-      out.push({ name: item.name, route: item.route });
-    }
+    out.push({ name: item.name, route: item.route });
   }
+  out.push(
+    { name: "Regions", route: MASTER_DATA_ROUTES.regionsTab },
+    { name: "Locations", route: MASTER_DATA_ROUTES.locationsTab },
+    { name: "Invoices", route: BILLING_ROUTES.invoicesTab },
+    { name: "Receipts", route: BILLING_ROUTES.receiptsTab },
+  );
   return out;
 }
 

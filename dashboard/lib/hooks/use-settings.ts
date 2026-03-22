@@ -21,10 +21,15 @@ export function usePlatformBank() {
   });
 }
 
+export type UpdateSettingsRequest = Partial<Settings> & {
+  /** Super Admin: set or clear encrypted SMTP password (never stored in platformConfig JSON) */
+  platformSmtpPassword?: string | null;
+};
+
 export function useUpdateSettings() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { request: Partial<Settings> }) =>
+    mutationFn: (payload: { request: UpdateSettingsRequest }) =>
       patch("/settings", payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["settings"] });
@@ -55,6 +60,8 @@ export interface Settings {
   feeReceiptSgstPercent?: number | string | null;
   feeReceiptPanCardNumber?: string | null;
   platformConfig?: PlatformConfig;
+  /** Super Admin platform row: encrypted SMTP password exists in DB */
+  platformSmtpPasswordConfigured?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -72,10 +79,14 @@ export interface PlatformConfig {
     maintenanceMode?: boolean;
     maintenanceMessage?: string;
     smtp?: {
+      /** When true, API uses these credentials instead of SMTP_* environment variables */
+      enabled?: boolean;
       host?: string;
       port?: number;
+      /** Implicit TLS (typical for port 465) */
+      secure?: boolean;
+      requireTls?: boolean;
       user?: string;
-      password?: string;
       fromEmail?: string;
       fromName?: string;
     };

@@ -338,7 +338,7 @@ export function EmergencyContactsSection({ studentId }: EmergencyContactsSection
                 {...form.register("isPrimary")}
                 className="h-4 w-4"
               />
-              <Label htmlFor="isPrimary" className="cursor-pointer">
+              <Label htmlFor="isPrimary" className="cursor-pointer mb-0">
                 Set as primary emergency contact
               </Label>
             </div>

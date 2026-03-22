@@ -424,7 +424,7 @@ export function CourierManagement() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Tracking # *</Label>
+              <Label className="text-right mb-0">Tracking # *</Label>
               <Input
                 className="col-span-3"
                 value={form.trackingNumber}
@@ -435,7 +435,7 @@ export function CourierManagement() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Provider *</Label>
+              <Label className="text-right mb-0">Provider *</Label>
               <Select
                 value={form.provider}
                 onValueChange={(v) => setForm({ ...form, provider: v })}
@@ -453,7 +453,7 @@ export function CourierManagement() {
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Recipient *</Label>
+              <Label className="text-right mb-0">Recipient *</Label>
               <Input
                 className="col-span-3"
                 value={form.recipient}
@@ -464,7 +464,7 @@ export function CourierManagement() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Destination *</Label>
+              <Label className="text-right mb-0">Destination *</Label>
               <Input
                 className="col-span-3"
                 value={form.destination}
@@ -475,7 +475,7 @@ export function CourierManagement() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Contents</Label>
+              <Label className="text-right mb-0">Contents</Label>
               <Input
                 className="col-span-3"
                 value={form.contents}
@@ -487,7 +487,7 @@ export function CourierManagement() {
             </div>
             {editId ? (
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label className="text-right">Status</Label>
+                <Label className="text-right mb-0">Status</Label>
                 <Select
                   value={form.status}
                   onValueChange={(v: CourierApiStatus) =>

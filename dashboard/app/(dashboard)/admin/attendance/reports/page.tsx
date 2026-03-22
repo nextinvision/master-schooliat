@@ -366,7 +366,7 @@ export default function AttendanceReportsPage() {
                   }
                 }}
               />
-              <Label htmlFor="attendance-portal-month" className="text-sm font-normal cursor-pointer">
+              <Label htmlFor="attendance-portal-month" className="text-sm font-normal cursor-pointer mb-0">
                 Use portal month for date range (matches navbar month selector)
               </Label>
             </div>

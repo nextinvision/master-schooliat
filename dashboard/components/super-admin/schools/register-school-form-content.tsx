@@ -9,9 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormCard } from "@/components/forms/form-card";
-import { useCreateSchool, useRegions } from "@/lib/hooks/use-super-admin";
+import {
+  useCreateSchool,
+  useRegions,
+  useSendSchoolAdminWelcome,
+} from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, X, School } from "lucide-react";
+import { Plus, X, School, Eye, EyeOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -64,9 +68,14 @@ export function RegisterSchoolFormContent({
   const router = useRouter();
   const { toast } = useToast();
   const createSchool = useCreateSchool();
+  const sendWelcome = useSendSchoolAdminWelcome();
   const { data: regionsData } = useRegions();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(true);
+  const [inviteSending, setInviteSending] = useState(false);
   const [registeredInfo, setRegisteredInfo] = useState<{
+    schoolId: string;
+    publicUserId?: string;
     loginId: string;
     password: string;
     bankDetails?: {
@@ -169,7 +178,10 @@ export function RegisterSchoolFormContent({
       });
 
       if (result?.data?.admin?.password) {
+        setShowPassword(true);
         setRegisteredInfo({
+          schoolId: result.data.id,
+          publicUserId: result.data.admin.publicUserId,
           loginId: result.data.admin.email || result.data.email,
           password: result.data.admin.password,
           bankDetails: {
@@ -177,7 +189,7 @@ export function RegisterSchoolFormContent({
             accountNumber: result.data.bankAccountNumber,
             ifscCode: result.data.bankIfscCode,
             branchName: result.data.bankBranchName,
-          }
+          },
         });
         setShowSuccessModal(true);
       } else {
@@ -488,17 +500,37 @@ export function RegisterSchoolFormContent({
           <DialogHeader>
             <DialogTitle>School Registered Successfully!</DialogTitle>
             <DialogDescription>
-              Please save these credentials. They will not be shown again.
+              Please save these credentials. They will not be shown again. Use &quot;Send invite&quot; to
+              email the same details to the school admin (requires SMTP to be configured on the server).
             </DialogDescription>
           </DialogHeader>
           {registeredInfo && (
             <div className="space-y-4">
               <div className="space-y-4 border-b pb-4">
+                {registeredInfo.publicUserId ? (
+                  <div>
+                    <Label>Public user ID</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Input value={registeredInfo.publicUserId} readOnly className="font-mono" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          navigator.clipboard.writeText(registeredInfo.publicUserId!);
+                          toast({ title: "Copied to clipboard" });
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
                 <div>
-                  <Label>Login ID</Label>
+                  <Label>Email (sign-in)</Label>
                   <div className="flex items-center gap-2 mt-1">
                     <Input value={registeredInfo.loginId} readOnly />
                     <Button
+                      type="button"
                       variant="outline"
                       onClick={() => {
                         navigator.clipboard.writeText(registeredInfo.loginId);
@@ -510,10 +542,32 @@ export function RegisterSchoolFormContent({
                   </div>
                 </div>
                 <div>
-                  <Label>Password</Label>
+                  <Label>Temporary password</Label>
                   <div className="flex items-center gap-2 mt-1">
-                    <Input value={registeredInfo.password} readOnly type="password" />
+                    <div className="relative flex-1">
+                      <Input
+                        value={registeredInfo.password}
+                        readOnly
+                        type={showPassword ? "text" : "password"}
+                        className="pr-10 font-mono"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </Button>
+                    </div>
                     <Button
+                      type="button"
                       variant="outline"
                       onClick={() => {
                         navigator.clipboard.writeText(registeredInfo.password);
@@ -556,12 +610,43 @@ export function RegisterSchoolFormContent({
                 </div>
               )}
 
-              <Button
-                onClick={handleSuccessContinue}
-                className="w-full"
-              >
-                Continue
-              </Button>
+              <div className="flex flex-col gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="w-full"
+                  disabled={inviteSending}
+                  onClick={async () => {
+                    try {
+                      setInviteSending(true);
+                      await sendWelcome.mutateAsync({
+                        schoolId: registeredInfo.schoolId,
+                        password: registeredInfo.password,
+                      });
+                      toast({
+                        title: "Invite sent",
+                        description:
+                          "A welcome email with these credentials was sent to the school admin email.",
+                      });
+                    } catch (err: unknown) {
+                      const message =
+                        err instanceof Error ? err.message : "Failed to send email";
+                      toast({
+                        title: "Could not send email",
+                        description: message,
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setInviteSending(false);
+                    }
+                  }}
+                >
+                  {inviteSending ? "Sending…" : "Send invite"}
+                </Button>
+                <Button type="button" onClick={handleSuccessContinue} className="w-full">
+                  Continue
+                </Button>
+              </div>
             </div>
           )}
         </DialogContent>

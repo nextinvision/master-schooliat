@@ -406,6 +406,8 @@ model Settings {
   feeReceiptCgstPercent    Decimal?  @map("fee_receipt_cgst_percent") @db.Decimal(5, 2)
   feeReceiptSgstPercent    Decimal?  @map("fee_receipt_sgst_percent") @db.Decimal(5, 2)
   feeReceiptPanCardNumber  String?   @map("fee_receipt_pan_card_number")
+  /// AES-256-GCM encrypted SMTP password for platform (school_id null). Never store plaintext in platform_config.
+  platformSmtpPasswordEnc  String?   @map("platform_smtp_password_enc") @db.Text
 
   @@map("settings")
 }
@@ -456,7 +458,10 @@ model Receipt {
   deletedAt     DateTime?     @map("deleted_at")
   school        School?       @relation(fields: [schoolId], references: [id])
   vendor        Vendor?       @relation(fields: [vendorId], references: [id])
+  invoiceId     String?       @map("invoice_id")
+  invoice       Invoice?      @relation(fields: [invoiceId], references: [id])
 
+  @@index([invoiceId])
   @@map("receipts")
 }
 
@@ -487,6 +492,7 @@ model Invoice {
   deletedAt     DateTime?     @map("deleted_at")
   school        School?       @relation(fields: [schoolId], references: [id])
   vendor        Vendor?       @relation(fields: [vendorId], references: [id])
+  receipts      Receipt[]
 
   @@map("invoices")
 }

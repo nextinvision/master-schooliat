@@ -422,7 +422,7 @@ export function InventoryManagement() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Name *</Label>
+              <Label className="text-right mb-0">Name *</Label>
               <Input
                 className="col-span-3"
                 value={form.itemName}
@@ -431,7 +431,7 @@ export function InventoryManagement() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Code *</Label>
+              <Label className="text-right mb-0">Code *</Label>
               <Input
                 className="col-span-3"
                 value={form.itemCode}
@@ -441,7 +441,7 @@ export function InventoryManagement() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Category *</Label>
+              <Label className="text-right mb-0">Category *</Label>
               <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v })}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue />
@@ -454,7 +454,7 @@ export function InventoryManagement() {
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Unit *</Label>
+              <Label className="text-right mb-0">Unit *</Label>
               <Select value={form.unit} onValueChange={(v) => setForm({ ...form, unit: v })}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue />
@@ -467,7 +467,7 @@ export function InventoryManagement() {
               </Select>
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Stock</Label>
+              <Label className="text-right mb-0">Stock</Label>
               <Input
                 className="col-span-3"
                 type="number"
@@ -476,7 +476,7 @@ export function InventoryManagement() {
               />
             </div>
             <div className="grid grid-cols-4 items-center gap-4">
-              <Label className="text-right">Condition</Label>
+              <Label className="text-right mb-0">Condition</Label>
               <Select value={form.condition} onValueChange={(v: any) => setForm({ ...form, condition: v })}>
                 <SelectTrigger className="col-span-3">
                   <SelectValue />

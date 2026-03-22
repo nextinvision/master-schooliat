@@ -19,8 +19,17 @@ import {
     TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Download, Eye, Plus, Trash2 } from "lucide-react";
-import { useInvoices, useGenerateInvoice, useDeleteInvoice, Invoice } from "@/lib/hooks/use-super-admin";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Banknote, Eye, FileCheck, Plus, Trash2 } from "lucide-react";
+import {
+    useInvoices,
+    useGenerateInvoice,
+    useGenerateReceipt,
+    useDeleteInvoice,
+    useCreateReceipt,
+    Invoice,
+} from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { GenerateInvoiceForm } from "./generate-invoice-form";
 import { SuperAdminDeletionOtpDialog } from "@/components/super-admin/deletion-otp-dialog";
@@ -32,16 +41,20 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { BILLING_PAYMENT_METHOD_LABELS } from "@/lib/super-admin/billing/constants";
 
 const STATUS_OPTIONS = ["All", "DRAFT", "SENT", "PAID", "OVERDUE", "CANCELLED"];
 
-export default function InvoicesManagement() {
+export default function InvoicesManagement({ embedded }: { embedded?: boolean }) {
     const { toast } = useToast();
     const [page, setPage] = useState(0);
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("All");
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [invoiceToDelete, setInvoiceToDelete] = useState<Invoice | null>(null);
+    const [recordPaymentFor, setRecordPaymentFor] = useState<Invoice | null>(null);
+    const [paymentMethod, setPaymentMethod] = useState("Bank Transfer");
+    const [paymentNotes, setPaymentNotes] = useState("");
     const itemsPerPage = 10;
 
     const { data, isLoading, error } = useInvoices({
@@ -49,7 +62,9 @@ export default function InvoicesManagement() {
     });
 
     const generateInvoice = useGenerateInvoice();
+    const generateReceipt = useGenerateReceipt();
     const deleteInvoice = useDeleteInvoice();
+    const createReceipt = useCreateReceipt();
 
     const invoices = useMemo((): Invoice[] => {
         if (!data?.data) return [];
@@ -95,31 +110,111 @@ export default function InvoicesManagement() {
         }
     };
 
+    const handleViewLinkedReceipt = async (receiptId: string) => {
+        try {
+            const response = await generateReceipt.mutateAsync({ receiptId });
+            if (response?.data?.html && typeof window !== "undefined") {
+                const printWindow = window.open("", "_blank");
+                if (printWindow) {
+                    printWindow.document.write(response.data.html);
+                    printWindow.document.close();
+                    printWindow.focus();
+                }
+            }
+        } catch (err: any) {
+            toast({
+                title: "Error",
+                description: err?.message || "Failed to generate receipt",
+                variant: "destructive",
+            });
+        }
+    };
+
+    const openRecordPayment = (invoice: Invoice) => {
+        setPaymentMethod("Bank Transfer");
+        setPaymentNotes("");
+        setRecordPaymentFor(invoice);
+    };
+
+    const submitRecordPayment = async () => {
+        if (!recordPaymentFor) return;
+        try {
+            const created = await createReceipt.mutateAsync({
+                invoiceId: recordPaymentFor.id,
+                paymentMethod,
+                description: paymentNotes.trim() || undefined,
+            });
+            const receiptId = (created as { data?: { id?: string } })?.data?.id;
+            if (receiptId) {
+                const response = await generateReceipt.mutateAsync({ receiptId });
+                if (response?.data?.html && typeof window !== "undefined") {
+                    const printWindow = window.open("", "_blank");
+                    if (printWindow) {
+                        printWindow.document.write(response.data.html);
+                        printWindow.document.close();
+                        printWindow.focus();
+                    }
+                }
+            }
+            toast({
+                title: "Payment recorded",
+                description: "Receipt was created and the invoice is marked paid.",
+            });
+            setRecordPaymentFor(null);
+        } catch (err: any) {
+            toast({
+                title: "Error",
+                description: err?.message || "Failed to record payment",
+                variant: "destructive",
+            });
+        }
+    };
+
     if (isLoading) return <div className="py-10 text-center">Loading invoices...</div>;
     if (error) return <div className="py-10 text-center text-red-500">Error loading invoices</div>;
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-2xl font-semibold">Invoices</h1>
-                    <p className="text-gray-600 mt-1">Generate and manage invoices for schools and vendors</p>
+            {!embedded && (
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div>
+                        <h1 className="text-2xl font-semibold">Invoices</h1>
+                        <p className="text-gray-600 mt-1">Generate and manage invoices for schools and vendors</p>
+                    </div>
+                    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="gap-2">
+                                <Plus className="w-4 h-4" />
+                                Generate Invoice
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>Generate New Invoice</DialogTitle>
+                            </DialogHeader>
+                            <GenerateInvoiceForm onSuccess={() => setIsCreateOpen(false)} />
+                        </DialogContent>
+                    </Dialog>
                 </div>
-                <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-                    <DialogTrigger asChild>
-                        <Button className="gap-2">
-                            <Plus className="w-4 h-4" />
-                            Generate Invoice
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-                        <DialogHeader>
-                            <DialogTitle>Generate New Invoice</DialogTitle>
-                        </DialogHeader>
-                        <GenerateInvoiceForm onSuccess={() => setIsCreateOpen(false)} />
-                    </DialogContent>
-                </Dialog>
-            </div>
+            )}
+            {embedded && (
+                <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
+                    <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+                        <DialogTrigger asChild>
+                            <Button className="gap-2">
+                                <Plus className="w-4 h-4" />
+                                Generate Invoice
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                                <DialogTitle>Generate New Invoice</DialogTitle>
+                            </DialogHeader>
+                            <GenerateInvoiceForm onSuccess={() => setIsCreateOpen(false)} />
+                        </DialogContent>
+                    </Dialog>
+                </div>
+            )}
 
             <div className="flex gap-4">
                 <Input
@@ -150,18 +245,25 @@ export default function InvoicesManagement() {
                             <TableHead>Created At</TableHead>
                             <TableHead>Due Date</TableHead>
                             <TableHead>Status</TableHead>
-                            <TableHead className="w-24 text-center">Actions</TableHead>
+                            <TableHead>Receipt</TableHead>
+                            <TableHead className="w-40 text-center">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {paginatedInvoices.length === 0 ? (
                             <TableRow>
-                                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                                     No invoices found
                                 </TableCell>
                             </TableRow>
                         ) : (
-                            paginatedInvoices.map((invoice) => (
+                            paginatedInvoices.map((invoice) => {
+                                const linked = invoice.receipts?.[0];
+                                const canRecordPayment =
+                                    invoice.status !== "CANCELLED" &&
+                                    invoice.status !== "PAID" &&
+                                    !(invoice.receipts && invoice.receipts.length > 0);
+                                return (
                                 <TableRow key={invoice.id} className="hover:bg-muted/50 transition-colors">
                                     <TableCell className="font-medium">{invoice.invoiceNumber || "DRAFT"}</TableCell>
                                     <TableCell>
@@ -191,18 +293,36 @@ export default function InvoicesManagement() {
                                             {invoice.status}
                                         </Badge>
                                     </TableCell>
+                                    <TableCell className="text-sm text-muted-foreground">
+                                        {linked?.receiptNumber ? (
+                                            <span className="font-medium text-foreground">{linked.receiptNumber}</span>
+                                        ) : (
+                                            "—"
+                                        )}
+                                    </TableCell>
                                     <TableCell>
-                                        <div className="flex items-center justify-center gap-1">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10" onClick={() => handleViewInvoice(invoice.id)}>
+                                        <div className="flex items-center justify-center gap-1 flex-wrap">
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10" title="View invoice" onClick={() => handleViewInvoice(invoice.id)}>
                                                 <Eye className="w-4 h-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setInvoiceToDelete(invoice)}>
+                                            {linked?.id ? (
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:text-primary hover:bg-primary/10" title="View receipt" onClick={() => handleViewLinkedReceipt(linked.id)}>
+                                                    <FileCheck className="w-4 h-4" />
+                                                </Button>
+                                            ) : null}
+                                            {canRecordPayment ? (
+                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50" title="Record payment" onClick={() => openRecordPayment(invoice)}>
+                                                    <Banknote className="w-4 h-4" />
+                                                </Button>
+                                            ) : null}
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" title="Delete invoice" onClick={() => setInvoiceToDelete(invoice)}>
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
                                         </div>
                                     </TableCell>
                                 </TableRow>
-                            ))
+                            );
+                            })
                         )}
                     </TableBody>
                 </Table>
@@ -217,6 +337,65 @@ export default function InvoicesManagement() {
                     </div>
                 </div>
             )}
+
+            <Dialog
+                open={!!recordPaymentFor}
+                onOpenChange={(open) => {
+                    if (!open) setRecordPaymentFor(null);
+                }}
+            >
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Record payment</DialogTitle>
+                    </DialogHeader>
+                    {recordPaymentFor ? (
+                        <div className="space-y-4">
+                            <p className="text-sm text-muted-foreground">
+                                Create a receipt for{" "}
+                                <span className="font-medium text-foreground">
+                                    {recordPaymentFor.invoiceNumber || "Draft invoice"}
+                                </span>{" "}
+                                (₹{Number(recordPaymentFor.amount).toLocaleString()}). The invoice will be marked paid.
+                            </p>
+                            <div className="space-y-2">
+                                <Label>Payment method</Label>
+                                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                                    <SelectTrigger>
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {BILLING_PAYMENT_METHOD_LABELS.map((m) => (
+                                            <SelectItem key={m} value={m}>
+                                                {m}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Notes (optional)</Label>
+                                <Textarea
+                                    value={paymentNotes}
+                                    onChange={(e) => setPaymentNotes(e.target.value)}
+                                    placeholder="Shown on the receipt description if provided"
+                                    rows={3}
+                                />
+                            </div>
+                            <div className="flex justify-end gap-2 pt-2">
+                                <Button variant="outline" onClick={() => setRecordPaymentFor(null)}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    onClick={() => void submitRecordPayment()}
+                                    disabled={createReceipt.isPending || generateReceipt.isPending}
+                                >
+                                    {createReceipt.isPending || generateReceipt.isPending ? "Saving…" : "Confirm"}
+                                </Button>
+                            </div>
+                        </div>
+                    ) : null}
+                </DialogContent>
+            </Dialog>
 
             <SuperAdminDeletionOtpDialog
                 open={!!invoiceToDelete}

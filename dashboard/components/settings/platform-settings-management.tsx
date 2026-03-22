@@ -8,7 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormCard } from "@/components/forms/form-card";
 import { PhotoUpload } from "@/components/forms/photo-upload";
-import { useSettings, useUpdateSettings, useChangePassword, type PlatformConfig } from "@/lib/hooks/use-settings";
+import {
+  useSettings,
+  useUpdateSettings,
+  useChangePassword,
+  type PlatformConfig,
+} from "@/lib/hooks/use-settings";
 import {
   changePasswordSchema,
   type ChangePasswordFormData,
@@ -18,7 +23,6 @@ import {
   EyeOff,
   Building2,
   Shield,
-  Mail,
   Globe,
   Settings as SettingsIcon,
   Database,
@@ -45,6 +49,17 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
+/** Never send SMTP password inside platformConfig (stored encrypted in a separate DB column). */
+function clonePlatformConfigForApi(config: PlatformConfig): PlatformConfig {
+  const raw = JSON.parse(JSON.stringify(config || {})) as PlatformConfig;
+  if (raw.system?.smtp) {
+    const smtp = { ...raw.system.smtp };
+    delete (smtp as { password?: string }).password;
+    raw.system = { ...raw.system, smtp };
+  }
+  return raw;
+}
+
 export function PlatformSettingsManagement() {
   const { toast } = useToast();
   const { data: settingsData, isLoading: isSettingsLoading } = useSettings();
@@ -55,6 +70,8 @@ export function PlatformSettingsManagement() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [smtpPasswordDraft, setSmtpPasswordDraft] = useState("");
+  const [smtpPasswordSaving, setSmtpPasswordSaving] = useState(false);
 
   // Platform config state
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig>({});
@@ -62,8 +79,17 @@ export function PlatformSettingsManagement() {
   // Initialize platform config from settings
   useEffect(() => {
     if (settingsData?.data?.platformConfig) {
-      setPlatformConfig(settingsData.data.platformConfig);
+      const pc = JSON.parse(
+        JSON.stringify(settingsData.data.platformConfig)
+      ) as PlatformConfig;
+      if (pc.system?.smtp) {
+        const smtp = { ...pc.system.smtp };
+        delete (smtp as { password?: string }).password;
+        pc.system = { ...pc.system, smtp };
+      }
+      setPlatformConfig(pc);
     }
+    setSmtpPasswordDraft("");
   }, [settingsData]);
 
   const passwordForm = useForm<ChangePasswordFormData>({
@@ -116,7 +142,7 @@ export function PlatformSettingsManagement() {
       };
       await updateSettings.mutateAsync({
         request: {
-          platformConfig: newConfig,
+          platformConfig: clonePlatformConfigForApi(newConfig),
         },
       });
       setPlatformConfig(newConfig);
@@ -147,6 +173,38 @@ export function PlatformSettingsManagement() {
     current[path[path.length - 1]] = value;
     updatePlatformConfig(newConfig);
   };
+
+  const saveSmtpPasswordToServer = async (passwordValue: string) => {
+    setSmtpPasswordSaving(true);
+    try {
+      await updateSettings.mutateAsync({
+        request: {
+          platformConfig: clonePlatformConfigForApi(platformConfig),
+          platformSmtpPassword: passwordValue,
+        },
+      });
+      setSmtpPasswordDraft("");
+      toast({
+        title: "Success",
+        description:
+          passwordValue === ""
+            ? "Stored SMTP password removed."
+            : "SMTP password saved securely on the server.",
+      });
+    } catch (error: unknown) {
+      const message =
+        (error as { message?: string })?.message || "Failed to update SMTP password";
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setSmtpPasswordSaving(false);
+    }
+  };
+
+  const smtpConfigured = settingsData?.data?.platformSmtpPasswordConfigured === true;
 
   if (isSettingsLoading) {
     return (
@@ -378,14 +436,44 @@ export function PlatformSettingsManagement() {
 
                 <Separator />
 
-                <div className="space-y-3">
-                  <Label className="text-base font-semibold">SMTP Configuration</Label>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <Label className="text-base font-semibold mb-0">Outgoing email (SMTP)</Label>
+                    {smtpConfigured ? (
+                      <Badge variant="secondary" className="w-fit">
+                        Saved password on server
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    When enabled, the API uses these settings instead of{" "}
+                    <code className="text-xs bg-muted px-1 rounded">SMTP_*</code> environment
+                    variables. The password is encrypted with{" "}
+                    <code className="text-xs bg-muted px-1 rounded">PLATFORM_EMAIL_ENCRYPTION_KEY</code>{" "}
+                    on the backend — set that in server env before saving a password here.
+                  </p>
+
+                  <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="space-y-0.5 pr-4">
+                      <Label className="mb-0">Use platform SMTP</Label>
+                      <p className="text-sm text-gray-500">
+                        Turn on to send system mail (OTP, invites, etc.) through this mailbox
+                      </p>
+                    </div>
+                    <Switch
+                      checked={platformConfig?.system?.smtp?.enabled === true}
+                      onCheckedChange={(checked) =>
+                        updateNestedConfig(["system", "smtp", "enabled"], checked)
+                      }
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="smtpHost">SMTP Host</Label>
+                      <Label htmlFor="smtpHost">SMTP host</Label>
                       <Input
                         id="smtpHost"
-                        placeholder="smtp.gmail.com"
+                        placeholder="smtpout.secureserver.net"
                         value={platformConfig?.system?.smtp?.host || ""}
                         onChange={(e) =>
                           updateNestedConfig(["system", "smtp", "host"], e.target.value)
@@ -393,25 +481,44 @@ export function PlatformSettingsManagement() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="smtpPort">SMTP Port</Label>
+                      <Label htmlFor="smtpPort">SMTP port</Label>
                       <Input
                         id="smtpPort"
                         type="number"
-                        placeholder="587"
-                        value={platformConfig?.system?.smtp?.port || ""}
-                        onChange={(e) =>
+                        placeholder="465"
+                        value={
+                          platformConfig?.system?.smtp?.port !== undefined
+                            ? platformConfig.system.smtp.port
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
                           updateNestedConfig(
                             ["system", "smtp", "port"],
-                            parseInt(e.target.value) || 587
-                          )
+                            v === "" ? 587 : parseInt(v, 10) || 587
+                          );
+                        }}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between p-3 border rounded-lg sm:col-span-2">
+                      <div>
+                        <Label className="mb-0">Implicit SSL (typical for port 465)</Label>
+                        <p className="text-sm text-gray-500">
+                          Off = STARTTLS on 587 (recommended for Office 365)
+                        </p>
+                      </div>
+                      <Switch
+                        checked={platformConfig?.system?.smtp?.secure === true}
+                        onCheckedChange={(checked) =>
+                          updateNestedConfig(["system", "smtp", "secure"], checked)
                         }
                       />
                     </div>
                     <div>
-                      <Label htmlFor="smtpUser">SMTP Username</Label>
+                      <Label htmlFor="smtpUser">SMTP username</Label>
                       <Input
                         id="smtpUser"
-                        placeholder="your-email@gmail.com"
+                        placeholder="noreply@yourdomain.com"
                         value={platformConfig?.system?.smtp?.user || ""}
                         onChange={(e) =>
                           updateNestedConfig(["system", "smtp", "user"], e.target.value)
@@ -419,31 +526,19 @@ export function PlatformSettingsManagement() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="smtpPassword">SMTP Password</Label>
-                      <Input
-                        id="smtpPassword"
-                        type="password"
-                        placeholder="••••••••"
-                        value={platformConfig?.system?.smtp?.password || ""}
-                        onChange={(e) =>
-                          updateNestedConfig(["system", "smtp", "password"], e.target.value)
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="smtpFromEmail">From Email</Label>
+                      <Label htmlFor="smtpFromEmail">From email</Label>
                       <Input
                         id="smtpFromEmail"
                         type="email"
-                        placeholder="noreply@schooliat.com"
+                        placeholder="noreply@yourdomain.com"
                         value={platformConfig?.system?.smtp?.fromEmail || ""}
                         onChange={(e) =>
                           updateNestedConfig(["system", "smtp", "fromEmail"], e.target.value)
                         }
                       />
                     </div>
-                    <div>
-                      <Label htmlFor="smtpFromName">From Name</Label>
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="smtpFromName">From display name</Label>
                       <Input
                         id="smtpFromName"
                         placeholder="SchooliAT"
@@ -452,6 +547,46 @@ export function PlatformSettingsManagement() {
                           updateNestedConfig(["system", "smtp", "fromName"], e.target.value)
                         }
                       />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 rounded-lg border p-4 bg-muted/30">
+                    <Label htmlFor="smtpPasswordDraft">SMTP password</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Never stored in browser state as part of saved settings. Enter a new password
+                      and click Save password, or remove the stored password on the server.
+                    </p>
+                    <Input
+                      id="smtpPasswordDraft"
+                      type="password"
+                      autoComplete="new-password"
+                      placeholder={
+                        smtpConfigured
+                          ? "Leave blank to keep current password"
+                          : "Mailbox password or app password"
+                      }
+                      value={smtpPasswordDraft}
+                      onChange={(e) => setSmtpPasswordDraft(e.target.value)}
+                    />
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        disabled={smtpPasswordSaving || !smtpPasswordDraft.trim()}
+                        onClick={() => saveSmtpPasswordToServer(smtpPasswordDraft)}
+                      >
+                        {smtpPasswordSaving ? "Saving…" : "Save password"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={smtpPasswordSaving || !smtpConfigured}
+                        onClick={() => saveSmtpPasswordToServer("")}
+                      >
+                        Remove stored password
+                      </Button>
                     </div>
                   </div>
                 </div>

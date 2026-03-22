@@ -23,6 +23,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Eye, Plus } from "lucide-react";
 import { useReceipts, useGenerateReceipt, Receipt } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
+import { BILLING_ROUTES } from "@/lib/super-admin/billing/constants";
 
 const STATUS_OPTIONS = ["All", "GENERATED", "PENDING", "PAID", "CANCELLED"];
 
@@ -34,9 +35,10 @@ interface ReceiptDisplay {
   amount: number;
   date: string;
   status: string;
+  invoiceLabel: string | null;
 }
 
-export function ReceiptsManagement() {
+export function ReceiptsManagement({ embedded }: { embedded?: boolean }) {
   const router = useRouter();
   const { toast } = useToast();
   const [page, setPage] = useState(0);
@@ -72,6 +74,7 @@ export function ReceiptsManagement() {
       amount: parseFloat(String(receipt.amount)) || 0,
       date: new Date(receipt.createdAt).toISOString().split("T")[0],
       status: receipt.status || "GENERATED",
+      invoiceLabel: receipt.invoice?.invoiceNumber || (receipt.invoice?.id ? receipt.invoice.id.slice(0, 8) : null),
     }));
   }, [data, searchQuery]);
 
@@ -153,21 +156,34 @@ export function ReceiptsManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Receipts Management</h1>
-          <p className="text-gray-600 mt-1">
-            View and manage all receipts for registered schools
-          </p>
+      {!embedded && (
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold">Receipts Management</h1>
+            <p className="text-gray-600 mt-1">
+              View receipts, including those created from invoice payments
+            </p>
+          </div>
+          <Button
+            onClick={() => router.push(BILLING_ROUTES.standaloneReceiptGenerate)}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Generate Receipt
+          </Button>
         </div>
-        <Button
-          onClick={() => router.push("/super-admin/receipts/generate")}
-          className="gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Generate Receipt
-        </Button>
-      </div>
+      )}
+      {embedded && (
+        <div className="flex flex-col sm:flex-row justify-end items-start sm:items-center gap-4">
+          <Button
+            onClick={() => router.push(BILLING_ROUTES.standaloneReceiptGenerate)}
+            className="gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Standalone receipt
+          </Button>
+        </div>
+      )}
 
       <div className="flex gap-4">
         <Input
@@ -197,6 +213,7 @@ export function ReceiptsManagement() {
               <TableRow className="bg-schooliat-tint">
                 <TableHead>Receipt Number</TableHead>
                 <TableHead>Recipient</TableHead>
+                <TableHead>Invoice</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
@@ -206,7 +223,7 @@ export function ReceiptsManagement() {
             <TableBody>
               {paginatedReceipts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     No receipts found
                   </TableCell>
                 </TableRow>
@@ -223,6 +240,9 @@ export function ReceiptsManagement() {
                           {receipt.recipientSub}
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {receipt.invoiceLabel || "—"}
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       ₹{receipt.amount.toLocaleString()}

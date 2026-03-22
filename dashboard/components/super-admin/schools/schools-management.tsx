@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Eye, Receipt, Plus } from "lucide-react";
 import { useSchools, useRegions, School, Region } from "@/lib/hooks/use-super-admin";
+import { BILLING_ROUTES } from "@/lib/super-admin/billing/constants";
 import { RegisterSchoolFormContent } from "./register-school-form-content";
 import { EditSchoolDialog } from "./edit-school-dialog";
 import { Edit } from "lucide-react";
@@ -55,7 +56,9 @@ export function SchoolsManagement() {
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const itemsPerPage = 10;
 
-  const { data, isLoading, error, refetch } = useSchools(searchQuery || undefined);
+  const { data, isLoading, error, refetch } = useSchools(
+    searchQuery ? { search: searchQuery } : undefined,
+  );
   const { data: regionsData } = useRegions();
   const regions = (regionsData?.data || []) as Region[];
 
@@ -235,7 +238,7 @@ export function SchoolsManagement() {
                           className="h-8 w-8"
                           onClick={() =>
                             router.push(
-                              `/super-admin/receipts/generate?schoolId=${school.id}`
+                              `${BILLING_ROUTES.standaloneReceiptGenerate}?schoolId=${school.id}`
                             )
                           }
                           title="Generate Receipt"

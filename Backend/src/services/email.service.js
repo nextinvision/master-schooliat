@@ -1,36 +1,67 @@
 import nodemailer from "nodemailer";
 import config from "../config.js";
 import logger from "../config/logger.js";
+import * as smtpConfigService from "./smtp-config.service.js";
 
-// Create reusable transporter
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// Cached transporter (invalidated when platform SMTP settings change)
 let transporter = null;
 
-const createTransporter = () => {
+export function resetEmailTransporter() {
+  transporter = null;
+  smtpConfigService.invalidatePlatformSmtpRowCache();
+}
+
+async function ensureTransporter() {
   if (transporter) {
     return transporter;
   }
 
-  // SMTP configuration from environment variables
-  const smtpConfig = {
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === "true", // true for 465, false for other ports
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  };
-
-  // Only create transporter if credentials are provided
-  if (smtpConfig.auth.user && smtpConfig.auth.pass) {
-    transporter = nodemailer.createTransport(smtpConfig);
-    logger.info("Email transporter created successfully");
-  } else {
-    logger.warn("SMTP credentials not configured. Email functionality will be disabled.");
+  const resolved = await smtpConfigService.resolveSmtpTransportOptions();
+  if (!resolved) {
+    logger.warn("SMTP not configured (platform UI disabled or incomplete, and no SMTP_* env credentials)");
+    return null;
   }
 
+  transporter = nodemailer.createTransport(resolved.transport);
+  logger.info(
+    {
+      host: resolved.transport.host,
+      port: resolved.transport.port,
+      secure: resolved.transport.secure,
+      source: resolved.source,
+    },
+    "Email transporter created",
+  );
   return transporter;
-};
+}
+
+/**
+ * Optional boot-time check (set SMTP_VERIFY_ON_START=true). Logs only; does not exit the process.
+ */
+async function verifySmtpIfConfigured() {
+  resetEmailTransporter();
+  const t = await ensureTransporter();
+  if (!t) {
+    logger.info("SMTP verify skipped: no platform or environment SMTP credentials");
+    return { ok: false, skipped: true };
+  }
+  try {
+    await t.verify();
+    logger.info("SMTP verify succeeded");
+    return { ok: true };
+  } catch (error) {
+    logger.error({ error }, "SMTP verify failed — outgoing mail will fail until this is fixed");
+    return { ok: false, error };
+  }
+}
 
 /**
  * Send email
@@ -42,7 +73,7 @@ const createTransporter = () => {
  * @returns {Promise<Object>} - Send result
  */
 const sendEmail = async ({ to, subject, html, text }) => {
-  const emailTransporter = createTransporter();
+  const emailTransporter = await ensureTransporter();
 
   if (!emailTransporter) {
     logger.warn({ to, subject }, "Email not sent: SMTP not configured");
@@ -60,8 +91,13 @@ const sendEmail = async ({ to, subject, html, text }) => {
   }
 
   try {
+    const fromAddr =
+      (await smtpConfigService.resolveSmtpFromAddress()) ||
+      process.env.SMTP_FROM ||
+      process.env.SMTP_USER;
+
     const mailOptions = {
-      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      from: fromAddr,
       to,
       subject,
       html,
@@ -184,10 +220,108 @@ const sendPasswordResetEmail = async (to, resetToken, expiryMinutes = 30) => {
   });
 };
 
+/**
+ * Welcome email for new school admin (credentials shown once at registration).
+ */
+const sendSchoolAdminWelcomeEmail = async ({
+  to,
+  schoolName,
+  loginEmail,
+  publicUserId,
+  password,
+}) => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Welcome to SchooliAt</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background-color: #6f8f3e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0;">SchooliAt</h1>
+      </div>
+      <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #e0e0e0;">
+        <h2 style="color: #6f8f3e; margin-top: 0;">Welcome, ${escapeHtml(schoolName)}</h2>
+        <p>Your school has been registered on SchooliAt. Below are your administrator login credentials. Please sign in and change your password after first login.</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr><td style="padding: 8px 0; color: #666;">Public user ID</td><td style="padding: 8px 0; font-weight: bold; font-family: monospace;">${escapeHtml(publicUserId)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #666;">Email (login)</td><td style="padding: 8px 0; font-weight: bold;">${escapeHtml(loginEmail)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #666;">Temporary password</td><td style="padding: 8px 0; font-weight: bold; font-family: monospace;">${escapeHtml(password)}</td></tr>
+        </table>
+        <p style="color: #666; font-size: 14px;">If you did not expect this message, please contact support.</p>
+        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+          This is an automated message from SchooliAt.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: `Welcome to SchooliAt — ${String(schoolName ?? "").slice(0, 80)}`,
+    html,
+  });
+};
+
+/**
+ * Welcome email for new employee (portal login).
+ */
+const sendEmployeeWelcomeEmail = async ({
+  to,
+  firstName,
+  loginEmail,
+  publicUserId,
+  password,
+}) => {
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Welcome to SchooliAt</title>
+    </head>
+    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background-color: #6f8f3e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0;">SchooliAt</h1>
+      </div>
+      <div style="background-color: #f9f9f9; padding: 30px; border-radius: 0 0 8px 8px; border: 1px solid #e0e0e0;">
+        <h2 style="color: #6f8f3e; margin-top: 0;">Welcome${firstName ? `, ${escapeHtml(firstName)}` : ""}</h2>
+        <p>Your employee account has been created. Use the credentials below to sign in to the SchooliAt portal.</p>
+        <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+          <tr><td style="padding: 8px 0; color: #666;">Public user ID</td><td style="padding: 8px 0; font-weight: bold; font-family: monospace;">${escapeHtml(publicUserId)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #666;">Email (login)</td><td style="padding: 8px 0; font-weight: bold;">${escapeHtml(loginEmail)}</td></tr>
+          <tr><td style="padding: 8px 0; color: #666;">Temporary password</td><td style="padding: 8px 0; font-weight: bold; font-family: monospace;">${escapeHtml(password)}</td></tr>
+        </table>
+        <p style="color: #666; font-size: 14px;">Please change your password after first login.</p>
+        <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+        <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+          This is an automated message from SchooliAt.
+        </p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: "Your SchooliAt employee account",
+    html,
+  });
+};
+
 const emailService = {
   sendEmail,
   sendOTPEmail,
   sendPasswordResetEmail,
+  sendSchoolAdminWelcomeEmail,
+  sendEmployeeWelcomeEmail,
+  verifySmtpIfConfigured,
+  resetEmailTransporter,
 };
 
 export default emailService;

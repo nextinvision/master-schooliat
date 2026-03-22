@@ -22,6 +22,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { BILLING_ROUTES } from "@/lib/super-admin/billing/constants";
 import {
   Select,
   SelectContent,
@@ -94,7 +95,7 @@ export default function SuperAdminDashboardPage() {
       title: "Generate Receipt",
       subtitle: "Create a new receipt",
       icon: Receipt,
-      route: "/super-admin/receipts/generate",
+      route: BILLING_ROUTES.standaloneReceiptGenerate,
       color: "#9b59b6",
       bgColor: "#f3e5f5",
     },
@@ -110,7 +111,7 @@ export default function SuperAdminDashboardPage() {
       title: "Pending Receipts",
       subtitle: "Awaiting Receipts",
       icon: Clock,
-      route: "/super-admin/receipts",
+      route: BILLING_ROUTES.receiptsTab,
       color: "#e74c3c",
       bgColor: "#ffebee",
     },

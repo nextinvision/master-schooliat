@@ -39,10 +39,28 @@ export function useDashboardStats(academicYear?: string) {
 }
 
 // Schools
-export function useSchools(search?: string) {
+export function useSchools(params?: { search?: string; regionId?: string }) {
+  const { search, regionId } = params || {};
   return useQuery({
-    queryKey: ["schools", search],
-    queryFn: () => get("/schools", search ? { search } : {}),
+    queryKey: ["schools", search, regionId],
+    queryFn: () =>
+      get("/schools", {
+        ...(search ? { search } : {}),
+        ...(regionId ? { regionId } : {}),
+      }),
+    staleTime: 30 * 1000,
+  });
+}
+
+/** Super Admin: school profile + aggregate stats (GET /schools/:id/overview) */
+export function useSchoolMasterOverview(id: string) {
+  return useQuery({
+    queryKey: ["schoolMasterOverview", id],
+    queryFn: async () => {
+      const res = await get(`/schools/${id}/overview`);
+      return res?.data ?? null;
+    },
+    enabled: !!id,
     staleTime: 30 * 1000,
   });
 }
@@ -81,9 +99,25 @@ export function useCreateSchool() {
       post("/schools", { request: formData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
+      queryClient.invalidateQueries({ queryKey: ["schoolMasterOverview"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       queryClient.invalidateQueries({ queryKey: ["schoolStatistics"] });
     },
+  });
+}
+
+export function useSendSchoolAdminWelcome() {
+  return useMutation({
+    mutationFn: ({
+      schoolId,
+      password,
+    }: {
+      schoolId: string;
+      password: string;
+    }) =>
+      post(`/schools/${schoolId}/send-admin-welcome`, {
+        request: { password },
+      }),
   });
 }
 
@@ -96,6 +130,9 @@ export function useUpdateSchool() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
       queryClient.invalidateQueries({ queryKey: ["school", variables.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["schoolMasterOverview", variables.id],
+      });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       queryClient.invalidateQueries({ queryKey: ["schoolStatistics"] });
     },
@@ -109,6 +146,7 @@ export function useDeleteSchool() {
       del(`/schools/${id}`, { request: { otp } }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
+      queryClient.invalidateQueries({ queryKey: ["schoolMasterOverview"] });
       queryClient.invalidateQueries({ queryKey: ["dashboardStats"] });
       queryClient.invalidateQueries({ queryKey: ["schoolStatistics"] });
     },
@@ -190,6 +228,7 @@ export function useCreateReceipt() {
       post("/receipts", { request: formData }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["receipts"] });
+      queryClient.invalidateQueries({ queryKey: ["invoices"] });
     },
   });
 }
@@ -427,7 +466,29 @@ export interface School {
   certificateLink?: string;
   regionId?: string;
   region?: {
+    id?: string;
     name: string;
+  };
+}
+
+/** GET /schools/:id/overview */
+export interface SchoolMasterOverview {
+  school: School & {
+    region?: { id: string; name: string };
+    bankName?: string | null;
+    bankAccountNumber?: string | null;
+    bankIfscCode?: string | null;
+    bankBranchName?: string | null;
+    upiId?: string | null;
+    logoId?: string | null;
+  };
+  stats: {
+    classes: number;
+    subjects: number;
+    students: number;
+    teachers: number;
+    staff: number;
+    schoolAdmins: number;
   };
 }
 
@@ -482,12 +543,27 @@ export interface Receipt {
   receiptNumber: string;
   schoolId?: string | null;
   vendorId?: string | null;
+  invoiceId?: string | null;
   school?: School;
   vendor?: { id: string; name: string; contact?: string };
+  invoice?: {
+    id: string;
+    invoiceNumber: string | null;
+    status?: string;
+    amount?: number;
+  };
   amount: number;
   status: string;
   description?: string;
   paymentMethod?: string;
+  createdAt: string;
+}
+
+export interface InvoiceReceiptSummary {
+  id: string;
+  receiptNumber: string | null;
+  amount: unknown;
+  status: string;
   createdAt: string;
 }
 
@@ -503,12 +579,15 @@ export interface Invoice {
   description?: string;
   dueDate?: string;
   createdAt: string;
+  receipts?: InvoiceReceiptSummary[];
 }
 
 export interface CreateReceiptData {
+  /** When set, creates a receipt that settles this invoice (amounts match invoice; marks invoice PAID). */
+  invoiceId?: string;
   schoolId?: string;
   vendorId?: string;
-  baseAmount: number;
+  baseAmount?: number;
   description?: string;
   paymentMethod?: string;
   sgstPercent?: number | null;

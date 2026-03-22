@@ -28,6 +28,10 @@ import {
 } from "@/lib/hooks/use-super-admin";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Receipt } from "lucide-react";
+import {
+  BILLING_PAYMENT_METHOD_LABELS,
+  BILLING_ROUTES,
+} from "@/lib/super-admin/billing/constants";
 
 const receiptSchema = z.object({
   recipientType: z.enum(["school", "vendor"]),
@@ -43,15 +47,6 @@ const receiptSchema = z.object({
 });
 
 type ReceiptFormData = z.infer<typeof receiptSchema>;
-
-const PAYMENT_METHODS = [
-  "Bank Transfer",
-  "Cash",
-  "Cheque",
-  "UPI",
-  "Credit Card",
-  "Debit Card",
-];
 
 export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
   const router = useRouter();
@@ -197,7 +192,7 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
           title: "Success",
           description: isEditMode ? "Receipt updated successfully!" : "Receipt generated successfully!",
         });
-        router.push("/super-admin/receipts");
+        router.push(BILLING_ROUTES.receiptsTab);
       }
     } catch (error: any) {
       toast({
@@ -300,7 +295,7 @@ export function GenerateReceiptForm({ receiptId }: { receiptId?: string }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {PAYMENT_METHODS.map((method) => (
+                    {BILLING_PAYMENT_METHOD_LABELS.map((method) => (
                       <SelectItem key={method} value={method}>
                         {method}
                       </SelectItem>

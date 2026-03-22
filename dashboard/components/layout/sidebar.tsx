@@ -40,6 +40,7 @@ import {
   SquareUser,
   Book,
   Gift,
+  Wallet,
 } from "lucide-react";
 import { clearToken } from "@/lib/auth/storage";
 import {
@@ -50,7 +51,6 @@ import {
   LEAVE_SUBMENU,
   LIBRARY_SUBMENU,
   RESULTS_SUBMENU,
-  MASTER_DATA_SUBMENU,
   MenuItem,
   SubMenuItem,
 } from "@/lib/config/menu-items";
@@ -90,6 +90,7 @@ const iconMap: Record<string, LucideIcon> = {
   SquareUser,
   Book,
   Gift,
+  Wallet,
 };
 
 export function Sidebar() {
@@ -137,8 +138,6 @@ export function Sidebar() {
         return LIBRARY_SUBMENU;
       case "Result Management":
         return RESULTS_SUBMENU;
-      case "Master Data":
-        return MASTER_DATA_SUBMENU;
       default:
         return [];
     }

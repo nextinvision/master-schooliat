@@ -137,7 +137,7 @@ export default function ReportsPage() {
                 }
               }}
             />
-            <Label htmlFor="reports-portal-sync" className="text-sm font-normal cursor-pointer">
+            <Label htmlFor="reports-portal-sync" className="text-sm font-normal cursor-pointer mb-0">
               Date range follows portal month
             </Label>
           </div>

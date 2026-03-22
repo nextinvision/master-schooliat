@@ -76,6 +76,7 @@ import templateLoaderService from "./services/template-loader.service.js";
 import auditMiddleware from "./middlewares/audit.middleware.js";
 import ipWhitelistMiddleware from "./middlewares/ip-whitelist.middleware.js";
 import { initializeRedis, isRedisConnected } from "./config/redis.client.js";
+import emailService from "./services/email.service.js";
 
 async function main() {
   // Initialize Redis connection (non-blocking)
@@ -89,6 +90,11 @@ async function main() {
   } catch (error) {
     logger.warn({ error }, "Redis initialization failed, using in-memory cache");
   }
+
+  if (process.env.SMTP_VERIFY_ON_START === "true") {
+    void emailService.verifySmtpIfConfigured();
+  }
+
   // App Config
   const app = express();
 

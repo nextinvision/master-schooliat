@@ -23,6 +23,23 @@ import {
 import deleteSchoolSchema from "../schemas/school/delete-school.schema.js";
 import deleteClassSchema from "../schemas/school/delete-class.schema.js";
 import { requireDeletionOTP } from "../middlewares/require-deletion-otp.middleware.js";
+import logger from "../config/logger.js";
+import emailService from "../services/email.service.js";
+import roleService from "../services/role.service.js";
+import sendSchoolAdminWelcomeSchema from "../schemas/school/send-school-admin-welcome.schema.js";
+import { getSchoolMasterOverview } from "../services/school-master-overview.service.js";
+
+function parseOptionalInt(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = parseInt(String(value).trim(), 10);
+  return Number.isFinite(n) ? n : null;
+}
+
+function emptyToNull(v) {
+  if (v === undefined || v === null) return null;
+  const s = String(v).trim();
+  return s === "" ? null : s;
+}
 
 /**
  * Build Prisma where for GET /schools/classes (filters combine with AND; search ORs grade/division/teacher).
@@ -91,57 +108,141 @@ router.post(
   withPermission(Permission.CREATE_SCHOOL),
   validateRequest(createSchoolSchema),
   async (req, res) => {
-    const request = req.body.request;
-    const currentUser = req.context.user;
+    try {
+      const request = req.body.request;
+      const currentUser = req.context.user;
 
-    const newSchool = await prisma.school.create({
-      data: {
-        name: request.name,
-        email: request.email,
-        phone: request.phone,
-        address: request.address,
-        code: request.code,
-        gstNumber: request.gstNumber,
-        principalName: request.principalName,
-        principalEmail: request.principalEmail,
-        principalPhone: request.principalPhone,
-        establishedYear: request.establishedYear
-          ? parseInt(request.establishedYear)
-          : null,
-        boardAffiliation: request.boardAffiliation,
-        studentStrength: request.studentStrength
-          ? parseInt(request.studentStrength)
-          : null,
-        certificateLink: request.certificateLink,
-        bankName: request.bankName,
-        bankAccountNumber: request.bankAccountNumber,
-        bankIfscCode: request.bankIfscCode,
-        bankBranchName: request.bankBranchName,
-        regionId: request.regionId || null,
-        createdBy: currentUser.id,
-      },
-    });
+      if (request.regionId) {
+        const regionEntity = await prisma.region.findFirst({
+          where: {
+            id: request.regionId,
+            deletedAt: null,
+            deletedBy: null,
+          },
+        });
+        if (!regionEntity) {
+          return res
+            .status(400)
+            .json({ message: "Region not found or deleted!" });
+        }
+      }
 
-    // Create default settings for the school
-    await prisma.settings.create({
-      data: {
-        schoolId: newSchool.id,
-        studentFeeInstallments: 12,
-        studentFeeAmount: 0,
-        currentInstallmentNumber: 1,
-        createdBy: currentUser.id,
-      },
-    });
+      const newSchool = await prisma.school.create({
+        data: {
+          name: request.name,
+          email: request.email,
+          phone: request.phone,
+          address: request.address,
+          code: request.code,
+          gstNumber: request.gstNumber ?? undefined,
+          principalName: request.principalName ?? undefined,
+          principalEmail: emptyToNull(request.principalEmail),
+          principalPhone: request.principalPhone ?? undefined,
+          establishedYear: parseOptionalInt(request.establishedYear),
+          boardAffiliation: request.boardAffiliation ?? undefined,
+          studentStrength: parseOptionalInt(request.studentStrength),
+          certificateLink: emptyToNull(request.certificateLink),
+          bankName: request.bankName ?? undefined,
+          bankAccountNumber: request.bankAccountNumber ?? undefined,
+          bankIfscCode: request.bankIfscCode ?? undefined,
+          bankBranchName: request.bankBranchName ?? undefined,
+          regionId: request.regionId || null,
+          createdBy: currentUser.id,
+        },
+      });
 
-    const schoolAdmin = await userService.createSchoolAdmin(
-      newSchool,
-      currentUser,
-    );
+      await prisma.settings.create({
+        data: {
+          schoolId: newSchool.id,
+          studentFeeInstallments: 12,
+          studentFeeAmount: 0,
+          currentInstallmentNumber: 1,
+          createdBy: currentUser.id,
+        },
+      });
 
-    return res.status(201).json({
-      message: "School created!",
-      data: { ...newSchool, admin: schoolAdmin },
-    });
+      const schoolAdmin = await userService.createSchoolAdmin(
+        newSchool,
+        currentUser,
+      );
+
+      return res.status(201).json({
+        message: "School created!",
+        data: { ...newSchool, admin: schoolAdmin },
+      });
+    } catch (error) {
+      if (error.code === "P2002") {
+        return res.status(400).json({
+          message:
+            "A school with this code, email, phone, or address already exists.",
+        });
+      }
+      logger.error({ err: error }, "Failed to create school");
+      return res.status(500).json({
+        message: "Failed to create school. Please check your input and try again.",
+      });
+    }
+  },
+);
+
+router.post(
+  "/:id/send-admin-welcome",
+  withPermission(Permission.CREATE_SCHOOL),
+  validateRequest(sendSchoolAdminWelcomeSchema),
+  async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { password } = req.body.request;
+      const currentUser = req.context.user;
+
+      if (currentUser.role?.name !== RoleName.SUPER_ADMIN) {
+        return res
+          .status(403)
+          .json({ message: "Only Super Admin can send welcome emails." });
+      }
+
+      const school = await prisma.school.findFirst({
+        where: { id, deletedAt: null, deletedBy: null },
+      });
+      if (!school) {
+        return res.status(404).json({ message: "School not found!" });
+      }
+
+      const schoolAdminRole = await roleService.getRoleByName(
+        RoleName.SCHOOL_ADMIN,
+      );
+      const admin = await prisma.user.findFirst({
+        where: {
+          schoolId: id,
+          roleId: schoolAdminRole.id,
+          deletedAt: null,
+          deletedBy: null,
+        },
+        orderBy: { createdAt: "asc" },
+      });
+      if (!admin) {
+        return res
+          .status(404)
+          .json({ message: "School administrator account not found." });
+      }
+
+      await emailService.sendSchoolAdminWelcomeEmail({
+        to: admin.email,
+        schoolName: school.name,
+        loginEmail: admin.email,
+        publicUserId: admin.publicUserId,
+        password,
+      });
+
+      return res.json({ message: "Welcome email sent successfully." });
+    } catch (error) {
+      logger.error({ err: error }, "send-admin-welcome failed");
+      return res.status(502).json({
+        message:
+          error.message ||
+          "Failed to send welcome email. Check SMTP configuration.",
+      });
+    }
   },
 );
 
@@ -150,7 +251,7 @@ router.get(
   withPermission(Permission.GET_SCHOOLS),
   validateRequest(getSchoolsSchema),
   async (req, res) => {
-    const { search } = req.query;
+    const { search, regionId } = req.query;
 
     const where = {
       deletedAt: null,
@@ -162,6 +263,10 @@ router.get(
         { code: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
       ];
+    }
+
+    if (regionId) {
+      where.regionId = regionId;
     }
 
     const schools = await prisma.school.findMany({
@@ -177,10 +282,12 @@ router.get(
         email: true,
         phone: true,
         address: true,
+        regionId: true,
         region: {
           select: {
+            id: true,
             name: true,
-          }
+          },
         },
         createdAt: true,
       },
@@ -444,6 +551,29 @@ router.get(
         message: error.message || "Failed to fetch class",
       });
     }
+  },
+);
+
+// GET /schools/:id/overview — Super Admin: school + role/staffing stats (master data profile)
+router.get(
+  "/:id/overview",
+  withPermission(Permission.GET_SCHOOLS),
+  async (req, res) => {
+    const currentUser = req.context.user;
+    const { id } = req.params;
+    if (currentUser.role?.name !== RoleName.SUPER_ADMIN) {
+      return res.status(403).json({
+        message: "Only Super Admin can fetch school overview.",
+      });
+    }
+    const overview = await getSchoolMasterOverview(id);
+    if (!overview) {
+      return res.status(404).json({ message: "School not found!" });
+    }
+    return res.json({
+      message: "School overview fetched!",
+      data: overview,
+    });
   },
 );
 
