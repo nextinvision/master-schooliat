@@ -84,6 +84,8 @@ const defaultRolePermissionsMap = {
     Permission.GET_ID_CARDS,
     Permission.GET_FEES,
     Permission.GET_SETTINGS,
+    /** Platform PATCH /settings (logo, SMTP, platformConfig, fee receipt defaults, etc.) */
+    Permission.EDIT_SETTINGS,
     Permission.GET_ATTENDANCE_REPORTS,
     Permission.GET_FEE_ANALYTICS,
     Permission.GET_ACADEMIC_REPORTS,

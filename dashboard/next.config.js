@@ -1,5 +1,61 @@
+/**
+ * Allow next/image to fetch file URLs returned by the API (cross-origin in production).
+ * Without this, /_next/image?url=https://api…/files/… returns 400.
+ */
+function buildImageRemotePatterns() {
+  const patterns = [];
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    try {
+      const u = new URL(apiUrl);
+      const protocol = u.protocol.replace(":", "");
+      const common = {
+        protocol,
+        hostname: u.hostname,
+        ...(u.port ? { port: u.port } : {}),
+      };
+      patterns.push({ ...common, pathname: "/files/**" });
+      patterns.push({ ...common, pathname: "/api/v1/files/**" });
+    } catch {
+      // invalid NEXT_PUBLIC_API_URL — skip derived patterns
+    }
+  }
+
+  // Local backend (direct)
+  for (const host of ["localhost", "127.0.0.1"]) {
+    patterns.push({
+      protocol: "http",
+      hostname: host,
+      port: "4000",
+      pathname: "/files/**",
+    });
+    patterns.push({
+      protocol: "http",
+      hostname: host,
+      port: "4000",
+      pathname: "/api/v1/files/**",
+    });
+  }
+
+  // Dev: dashboard rewrites /files to backend (same tab origin is localhost:3000)
+  for (const host of ["localhost", "127.0.0.1"]) {
+    patterns.push({
+      protocol: "http",
+      hostname: host,
+      port: "3000",
+      pathname: "/files/**",
+    });
+  }
+
+  return patterns;
+}
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  images: {
+    remotePatterns: buildImageRemotePatterns(),
+  },
   async redirects() {
     return [
       {
