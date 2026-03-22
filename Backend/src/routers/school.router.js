@@ -30,12 +30,6 @@ import sendSchoolAdminWelcomeSchema from "../schemas/school/send-school-admin-we
 import { getSchoolMasterOverview } from "../services/school-master-overview.service.js";
 import { getDefaultSchoolRegionIdForNewSchool } from "../services/school-region-reconciliation.service.js";
 
-function parseOptionalInt(value) {
-  if (value === undefined || value === null || value === "") return null;
-  const n = parseInt(String(value).trim(), 10);
-  return Number.isFinite(n) ? n : null;
-}
-
 function emptyToNull(v) {
   if (v === undefined || v === null) return null;
   const s = String(v).trim();
@@ -140,11 +134,11 @@ router.post(
           code: request.code,
           gstNumber: request.gstNumber ?? undefined,
           principalName: request.principalName ?? undefined,
-          principalEmail: emptyToNull(request.principalEmail),
+          principalEmail: request.principalEmail ?? undefined,
           principalPhone: request.principalPhone ?? undefined,
-          establishedYear: parseOptionalInt(request.establishedYear),
+          establishedYear: request.establishedYear ?? undefined,
           boardAffiliation: request.boardAffiliation ?? undefined,
-          studentStrength: parseOptionalInt(request.studentStrength),
+          studentStrength: request.studentStrength ?? undefined,
           certificateLink: emptyToNull(request.certificateLink),
           bankName: request.bankName ?? undefined,
           bankAccountNumber: request.bankAccountNumber ?? undefined,
@@ -680,7 +674,10 @@ router.patch(
     if (updateData.email !== undefined) schoolUpdateData.email = updateData.email;
     if (updateData.phone !== undefined) schoolUpdateData.phone = updateData.phone;
     if (updateData.address !== undefined) schoolUpdateData.address = updateData.address;
-    if (updateData.certificateLink !== undefined) schoolUpdateData.certificateLink = updateData.certificateLink;
+    if (updateData.certificateLink !== undefined)
+      schoolUpdateData.certificateLink = emptyToNull(
+        updateData.certificateLink,
+      );
     if (updateData.gstNumber !== undefined) schoolUpdateData.gstNumber = updateData.gstNumber;
     if (updateData.principalName !== undefined) schoolUpdateData.principalName = updateData.principalName;
     if (updateData.principalEmail !== undefined) schoolUpdateData.principalEmail = updateData.principalEmail;
@@ -881,8 +878,8 @@ router.patch(
       return res.status(404).json({ message: "School not found!" });
     }
 
-    // Validate region exists and is not deleted if provided
-    if (updateData.regionId != null) {
+    // Validate region exists when assigning a concrete region (null clears assignment)
+    if (updateData.regionId !== undefined && updateData.regionId !== null) {
       const regionEntity = await prisma.region.findFirst({
         where: {
           id: updateData.regionId,
@@ -897,7 +894,7 @@ router.patch(
       }
     }
 
-    // Build update data object with only provided fields
+    // Build update data object with only provided fields (aligned with update-school schema + Prisma School)
     const schoolUpdateData = {};
 
     if (updateData.name !== undefined) schoolUpdateData.name = updateData.name;
@@ -911,7 +908,33 @@ router.patch(
     if (updateData.regionId !== undefined)
       schoolUpdateData.regionId = updateData.regionId;
     if (updateData.certificateLink !== undefined)
-      schoolUpdateData.certificateLink = updateData.certificateLink;
+      schoolUpdateData.certificateLink = emptyToNull(
+        updateData.certificateLink,
+      );
+    if (updateData.gstNumber !== undefined)
+      schoolUpdateData.gstNumber = updateData.gstNumber;
+    if (updateData.principalName !== undefined)
+      schoolUpdateData.principalName = updateData.principalName;
+    if (updateData.principalEmail !== undefined)
+      schoolUpdateData.principalEmail = updateData.principalEmail;
+    if (updateData.principalPhone !== undefined)
+      schoolUpdateData.principalPhone = updateData.principalPhone;
+    if (updateData.establishedYear !== undefined)
+      schoolUpdateData.establishedYear = updateData.establishedYear;
+    if (updateData.boardAffiliation !== undefined)
+      schoolUpdateData.boardAffiliation = updateData.boardAffiliation;
+    if (updateData.studentStrength !== undefined)
+      schoolUpdateData.studentStrength = updateData.studentStrength;
+    if (updateData.bankName !== undefined)
+      schoolUpdateData.bankName = updateData.bankName;
+    if (updateData.bankAccountNumber !== undefined)
+      schoolUpdateData.bankAccountNumber = updateData.bankAccountNumber;
+    if (updateData.bankIfscCode !== undefined)
+      schoolUpdateData.bankIfscCode = updateData.bankIfscCode;
+    if (updateData.bankBranchName !== undefined)
+      schoolUpdateData.bankBranchName = updateData.bankBranchName;
+    if (updateData.upiId !== undefined)
+      schoolUpdateData.upiId = updateData.upiId;
 
     schoolUpdateData.updatedBy = currentUser.id;
 

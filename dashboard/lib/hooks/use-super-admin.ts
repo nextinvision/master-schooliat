@@ -123,13 +123,15 @@ export function useSendSchoolAdminWelcome() {
 
 export function useUpdateSchool() {
   const queryClient = useQueryClient();
-  type Vars = { id: string } & Partial<CreateSchoolData>;
-  return useMutation<unknown, Error, Vars>({
+  return useMutation<unknown, Error, { id: string } & SuperAdminSchoolPatchRequest>({
     mutationFn: ({ id, ...formData }) =>
       patch(`/schools/${id}`, { request: formData }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["schools"] });
       queryClient.invalidateQueries({ queryKey: ["school", variables.id] });
+      queryClient.invalidateQueries({
+        queryKey: ["schoolById", variables.id],
+      });
       queryClient.invalidateQueries({
         queryKey: ["schoolMasterOverview", variables.id],
       });
@@ -503,15 +505,26 @@ export interface CreateSchoolData {
   principalName?: string;
   principalEmail?: string;
   principalPhone?: string;
-  establishedYear?: string;
+  establishedYear?: string | number;
   boardAffiliation?: string;
-  studentStrength?: string;
+  studentStrength?: string | number;
   certificateLink?: string;
   bankName?: string;
   bankAccountNumber?: string;
   bankIfscCode?: string;
   bankBranchName?: string;
+  upiId?: string;
 }
+
+/** Super-admin PATCH /schools/:id — same writable fields as create, all optional except id; null clears nullable columns. */
+export type SuperAdminSchoolPatchRequest = Partial<
+  Omit<CreateSchoolData, "regionId" | "establishedYear" | "studentStrength">
+> & {
+  regionId?: string | null;
+  establishedYear?: string | number | null;
+  studentStrength?: string | number | null;
+  upiId?: string | null;
+};
 
 export interface Employee {
   id: string;

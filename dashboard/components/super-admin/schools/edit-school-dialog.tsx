@@ -86,7 +86,10 @@ export function EditSchoolDialog({ school, isOpen, onOpenChange }: EditSchoolDia
             await updateSchool.mutateAsync({
                 id: school.id,
                 ...formData,
-                regionId: formData.regionId === null ? undefined : formData.regionId,
+                regionId:
+                    formData.regionId === null || formData.regionId === ""
+                        ? null
+                        : formData.regionId,
             });
             toast({
                 title: "Success",

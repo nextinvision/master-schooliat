@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { optionalNullableHttpUrl } from "./optional-http-url.schema.js";
 
 const updateMySchoolSchema = z.object({
   request: z
@@ -11,7 +12,7 @@ const updateMySchoolSchema = z.object({
         .array(z.string().trim().min(1, "Address line cannot be empty"))
         .min(1, "At least one address line is required")
         .optional(),
-      certificateLink: z.string().trim().url("Invalid URL").optional().nullable(),
+      certificateLink: optionalNullableHttpUrl("Invalid URL"),
       gstNumber: z.string().trim().optional().nullable(),
       principalName: z.string().trim().optional().nullable(),
       principalEmail: z.string().trim().email("Invalid email").optional().nullable(),
