@@ -257,28 +257,42 @@ router.get(
   async (req, res) => {
     const { search, regionId } = req.query;
 
-    const where = {
+    const baseWhere = {
       deletedAt: null,
+      deletedBy: null,
     };
 
+    let regionClause = null;
+    if (regionId) {
+      const defaultRegionId = await getDefaultSchoolRegionIdForNewSchool(prisma);
+      if (defaultRegionId && regionId === defaultRegionId) {
+        regionClause = {
+          OR: [{ regionId }, { regionId: null }],
+        };
+      } else {
+        regionClause = { regionId };
+      }
+    }
+
+    const where = { ...baseWhere };
+
     if (search) {
-      where.OR = [
+      const searchOr = [
         { name: { contains: search, mode: "insensitive" } },
         { code: { contains: search, mode: "insensitive" } },
         { email: { contains: search, mode: "insensitive" } },
       ];
-    }
-
-    if (regionId) {
-      where.regionId = regionId;
+      if (regionClause) {
+        where.AND = [{ OR: searchOr }, regionClause];
+      } else {
+        where.OR = searchOr;
+      }
+    } else if (regionClause) {
+      Object.assign(where, regionClause);
     }
 
     const schools = await prisma.school.findMany({
-      where: {
-        ...where,
-        deletedAt: null,
-        deletedBy: null,
-      },
+      where,
       select: {
         id: true,
         name: true,

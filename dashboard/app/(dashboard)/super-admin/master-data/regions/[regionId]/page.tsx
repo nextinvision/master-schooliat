@@ -13,7 +13,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, ChevronRight, Search, Users } from "lucide-react";
+import { AlertCircle, ArrowLeft, ChevronRight, Search, Users } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   useRegions,
   useSchools,
@@ -35,7 +36,13 @@ export default function MasterDataRegionSchoolsPage({
   const [searchQuery, setSearchQuery] = useState("");
 
   const { data: regionsRes, isLoading: regionsLoading } = useRegions();
-  const { data: schoolsRes, isLoading: schoolsLoading } = useSchools({
+  const {
+    data: schoolsRes,
+    isLoading: schoolsLoading,
+    isError: schoolsError,
+    error: schoolsErr,
+    refetch: refetchSchools,
+  } = useSchools({
     regionId,
   });
 
@@ -56,6 +63,8 @@ export default function MasterDataRegionSchoolsPage({
   }, [schools, searchQuery]);
 
   const loading = regionsLoading || schoolsLoading;
+  const schoolsErrMessage =
+    schoolsErr instanceof Error ? schoolsErr.message : "Something went wrong.";
 
   return (
     <div className="flex-1 space-y-6 p-4 md:p-8 pt-6">
@@ -77,6 +86,21 @@ export default function MasterDataRegionSchoolsPage({
         </p>
       </div>
 
+      {schoolsError ? (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Could not load schools</AlertTitle>
+          <AlertDescription className="flex flex-col gap-3 pt-1">
+            <p>{schoolsErrMessage}</p>
+            <div>
+              <Button variant="outline" size="sm" onClick={() => refetchSchools()}>
+                Try again
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+
       <Card>
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <CardTitle>Schools in region</CardTitle>
@@ -91,7 +115,11 @@ export default function MasterDataRegionSchoolsPage({
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
+          {schoolsError ? (
+            <p className="py-6 text-center text-muted-foreground text-sm">
+              Fix the error above to load the school list.
+            </p>
+          ) : loading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />
@@ -100,7 +128,7 @@ export default function MasterDataRegionSchoolsPage({
           ) : filtered.length === 0 ? (
             <p className="py-10 text-center text-muted-foreground">
               {schools.length === 0
-                ? "No schools are linked to this region yet."
+                ? "No schools are assigned to this region. Schools without a region appear together with your platform default region (usually “General”—the same bucket used for new schools when no region is chosen)."
                 : "No schools match your search."}
             </p>
           ) : (
