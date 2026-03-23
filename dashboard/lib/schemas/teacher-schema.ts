@@ -27,9 +27,10 @@ export interface AddTeacherFormData {
   publicUserId?: string;
 }
 
-export interface EditTeacherFormData extends AddTeacherFormData {
-  dateOfBirth: string; // Legacy field name in some places
-}
+/** Edit form uses `dateOfBirth` (yyyy-MM-dd); add flow uses `dob`. */
+export type EditTeacherFormData = Omit<AddTeacherFormData, "dob"> & {
+  dateOfBirth: string;
+};
 
 // Base schema for common fields
 const baseTeacherSchema = z.object({
@@ -91,10 +92,13 @@ export const addTeacherSchema = baseTeacherSchema.extend({
   subjects: z.string().min(1, "Subjects are required").trim(),
 });
 
-// Schema for editing a teacher (inherits from addTeacherSchema and adds dateOfBirth)
-export const editTeacherSchema = addTeacherSchema.extend({
-  dateOfBirth: z.string().default(""), // Legacy field name in some places
-});
+// Edit flow: same as add but swap `dob` for `dateOfBirth` (the edit page binds `dateOfBirth` only).
+// Without `.omit({ dob })`, validation always failed because `dob` was never submitted.
+export const editTeacherSchema = addTeacherSchema
+  .omit({ dob: true })
+  .extend({
+    dateOfBirth: z.string().min(1, "Date of birth is required"),
+  });
 
 // Apply explicit types for consistency
 export const addTeacherSchemaWithRefinement: z.ZodType<AddTeacherFormData, any, any> = addTeacherSchema.refine(

@@ -312,8 +312,16 @@ router.patch(
           request.highestQualification?.trim() || null;
       if (request.university !== undefined)
         profileUpdateData.university = request.university?.trim() || null;
-      if (request.yearOfPassing !== undefined)
-        profileUpdateData.yearOfPassing = request.yearOfPassing || null;
+      if (request.yearOfPassing !== undefined) {
+        const raw = request.yearOfPassing;
+        if (raw === null || raw === "") {
+          profileUpdateData.yearOfPassing = null;
+        } else {
+          const n =
+            typeof raw === "number" ? raw : parseInt(String(raw).trim(), 10);
+          profileUpdateData.yearOfPassing = Number.isFinite(n) ? n : null;
+        }
+      }
       if (request.grade !== undefined)
         profileUpdateData.grade = request.grade?.trim() || null;
       if (request.transportId !== undefined)

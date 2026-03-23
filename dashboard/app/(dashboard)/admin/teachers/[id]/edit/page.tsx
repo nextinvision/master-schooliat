@@ -178,18 +178,22 @@ export default function EditTeacherPage() {
           title="Edit Teacher"
           onCancel={() => router.push("/admin/teachers")}
           onReset={() => reset()}
-          onSave={handleSubmit(onSubmit, (err) => {
+          submitFormId="edit-teacher-form"
+          saveLabel="Update"
+          isSaving={isSaving}
+        />
+
+        <form
+          id="edit-teacher-form"
+          onSubmit={handleSubmit(onSubmit, (err) => {
             const keys = Object.keys(err);
             if (keys.length > 0) {
               const first = (err as any)[keys[0]];
               toast.error(`Please fix: ${first?.message || "Validation error"}`);
             }
           })}
-          saveLabel="Update"
-          isSaving={isSaving}
-        />
-
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          className="space-y-6"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Basic Information */}
             <FormCard title="Basic Information">

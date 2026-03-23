@@ -76,6 +76,11 @@ function updateTeacherApi(id: string, form: any) {
       transportId:
         form.transportMode === "Transport" ? form.transportId ?? null : null,
       registrationPhotoId: form.registrationPhotoId || null,
+      ...(form.basicSalary !== undefined &&
+      form.basicSalary !== null &&
+      !Number.isNaN(form.basicSalary)
+        ? { basicSalary: form.basicSalary }
+        : {}),
     },
   };
   return patch(`/users/teachers/${id}`, payload);
