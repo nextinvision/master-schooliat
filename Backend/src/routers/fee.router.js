@@ -944,14 +944,8 @@ router.patch(
   validateRequest(recordPaymentSchema),
   async (req, res) => {
     const { id } = req.params;
-    const { amount, paymentMethod, isWaiver, transactionId, remarks, otp } = req.body.request;
+    const { amount, paymentMethod, isWaiver, transactionId, remarks } = req.body.request;
     const currentUser = req.context.user;
-
-    // Verify OTP
-    const otpVerification = await otpService.verifyOTP(currentUser.email, otp, "fee-payment");
-    if (!otpVerification.valid) {
-      return res.status(400).json({ message: otpVerification.message });
-    }
 
     if (!currentUser.schoolId) {
       return res

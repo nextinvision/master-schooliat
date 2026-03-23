@@ -53,10 +53,9 @@ function recordPaymentApi(
   isWaiver?: boolean,
   transactionId?: string,
   remarks?: string,
-  otp?: string
 ) {
   return patch(`/fees/installments/${installmentId}/payment`, {
-    request: { amount, paymentMethod, isWaiver, transactionId, remarks, otp },
+    request: { amount, paymentMethod, isWaiver, transactionId, remarks },
   });
 }
 
@@ -131,7 +130,6 @@ export function useRecordPayment() {
       isWaiver,
       transactionId,
       remarks,
-      otp,
     }: {
       installmentId: string;
       amount?: number;
@@ -139,8 +137,7 @@ export function useRecordPayment() {
       isWaiver?: boolean;
       transactionId?: string;
       remarks?: string;
-      otp?: string;
-    }) => recordPaymentApi(installmentId, amount, paymentMethod, isWaiver, transactionId, remarks, otp),
+    }) => recordPaymentApi(installmentId, amount, paymentMethod, isWaiver, transactionId, remarks),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fees", "installments"] });
       queryClient.invalidateQueries({ queryKey: ["fees", "student"] });

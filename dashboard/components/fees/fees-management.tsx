@@ -234,7 +234,6 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
         isWaiver: data.isWaiver,
         transactionId: data.transactionId,
         remarks: data.remarks,
-        otp: data.otp,
       });
       handleClosePaymentModal();
       refetch();
@@ -416,7 +415,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
             <CardContent className="text-sm text-muted-foreground space-y-3">
               <p>
                 Use the <strong className="text-foreground">Academic year</strong> control (in filters below) so this list matches the rest of the portal (navbar). Then find the student row and click{" "}
-                <strong className="text-foreground">Record payment</strong> (₹). You will verify with an email OTP. Receipts and ledger entries are created automatically.
+                <strong className="text-foreground">Record payment</strong> (₹). Receipts and ledger entries are created automatically.
               </p>
               <p>
                 Switch to <strong className="text-foreground">Transaction ledger</strong> for the full school-wide audit trail (payments, waivers, cancellations).

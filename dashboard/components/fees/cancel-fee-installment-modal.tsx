@@ -96,7 +96,7 @@ export function CancelFeeInstallmentModal({
         </DialogHeader>
         <div className="space-y-4 py-2">
           <p className="text-sm text-muted-foreground">
-            Cancelling reverses recorded payments on this row for totals and marks the installment as cancelled. OTP is required (same as recording payments).
+            Cancelling reverses recorded payments on this row for totals and marks the installment as cancelled. OTP verification is required to confirm cancellation.
           </p>
           <div className="space-y-2">
             <Label htmlFor="cancel-reason">Reason (optional)</Label>

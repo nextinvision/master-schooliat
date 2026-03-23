@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,19 +16,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import { useRequestOTP } from "@/lib/hooks/use-fees";
-import { useToast } from "@/hooks/use-toast";
-
-function formatCurrency(num: number | string | null | undefined): string {
-  return `₹${Number(num || 0).toLocaleString("en-IN")}`;
-}
-
 interface PaymentModalProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (data: PaymentFormData) => Promise<void>;
   installment: any;
   isSubmitting: boolean;
+}
+
+function formatCurrency(num: number | string | null | undefined): string {
+  return `₹${Number(num || 0).toLocaleString("en-IN")}`;
 }
 
 export function PaymentModal({
@@ -39,10 +35,6 @@ export function PaymentModal({
   installment,
   isSubmitting,
 }: PaymentModalProps) {
-  const { toast } = useToast();
-  const requestOTP = useRequestOTP();
-  const [otpRequested, setOtpRequested] = useState(false);
-
   const {
     register,
     handleSubmit,
@@ -55,41 +47,16 @@ export function PaymentModal({
     defaultValues: {
       amount: 0,
       isWaiver: false,
-      otp: "",
     },
   });
 
   const isWaiver = watch("isWaiver");
 
-  const [otpEmail, setOtpEmail] = useState<string | null>(null);
-
-  const handleRequestOTP = async () => {
-    try {
-      const res = await requestOTP.mutateAsync();
-      setOtpRequested(true);
-      const email = res?.data?.email || res?.email || null;
-      setOtpEmail(email);
-      toast({
-        title: "OTP Sent",
-        description: email
-          ? `A 6-digit verification code has been sent to ${email}`
-          : "Verification code has been sent to your registered email.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send OTP",
-        variant: "destructive",
-      });
-    }
-  };
-
   const onFormSubmit = async (data: PaymentFormData) => {
     try {
       await onSubmit(data);
       reset();
-      setOtpRequested(false);
-    } catch (error) {
+    } catch {
       // Error handling is done in parent
     }
   };
@@ -183,52 +150,16 @@ export function PaymentModal({
             </div>
           </div>
 
-          <div className="pt-4 border-t space-y-4">
-            <div className="flex flex-col space-y-2">
-              <Label htmlFor="otp">Fee Payment Verification (Mandatory)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="otp"
-                  {...register("otp")}
-                  placeholder="Enter 6-digit OTP"
-                  className={`flex-1 ${errors.otp ? "border-red-500" : ""}`}
-                  maxLength={6}
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleRequestOTP}
-                  disabled={requestOTP.isPending}
-                >
-                  {requestOTP.isPending ? "Sending..." : otpRequested ? "Resend OTP" : "Get OTP"}
-                </Button>
-              </div>
-              {errors.otp && (
-                <p className="text-sm text-red-500">{errors.otp.message}</p>
-              )}
-              {otpRequested && otpEmail && (
-                <p className="text-xs text-muted-foreground">
-                  OTP sent to <strong>{otpEmail}</strong>. Valid for 10 minutes.
-                </p>
-              )}
-              {otpRequested && !otpEmail && (
-                <p className="text-xs text-muted-foreground">
-                  OTP sent to your registered email. Valid for 10 minutes.
-                </p>
-              )}
-              {!otpRequested && (
-                <p className="text-xs text-muted-foreground">
-                  Click &quot;Get OTP&quot; to receive a verification code on your registered email for recording this fee payment.
-                </p>
-              )}
-            </div>
-
+          <div className="pt-4 border-t flex flex-col gap-2">
+            <p className="text-xs text-muted-foreground">
+              Receipts and ledger entries are created automatically when you record a payment.
+            </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={isSubmitting || !otpRequested}>
-                {isSubmitting ? "Recording..." : "Verify & Record Payment"}
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? "Recording..." : "Record payment"}
               </Button>
             </div>
           </div>
@@ -237,4 +168,3 @@ export function PaymentModal({
     </Dialog>
   );
 }
-
