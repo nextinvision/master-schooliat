@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
     useSubjects,
     useCreateSubject,
@@ -49,7 +49,15 @@ export default function SubjectsPage() {
     const [code, setCode] = useState("");
     const [description, setDescription] = useState("");
 
-    const subjects = data?.data || [];
+    const subjects = useMemo(() => {
+        const list = data?.data ?? [];
+        return [...list].sort((a, b) =>
+            String(a?.name ?? "").localeCompare(String(b?.name ?? ""), undefined, {
+                sensitivity: "base",
+                numeric: true,
+            }),
+        );
+    }, [data?.data]);
     const totalPages = data?.pagination?.totalPages || 1;
 
     const openAddDialog = () => {

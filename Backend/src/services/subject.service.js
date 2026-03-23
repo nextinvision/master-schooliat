@@ -21,12 +21,28 @@ const getSubjects = async (schoolId, options = {}) => {
 
     console.time("getSubjects-queries");
     const [subjects, total] = await Promise.all([
-        prisma.subject.findMany({
-            where,
-            skip,
-            take: limitNumber,
-            orderBy: { name: "asc" },
-        }),
+        // Alphabetical by display name: case-insensitive, trim leading/trailing spaces in sort key.
+        // Stable tie-breaker on id so pagination is deterministic.
+        prisma.$queryRaw`
+          SELECT
+            s.id,
+            s.name,
+            s.code,
+            s.description,
+            s.school_id AS "schoolId",
+            s.created_by AS "createdBy",
+            s.updated_by AS "updatedBy",
+            s.deleted_by AS "deletedBy",
+            s.created_at AS "createdAt",
+            s.updated_at AS "updatedAt",
+            s.deleted_at AS "deletedAt"
+          FROM subjects s
+          WHERE s.school_id = ${schoolId}::uuid
+            AND s.deleted_at IS NULL
+          ORDER BY LOWER(TRIM(s.name)) ASC, s.id ASC
+          LIMIT ${limitNumber}
+          OFFSET ${skip}
+        `,
         prisma.subject.count({ where }),
     ]);
     console.timeEnd("getSubjects-queries");
