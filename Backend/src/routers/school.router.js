@@ -38,20 +38,22 @@ function emptyToNull(v) {
 
 /**
  * Build Prisma where for GET /schools/classes (filters combine with AND; search ORs grade/division/teacher).
+ * Grade and division filters use exact match (case-insensitive): the admin UI sends discrete values from meta,
+ * and substring matching (contains) incorrectly matches e.g. grade "1" to "10", "11", "12".
  */
 async function buildClassesListWhere(schoolId, query) {
   const and = [];
 
   const grade = typeof query.grade === "string" ? query.grade.trim() : "";
   if (grade) {
-    and.push({ grade: { contains: grade, mode: "insensitive" } });
+    and.push({ grade: { equals: grade, mode: "insensitive" } });
   }
 
   const division = typeof query.division === "string" ? query.division.trim() : "";
   if (division === "__NULL__") {
     and.push({ division: null });
   } else if (division) {
-    and.push({ division: { contains: division, mode: "insensitive" } });
+    and.push({ division: { equals: division, mode: "insensitive" } });
   }
 
   if (query.classTeacherId) {
