@@ -206,6 +206,61 @@ const getEmployeeById = async (id) => {
   });
 };
 
+/** Display label for a class row (aligned with dashboard classes list). */
+function formatClassTeacherLabel(cls) {
+  const grade = cls?.grade != null ? String(cls.grade).trim() : "";
+  const div = cls?.division != null ? String(cls.division).trim() : "";
+  if (!grade && !div) return "";
+  return div ? `${grade} ${div}` : grade;
+}
+
+/**
+ * Classes assign a "class teacher" via `classes.class_teacher_id` → User.id.
+ * TeacherProfile has no class assignment field; list/detail must derive this from Class rows.
+ */
+const attachClassTeacherAssignments = async (users, schoolId) => {
+  if (!Array.isArray(users) || users.length === 0 || !schoolId) return users;
+
+  const teacherIds = users.map((u) => u?.id).filter(Boolean);
+  if (teacherIds.length === 0) return users;
+
+  const classes = await prisma.class.findMany({
+    where: {
+      schoolId,
+      deletedAt: null,
+      deletedBy: null,
+      classTeacherId: { in: teacherIds },
+    },
+    select: { id: true, grade: true, division: true, classTeacherId: true },
+  });
+
+  const byTeacher = new Map();
+  for (const row of classes) {
+    if (!row.classTeacherId) continue;
+    const label = formatClassTeacherLabel(row);
+    if (!byTeacher.has(row.classTeacherId)) {
+      byTeacher.set(row.classTeacherId, []);
+    }
+    byTeacher.get(row.classTeacherId).push({
+      id: row.id,
+      label: label || row.id,
+    });
+  }
+
+  for (const user of users) {
+    if (!user) continue;
+    const pairs = byTeacher.get(user.id) || [];
+    pairs.sort((a, b) => String(a.label).localeCompare(String(b.label)));
+    const assignedClasses = pairs.map((p) => p.label);
+    const assignedClassIds = pairs.map((p) => p.id);
+    user.assignedClassIds = assignedClassIds;
+    user.assignedClasses = assignedClasses;
+    user.class = assignedClasses.length > 0 ? assignedClasses.join(", ") : null;
+  }
+
+  return users;
+};
+
 const attachFileURLs = async (users) => {
   // Handle both array and single user
   if (users.length === 0) return users;
@@ -246,6 +301,7 @@ const userService = {
   getEmployeeSelect,
   getEmployeeById,
   attachFileURLs,
+  attachClassTeacherAssignments,
 };
 
 export default userService;

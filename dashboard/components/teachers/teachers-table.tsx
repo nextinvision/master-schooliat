@@ -340,7 +340,12 @@ export function TeachersTable({
                         </div>
                       </TableCell>
                       <TableCell>{teacher.publicUserId || "N/A"}</TableCell>
-                      <TableCell>{teacher.class || "N/A"}</TableCell>
+                      <TableCell>
+                        {teacher.class ||
+                          (teacher.assignedClasses?.length
+                            ? teacher.assignedClasses.join(", ")
+                            : "N/A")}
+                      </TableCell>
                       <TableCell>
                         {teacher.subjects ?? teacher.teacherProfile?.subjects ?? "N/A"}
                       </TableCell>

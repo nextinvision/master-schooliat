@@ -295,8 +295,12 @@ router.post(
         });
       }
 
-      // Attach file URLs
+      // Attach file URLs + class-teacher assignments (usually empty right after create)
       const usersWithUrls = await userService.attachFileURLs([user]);
+      await userService.attachClassTeacherAssignments(
+        usersWithUrls,
+        currentUser.schoolId,
+      );
 
       return res.status(201).json({
         message: "Teacher created!",
@@ -367,8 +371,12 @@ router.get(
 
       const totalCount = await prisma.user.count({ where });
 
-      // Attach file URLs
+      // Attach file URLs + classes where this user is assigned as class teacher (classes.class_teacher_id)
       const teachersWithUrls = await userService.attachFileURLs(teachers);
+      await userService.attachClassTeacherAssignments(
+        teachersWithUrls,
+        currentUser.schoolId,
+      );
 
       const totalPages = Math.ceil(totalCount / pageSize);
       const hasNext = pageNumber < totalPages;
@@ -415,8 +423,12 @@ router.get(
         return res.status(404).json({ message: "Teacher not found!" });
       }
 
-      // Attach file URLs
+      // Attach file URLs + class-teacher assignments from Class rows
       const teachersWithUrls = await userService.attachFileURLs([teacher]);
+      await userService.attachClassTeacherAssignments(
+        teachersWithUrls,
+        currentUser.schoolId,
+      );
 
       return res.json({
         message: "Teacher fetched!",
@@ -531,8 +543,12 @@ router.patch(
         select: userService.getTeacherSelect(),
       });
 
-      // Attach file URLs
+      // Attach file URLs + class-teacher assignments
       const usersWithUrls = await userService.attachFileURLs([refreshed]);
+      await userService.attachClassTeacherAssignments(
+        usersWithUrls,
+        currentUser.schoolId,
+      );
 
       return res.json({
         message: "Teacher updated!",

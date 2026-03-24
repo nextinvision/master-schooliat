@@ -281,6 +281,9 @@ export function useCreateClasses() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["classes"] });
       queryClient.invalidateQueries({ queryKey: ["class"] });
+      // Class teacher assignments live on Class rows; teacher list/detail read them via GET /users/teachers
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher"] });
     },
   });
 }
@@ -297,6 +300,8 @@ export function useDeleteClass() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["classes"] });
       queryClient.invalidateQueries({ queryKey: ["class"] });
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher"] });
     },
   });
 }
