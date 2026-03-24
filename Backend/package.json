@@ -24,6 +24,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy --schema=src/prisma/db/schema.prisma",
     "prisma:format": "prisma format --schema=src/prisma/db/schema.prisma",
     "seed": "node prisma/seed-run.js",
+    "bootstrap:essential": "node scripts/bootstrap-essential-data.js",
     "seed:mobile-credentials": "node scripts/seed-mobile-credentials.js",
     "reset:mobile-passwords": "node scripts/reset-mobile-login-passwords.js",
     "reset:school-admin-passwords": "node scripts/reset-school-admin-passwords.js",

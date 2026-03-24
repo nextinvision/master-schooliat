@@ -95,6 +95,38 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
                 </div>
               </div>
 
+              {fees.fee?.feeComponents &&
+              Array.isArray(fees.fee.feeComponents) &&
+              fees.fee.feeComponents.length > 0 ? (
+                <div className="border rounded-lg p-4">
+                  <h3 className="font-semibold mb-2">Annual fee structure (plan snapshot)</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Plan total {formatCurrency(fees.fee.totalAmount)} — breakdown at the time this fee
+                    plan was created.
+                  </p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Component</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(fees.fee.feeComponents as { label?: string; amount?: number }[]).map(
+                        (row, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-sm">{String(row.label ?? "—")}</TableCell>
+                            <TableCell className="text-right tabular-nums text-sm">
+                              {formatCurrency(row.amount)}
+                            </TableCell>
+                          </TableRow>
+                        ),
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : null}
+
               <Tabs defaultValue="installments">
                 <TabsList className="grid w-full max-w-md grid-cols-2">
                   <TabsTrigger value="installments">Installments</TabsTrigger>

@@ -30,6 +30,13 @@ import sendSchoolAdminWelcomeSchema from "../schemas/school/send-school-admin-we
 import { getSchoolMasterOverview } from "../services/school-master-overview.service.js";
 import { getDefaultSchoolRegionIdForNewSchool } from "../services/school-region-reconciliation.service.js";
 
+/** Empty array or null clears class-level fee breakdown in DB. */
+function coerceDefaultFeeComponents(v) {
+  if (v == null) return null;
+  if (Array.isArray(v) && v.length === 0) return null;
+  return v;
+}
+
 function emptyToNull(v) {
   if (v === undefined || v === null) return null;
   const s = String(v).trim();
@@ -384,9 +391,10 @@ router.get(
   withPermission(Permission.GET_CLASSES),
   validateRequest(getClassesSchema),
   async (req, res) => {
-    const currentUser = req.context.user;
-    const schoolId = currentUser.schoolId;
-    const q = req.query;
+    try {
+      const currentUser = req.context.user;
+      const schoolId = currentUser.schoolId;
+      const q = req.query;
 
     const pageNumber = Math.max(1, parseInt(q.pageNumber, 10) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(q.pageSize, 10) || 15));
@@ -412,26 +420,79 @@ router.get(
 
     const baseSchoolWhere = { schoolId, deletedAt: null, deletedBy: null };
 
-    const [classes, totalCount, gradeRows, divisionRows] = await Promise.all([
-      prisma.class.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy,
-      }),
-      prisma.class.count({ where }),
-      prisma.class.findMany({
-        where: baseSchoolWhere,
-        distinct: ["grade"],
-        select: { grade: true },
-        orderBy: { grade: "asc" },
-      }),
-      prisma.class.findMany({
-        where: baseSchoolWhere,
-        distinct: ["division"],
-        select: { division: true },
-      }),
-    ]);
+    let classes = [];
+    let totalCount = 0;
+    let gradeRows = [];
+    let divisionRows = [];
+    try {
+      [classes, totalCount, gradeRows, divisionRows] = await Promise.all([
+        prisma.class.findMany({
+          where,
+          skip,
+          take: pageSize,
+          orderBy,
+        }),
+        prisma.class.count({ where }),
+        prisma.class.findMany({
+          where: baseSchoolWhere,
+          distinct: ["grade"],
+          select: { grade: true },
+          orderBy: { grade: "asc" },
+        }),
+        prisma.class.findMany({
+          where: baseSchoolWhere,
+          distinct: ["division"],
+          select: { division: true },
+        }),
+      ]);
+    } catch (error) {
+      const maybeMissingNewColumn =
+        error?.code === "P2022" ||
+        String(error?.message || "").includes("default_fee_components");
+      if (!maybeMissingNewColumn) {
+        throw error;
+      }
+      logger.warn(
+        { err: error, schoolId },
+        "Class list query failed on new fee-components column. Falling back to legacy projection.",
+      );
+      [classes, totalCount, gradeRows, divisionRows] = await Promise.all([
+        prisma.class.findMany({
+          where,
+          skip,
+          take: pageSize,
+          orderBy,
+          select: {
+            id: true,
+            grade: true,
+            division: true,
+            defaultAnnualFee: true,
+            defaultMonthlyFee: true,
+            schoolId: true,
+            classTeacherId: true,
+            createdBy: true,
+            updatedBy: true,
+            deletedBy: true,
+            createdAt: true,
+            updatedAt: true,
+            deletedAt: true,
+          },
+        }),
+        prisma.class.count({ where }),
+        prisma.class.findMany({
+          where: baseSchoolWhere,
+          distinct: ["grade"],
+          select: { grade: true },
+          orderBy: { grade: "asc" },
+        }),
+        prisma.class.findMany({
+          where: baseSchoolWhere,
+          distinct: ["division"],
+          select: { division: true },
+        }),
+      ]);
+      classes = classes.map((c) => ({ ...c, defaultFeeComponents: null }));
+    }
 
     const classTeacherIds = classes
       .map((cls) => cls.classTeacherId)
@@ -479,16 +540,23 @@ router.get(
         return String(a).localeCompare(String(b), undefined, { numeric: true });
       });
 
-    return res.json({
-      message: "Classes fetched!",
-      data: classesWithTeachers,
-      totalPages,
-      hasNext,
-      meta: {
-        grades: gradeRows.map((r) => r.grade),
-        divisions,
-      },
-    });
+      return res.json({
+        message: "Classes fetched!",
+        data: classesWithTeachers,
+        totalPages,
+        hasNext,
+        meta: {
+          grades: gradeRows.map((r) => r.grade),
+          divisions,
+        },
+      });
+    } catch (error) {
+      logger.error({ err: error }, "Failed to fetch classes");
+      return res.status(500).json({
+        message:
+          "Failed to load classes. If this started after a deployment, complete pending database migrations and retry.",
+      });
+    }
   },
 );
 
@@ -812,6 +880,9 @@ router.post(
             classTeacherId: cls.classTeacherId || null,
             defaultAnnualFee: cls.defaultAnnualFee ?? null,
             defaultMonthlyFee: cls.defaultMonthlyFee ?? null,
+            defaultFeeComponents: coerceDefaultFeeComponents(
+              cls.defaultFeeComponents,
+            ),
             schoolId,
             createdBy: currentUser.id,
           })),
@@ -833,6 +904,11 @@ router.post(
         }
         if (cls.defaultMonthlyFee !== undefined) {
           updatePayload.defaultMonthlyFee = cls.defaultMonthlyFee ?? null;
+        }
+        if (cls.defaultFeeComponents !== undefined) {
+          updatePayload.defaultFeeComponents = coerceDefaultFeeComponents(
+            cls.defaultFeeComponents,
+          );
         }
         const updatedClass = await tx.class.update({
           where: { id: cls.id },
@@ -997,6 +1073,10 @@ router.patch(
       classUpdateData.defaultAnnualFee = updateData.defaultAnnualFee ?? null;
     if (updateData.defaultMonthlyFee !== undefined)
       classUpdateData.defaultMonthlyFee = updateData.defaultMonthlyFee ?? null;
+    if (updateData.defaultFeeComponents !== undefined)
+      classUpdateData.defaultFeeComponents = coerceDefaultFeeComponents(
+        updateData.defaultFeeComponents,
+      );
 
     classUpdateData.updatedBy = currentUser.id;
 

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from "react";
 import { useStaffPage } from "@/lib/hooks/use-staff";
-import { useTeachersPage } from "@/lib/hooks/use-teachers";
+import { TEACHERS_MAX_PAGE_SIZE, useTeachersPage } from "@/lib/hooks/use-teachers";
 import { useAttendance, useMarkBulkAttendance } from "@/lib/hooks/use-attendance";
 import { useClassesContext } from "@/lib/context/classes-context";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export default function StaffAttendancePage() {
 
     // Fetch staff & teacher lists (high limit to get all)
     const { data: staffData, isLoading: staffLoading } = useStaffPage(1, 500);
-    const { data: teachersData, isLoading: teachersLoading } = useTeachersPage(1, 500);
+    const { data: teachersData, isLoading: teachersLoading } = useTeachersPage(1, TEACHERS_MAX_PAGE_SIZE);
 
     // Get default class for attendance (required by schema)
     const { classes } = useClassesContext();

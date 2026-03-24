@@ -146,6 +146,8 @@ model Class {
   defaultAnnualFee  Int?          @map("default_annual_fee")
   /// Optional default monthly fee; if set without annual, annual total = monthly × installment count from school settings.
   defaultMonthlyFee Int?          @map("default_monthly_fee")
+  /// Optional breakdown of annual fee (e.g. tuition, transport). Sum is used as annual total when non-empty; overrides defaultAnnualFee.
+  defaultFeeComponents Json?      @map("default_fee_components")
   schoolId       String           @map("school_id")
   classTeacherId String?          @map("class_teacher_id")
   createdBy      String           @map("created_by")
@@ -302,6 +304,8 @@ model TeacherProfile {
   updatedAt            DateTime?   @updatedAt @map("updated_at")
   deletedAt            DateTime?   @map("deleted_at")
   basicSalary          Int?        @map("basic_salary")
+  /// Free-text subjects taught (e.g. "Mathematics, Science") — shown on teacher list and edit form.
+  subjects             String?     @db.Text
   transport            Transport?  @relation(fields: [transportId], references: [id])
   user                 User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -607,6 +611,8 @@ model Fee {
   schoolId             String?   @map("school_id")
   studentId            String?   @map("student_id")
   year                 Int
+  /// Snapshot of fee lines (labels + amounts) when the plan was created, for display in fees management.
+  feeComponents        Json?     @map("fee_components")
   totalAmount          Int       @map("total_amount")
   totalPaidAmount      Int       @map("total_paid_amount")
   totalRemainingAmount Int       @map("total_pending_amount")

@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+const feeComponentRowSchema = z.object({
+  label: z.string().trim().min(1, "Label is required").max(120),
+  amount: z.coerce.number().int().min(0),
+});
+
 const updateClassSchema = z
   .object({
     request: z
@@ -13,6 +18,11 @@ const updateClassSchema = z
           .nullable(),
         defaultAnnualFee: z.coerce.number().int().min(0).optional().nullable(),
         defaultMonthlyFee: z.coerce.number().int().min(0).optional().nullable(),
+        defaultFeeComponents: z
+          .array(feeComponentRowSchema)
+          .max(50)
+          .optional()
+          .nullable(),
       })
       ,
     query: z.object({}),

@@ -194,10 +194,40 @@ export default function ClassDetailPage() {
           <div>
             <p className="text-muted-foreground">Default annual fee</p>
             <p className="font-medium">
-              {classDetail.defaultAnnualFee != null
-                ? `₹${Number(classDetail.defaultAnnualFee).toLocaleString("en-IN")}`
-                : "—"}
+              {(() => {
+                const comps = classDetail.defaultFeeComponents;
+                if (Array.isArray(comps) && comps.length > 0) {
+                  const sum = comps.reduce(
+                    (s: number, c: { amount?: number }) => s + (Number(c.amount) || 0),
+                    0,
+                  );
+                  return (
+                    <span>
+                      ₹{sum.toLocaleString("en-IN")}{" "}
+                      <span className="text-muted-foreground font-normal text-sm">
+                        ({comps.length} line{comps.length === 1 ? "" : "s"})
+                      </span>
+                    </span>
+                  );
+                }
+                return classDetail.defaultAnnualFee != null
+                  ? `₹${Number(classDetail.defaultAnnualFee).toLocaleString("en-IN")}`
+                  : "School default";
+              })()}
             </p>
+            {Array.isArray(classDetail.defaultFeeComponents) &&
+            classDetail.defaultFeeComponents.length > 0 ? (
+              <ul className="mt-2 text-sm text-muted-foreground space-y-1 list-disc pl-4">
+                {classDetail.defaultFeeComponents.map(
+                  (row: { label?: string; amount?: number }, i: number) => (
+                    <li key={i}>
+                      {String(row.label ?? "—")}: ₹
+                      {Number(row.amount ?? 0).toLocaleString("en-IN")}
+                    </li>
+                  ),
+                )}
+              </ul>
+            ) : null}
           </div>
           <div>
             <p className="text-muted-foreground">Default monthly fee</p>

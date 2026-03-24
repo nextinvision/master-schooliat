@@ -131,7 +131,9 @@ export function TeachersTable({
 
   if (selectedSubject !== "All Subjects") {
     filteredTeachers = filteredTeachers.filter((teacher) =>
-      (teacher.subjects || "").toLowerCase().includes(selectedSubject.toLowerCase())
+      (teacher.subjects ?? teacher.teacherProfile?.subjects ?? "")
+        .toLowerCase()
+        .includes(selectedSubject.toLowerCase())
     );
   }
 
@@ -339,7 +341,9 @@ export function TeachersTable({
                       </TableCell>
                       <TableCell>{teacher.publicUserId || "N/A"}</TableCell>
                       <TableCell>{teacher.class || "N/A"}</TableCell>
-                      <TableCell>{teacher.subjects || "N/A"}</TableCell>
+                      <TableCell>
+                        {teacher.subjects ?? teacher.teacherProfile?.subjects ?? "N/A"}
+                      </TableCell>
                       <TableCell>{attendanceDisplay}</TableCell>
                       <TableCell>{teacher.transport || "N/A"}</TableCell>
                       <TableCell>

@@ -22,6 +22,7 @@ import type {
   ClassesListFilters,
   ClassesListMeta,
 } from "@/lib/hooks/use-classes";
+import { getClassAnnualFeeDisplay } from "@/lib/class-fee-structure";
 
 interface ClassesTableProps {
   classes: any[];
@@ -375,8 +376,8 @@ export function ClassesTable({
               ? `${cls.classTeacher.firstName} ${cls.classTeacher.lastName}`
               : "—";
             const label = `${cls.grade}${cls.division ? ` ${cls.division}` : ""}`;
-            const annual =
-              cls.defaultAnnualFee != null ? `₹${Number(cls.defaultAnnualFee).toLocaleString("en-IN")}` : "—";
+            const annualInfo = getClassAnnualFeeDisplay(cls);
+            const annual = annualInfo.primary;
             const monthly =
               cls.defaultMonthlyFee != null ? `₹${Number(cls.defaultMonthlyFee).toLocaleString("en-IN")}` : "—";
             const rowNumber = page * pageSize + index + 1;
@@ -400,6 +401,16 @@ export function ClassesTable({
                     <div>
                       <span className="text-muted-foreground">Default annual</span>
                       <div className="font-medium">{annual}</div>
+                      {annualInfo.lines && annualInfo.lines.length > 0 ? (
+                        <ul className="mt-1 space-y-0.5 text-[11px] text-muted-foreground list-disc pl-3">
+                          {annualInfo.lines.slice(0, 4).map((line, li) => (
+                            <li key={li}>{line}</li>
+                          ))}
+                          {annualInfo.lines.length > 4 ? (
+                            <li>+{annualInfo.lines.length - 4} more</li>
+                          ) : null}
+                        </ul>
+                      ) : null}
                     </div>
                     <div>
                       <span className="text-muted-foreground">Default monthly</span>

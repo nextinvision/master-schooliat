@@ -69,8 +69,7 @@ import emergencyContactRouter from "./routers/emergency-contact.router.js";
 import subjectRouter from "./routers/subject.router.js";
 import inventoryRouter from "./routers/inventory.router.js";
 import courierRouter from "./routers/courier.router.js";
-import roleService from "./services/role.service.js";
-import userService from "./services/user.service.js";
+import bootstrapDataService from "./services/bootstrap-data.service.js";
 import logRequestStart from "./middlewares/log-request-start.middleware.js";
 import templateLoaderService from "./services/template-loader.service.js";
 import auditMiddleware from "./middlewares/audit.middleware.js";
@@ -291,10 +290,7 @@ function addRouters(app) {
 
 async function setupData() {
   try {
-    await roleService.createDefaultRoles();
-    // Update existing roles with latest permissions
-    await roleService.updateRolePermissions();
-    await userService.createSuperAdmin();
+    await bootstrapDataService.ensureBaselineData();
     // Template loading is optional - server will work without it
     // Templates can be loaded later when Puppeteer is available
     await templateLoaderService.loadAllTemplates();

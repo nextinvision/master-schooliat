@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useBookById, useIssueBook } from "@/lib/hooks/use-library";
 import { useStudents } from "@/lib/hooks/use-students";
-import { useTeachersPage } from "@/lib/hooks/use-teachers";
+import { TEACHERS_MAX_PAGE_SIZE, useTeachersPage } from "@/lib/hooks/use-teachers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +37,7 @@ export default function LibraryIssuePage() {
 
   const { data: bookData, isLoading: bookLoading, error: bookError } = useBookById(bookId);
   const { data: studentsRes } = useStudents({ page: 1, limit: 500 });
-  const { data: teachersRes } = useTeachersPage(1, 500);
+  const { data: teachersRes } = useTeachersPage(1, TEACHERS_MAX_PAGE_SIZE);
 
   const issueBook = useIssueBook();
   const book = bookData?.data;

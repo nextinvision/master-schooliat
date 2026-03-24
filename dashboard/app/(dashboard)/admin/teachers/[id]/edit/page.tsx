@@ -119,7 +119,7 @@ export default function EditTeacherPage() {
       transportMode: teacher.transportId == null ? "Non Transport" : "Transport",
       transportId: teacher.transportId || "",
       registrationPhotoId: teacher.registrationPhotoId || null,
-      subjects: teacher.subjects || "",
+      subjects: teacher.subjects ?? teacher.teacherProfile?.subjects ?? "",
       aadhaarId: teacher.aadhaarId || "",
       panCardNumber: teacher.panCardNumber || "",
       basicSalary: teacher.teacherProfile?.basicSalary || undefined,

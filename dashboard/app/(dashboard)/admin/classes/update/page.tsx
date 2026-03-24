@@ -6,7 +6,7 @@ import { FormTopBar } from "@/components/forms/form-top-bar";
 import { FormCard } from "@/components/forms/form-card";
 import { ClassFormTable } from "@/components/classes/class-form-table";
 import { useAllClasses, useCreateClasses } from "@/lib/hooks/use-classes";
-import { useTeachersPage } from "@/lib/hooks/use-teachers";
+import { TEACHERS_MAX_PAGE_SIZE, useTeachersPage } from "@/lib/hooks/use-teachers";
 import { ClassItem, classesSchema } from "@/lib/schemas/class-schema";
 import { toast } from "sonner";
 import {
@@ -32,7 +32,10 @@ export default function UpdateClassesPage() {
   const allClasses = useMemo(() => apiClassRows ?? [], [apiClassRows]);
 
   // Fetch teachers
-  const { data: teachersData, isLoading: isLoadingTeachers } = useTeachersPage(1, 1000);
+  const { data: teachersData, isLoading: isLoadingTeachers } = useTeachersPage(
+    1,
+    TEACHERS_MAX_PAGE_SIZE,
+  );
   const teachers = teachersData?.data ?? [];
 
   useEffect(() => {
@@ -45,6 +48,9 @@ export default function UpdateClassesPage() {
           classTeacherId: cls.classTeacherId || null,
           defaultAnnualFee: cls.defaultAnnualFee ?? null,
           defaultMonthlyFee: cls.defaultMonthlyFee ?? null,
+          defaultFeeComponents: Array.isArray(cls.defaultFeeComponents)
+            ? cls.defaultFeeComponents
+            : null,
         }))
       );
     } else {
@@ -56,6 +62,7 @@ export default function UpdateClassesPage() {
           classTeacherId: null,
           defaultAnnualFee: null,
           defaultMonthlyFee: null,
+          defaultFeeComponents: null,
         },
       ]);
     }
@@ -151,6 +158,9 @@ export default function UpdateClassesPage() {
                 classTeacherId: cls.classTeacherId || null,
                 defaultAnnualFee: cls.defaultAnnualFee ?? null,
                 defaultMonthlyFee: cls.defaultMonthlyFee ?? null,
+                defaultFeeComponents: Array.isArray(cls.defaultFeeComponents)
+                  ? cls.defaultFeeComponents
+                  : null,
               }))
             );
           } else {
@@ -162,6 +172,7 @@ export default function UpdateClassesPage() {
                 classTeacherId: null,
                 defaultAnnualFee: null,
                 defaultMonthlyFee: null,
+                defaultFeeComponents: null,
               },
             ]);
           }

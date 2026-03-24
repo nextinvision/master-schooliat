@@ -652,13 +652,30 @@ router.get(
       return acc;
     }, {});
 
+    const feeIds = [...new Set(installments.map((i) => i.feeId).filter(Boolean))];
+    const feeRows =
+      feeIds.length > 0
+        ? await prisma.fee.findMany({
+            where: { id: { in: feeIds }, deletedAt: null },
+            select: {
+              id: true,
+              totalAmount: true,
+              feeComponents: true,
+              year: true,
+            },
+          })
+        : [];
+    const feeMap = Object.fromEntries(feeRows.map((f) => [f.id, f]));
+
     const installmentsWithStudents = installments.map((installment) => {
       const enriched = attachReceiptUrl({ ...installment });
+      const feePlan = installment.feeId ? feeMap[installment.feeId] || null : null;
       return {
         ...enriched,
         student: installment.studentId
           ? studentMap[installment.studentId] || null
           : null,
+        feePlan,
       };
     });
 

@@ -181,6 +181,10 @@ function createClassesApi(classes: ClassItem[]) {
         cls.defaultMonthlyFee !== undefined && cls.defaultMonthlyFee !== null
           ? cls.defaultMonthlyFee
           : undefined,
+      defaultFeeComponents:
+        cls.defaultFeeComponents != null && cls.defaultFeeComponents.length > 0
+          ? cls.defaultFeeComponents
+          : null,
     })),
   };
   return post("/schools/classes", payload);

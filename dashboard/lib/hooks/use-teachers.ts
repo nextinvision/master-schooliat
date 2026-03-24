@@ -4,8 +4,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
+/** Keep aligned with backend pagination safety limit. */
+export const TEACHERS_MAX_PAGE_SIZE = 100;
+
 function fetchTeachers({ page = 1, limit = 15, academicYear }: { page?: number; limit?: number; academicYear?: string } = {}) {
-  return get("/users/teachers", { pageNumber: page, pageSize: limit, academicYear });
+  const safeLimit = Math.min(TEACHERS_MAX_PAGE_SIZE, Math.max(1, limit));
+  return get("/users/teachers", { pageNumber: page, pageSize: safeLimit, academicYear });
 }
 
 function fetchTeacher(teacherId: string) {

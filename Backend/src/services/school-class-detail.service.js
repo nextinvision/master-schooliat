@@ -4,9 +4,36 @@ import prisma from "../prisma/client.js";
  * Single class for school admin (scoped by schoolId). Includes class teacher and live student count.
  */
 export async function getClassDetailForSchool(classId, schoolId) {
-  const cls = await prisma.class.findFirst({
-    where: { id: classId, schoolId, deletedAt: null },
-  });
+  let cls;
+  try {
+    cls = await prisma.class.findFirst({
+      where: { id: classId, schoolId, deletedAt: null },
+    });
+  } catch (error) {
+    const maybeMissingNewColumn =
+      error?.code === "P2022" ||
+      String(error?.message || "").includes("default_fee_components");
+    if (!maybeMissingNewColumn) throw error;
+    cls = await prisma.class.findFirst({
+      where: { id: classId, schoolId, deletedAt: null },
+      select: {
+        id: true,
+        grade: true,
+        division: true,
+        defaultAnnualFee: true,
+        defaultMonthlyFee: true,
+        schoolId: true,
+        classTeacherId: true,
+        createdBy: true,
+        updatedBy: true,
+        deletedBy: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
+      },
+    });
+    if (cls) cls = { ...cls, defaultFeeComponents: null };
+  }
 
   if (!cls) return null;
 

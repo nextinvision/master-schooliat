@@ -26,6 +26,17 @@ import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recip
 
 const router = Router();
 
+/** List/detail UIs expect `teacher.subjects`; data lives on `teacherProfile.subjects`. */
+function withTeacherSubjects(user) {
+  if (!user) return user;
+  const subj = user.teacherProfile?.subjects ?? null;
+  return { ...user, subjects: subj };
+}
+
+function mapTeachersWithSubjects(users) {
+  return users.map(withTeacherSubjects);
+}
+
 // Create teacher
 router.post(
   "/teachers",
@@ -45,7 +56,7 @@ router.post(
       }
 
       // Get teacher role
-      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
 
       // Generate password
       const generatedPassword = stringUtil.generateRandomString(15);
@@ -111,6 +122,7 @@ router.post(
           university: request.university?.trim() || "",
           yearOfPassing: request.yearOfPassing ? parseInt(request.yearOfPassing) : 0,
           grade: request.grade?.trim() || "",
+          subjects: request.subjects?.trim() || null,
           transportId: request.transportId || null,
           panCardNumber: request.panCardNumber?.trim() || null,
           bloodGroup: request.bloodGroup || null,
@@ -119,12 +131,17 @@ router.post(
         },
       });
 
+      const fullUser = await prisma.user.findFirst({
+        where: { id: user.id },
+        select: userService.getTeacherSelect(),
+      });
+
       // Attach file URLs
-      const usersWithUrls = await userService.attachFileURLs([user]);
+      const usersWithUrls = await userService.attachFileURLs([fullUser]);
 
       return res.status(201).json({
         message: "Teacher created!",
-        data: { ...usersWithUrls[0], password: generatedPassword },
+        data: { ...withTeacherSubjects(usersWithUrls[0]), password: generatedPassword },
       });
     } catch (error) {
       if (error.code === "P2002") {
@@ -150,7 +167,7 @@ router.get(
       const pageSize = parseInt(req.query.pageSize ?? req.query.limit) || 15;
 
       const { academicYear } = req.query;
-      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
 
       const where = {
         schoolId: currentUser.schoolId,
@@ -192,13 +209,15 @@ router.get(
 
       return res.json({
         message: "Teachers fetched!",
-        data: teachersWithUrls,
+        data: mapTeachersWithSubjects(teachersWithUrls),
         totalPages,
         hasNext,
       });
     } catch (error) {
-      return res.status(400).json({
-        message: error.message || "Failed to fetch teachers",
+      logger.error({ err: error }, "Failed to fetch teachers");
+      return res.status(500).json({
+        message:
+          "Failed to fetch teachers. Please verify role setup and school context, then retry.",
       });
     }
   },
@@ -213,7 +232,7 @@ router.get(
       const { id } = req.params;
       const currentUser = req.context.user;
 
-      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
 
       const teacher = await prisma.user.findFirst({
         where: {
@@ -235,7 +254,7 @@ router.get(
 
       return res.json({
         message: "Teacher fetched!",
-        data: teachersWithUrls[0],
+        data: withTeacherSubjects(teachersWithUrls[0]),
       });
     } catch (error) {
       return res.status(400).json({
@@ -255,7 +274,7 @@ router.patch(
       const request = req.body.request || {};
       const currentUser = req.context.user;
 
-      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
 
       // Check if teacher exists
       const existingTeacher = await prisma.user.findFirst({
@@ -296,11 +315,10 @@ router.patch(
       if (request.idPhotoId !== undefined)
         userUpdateData.idPhotoId = request.idPhotoId || null;
 
-      // Update user
-      const updatedUser = await prisma.user.update({
+      // Update user row
+      await prisma.user.update({
         where: { id },
         data: userUpdateData,
-        select: userService.getTeacherSelect(),
       });
 
       // Update teacher profile
@@ -332,6 +350,8 @@ router.patch(
         profileUpdateData.bloodGroup = request.bloodGroup || null;
       if (request.basicSalary !== undefined)
         profileUpdateData.basicSalary = request.basicSalary !== "" && request.basicSalary !== null ? Number(request.basicSalary) : null;
+      if (request.subjects !== undefined)
+        profileUpdateData.subjects = request.subjects?.trim() || null;
 
       if (Object.keys(profileUpdateData).length > 0) {
         await prisma.teacherProfile.update({
@@ -340,12 +360,17 @@ router.patch(
         });
       }
 
+      const refreshed = await prisma.user.findFirst({
+        where: { id },
+        select: userService.getTeacherSelect(),
+      });
+
       // Attach file URLs
-      const usersWithUrls = await userService.attachFileURLs([updatedUser]);
+      const usersWithUrls = await userService.attachFileURLs([refreshed]);
 
       return res.json({
         message: "Teacher updated!",
-        data: usersWithUrls[0],
+        data: withTeacherSubjects(usersWithUrls[0]),
       });
     } catch (error) {
       if (error.code === "P2002") {
@@ -387,7 +412,7 @@ router.post(
         });
       }
 
-      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
       const result = await prisma.user.updateMany({
         where: {
           id: { in: teacherIds },
@@ -425,7 +450,7 @@ router.delete(
       const { id } = req.params;
       const currentUser = req.context.user;
 
-      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
 
       const existingTeacher = await prisma.user.findFirst({
         where: {
@@ -1483,7 +1508,7 @@ router.post(
         where: { id: currentUser.schoolId },
       });
 
-      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
       const rows = csvUtil.parseCSV(csvData);
 
       if (rows.length === 0) {
@@ -1539,6 +1564,10 @@ router.post(
                 university: row.university || "",
                 yearOfPassing: row.yearofpassing ? parseInt(row.yearofpassing) : 0,
                 grade: row.grade || "",
+                subjects:
+                  (row.subjects && String(row.subjects).trim()) ||
+                  (row.subject && String(row.subject).trim()) ||
+                  null,
                 panCardNumber: row.pancardnumber || null,
                 createdBy: currentUser.id,
               },
@@ -1806,7 +1835,7 @@ router.get(
       const currentUser = req.context.user;
       console.log(`Exporting teachers for school: ${currentUser.schoolId}`);
 
-      const teacherRole = await roleService.getRoleByName(RoleName.TEACHER);
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
       if (!teacherRole) {
         console.error("Teacher role not found!");
         return res.status(404).json({ message: "Teacher role not found!" });
@@ -1835,6 +1864,7 @@ router.get(
               panCardNumber: true,
               bloodGroup: true,
               basicSalary: true,
+              subjects: true,
             },
           },
         },
@@ -1844,7 +1874,7 @@ router.get(
       const headers = [
         "Teacher ID", "First Name", "Last Name", "Email", "Contact",
         "Gender", "Date of Birth", "Designation", "Qualification",
-        "University", "Aadhaar", "PAN", "Blood Group", "Basic Salary"
+        "University", "Subjects", "Aadhaar", "PAN", "Blood Group", "Basic Salary"
       ];
 
       const rows = teachers.map((t) => [
@@ -1858,6 +1888,7 @@ router.get(
         t.teacherProfile?.designation || "",
         t.teacherProfile?.highestQualification || "",
         t.teacherProfile?.university || "",
+        t.teacherProfile?.subjects || "",
         t.aadhaarId || "",
         t.teacherProfile?.panCardNumber || "",
         t.teacherProfile?.bloodGroup || "",

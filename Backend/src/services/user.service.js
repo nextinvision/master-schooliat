@@ -79,6 +79,7 @@ const getUserSelect = (
         panCardNumber: true,
         bloodGroup: true,
         basicSalary: true,
+        subjects: true,
         transport: {
           select: {
             id: true,
@@ -118,7 +119,9 @@ const getEmployeeSelect = () => ({
 });
 
 const createSuperAdmin = async () => {
-  const superAdminRole = await roleService.getRoleByName(RoleName.SUPER_ADMIN);
+  const superAdminRole = await roleService.getOrCreateRoleByName(
+    RoleName.SUPER_ADMIN,
+  );
 
   // Check if a user with the SUPER_ADMIN role already exists
   const existingSuperAdminUser = await prisma.user.findFirst({

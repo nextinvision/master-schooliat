@@ -657,7 +657,27 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                         {String(from + index + 1).padStart(2, "0")}
                       </TableCell>
                       <TableCell>{name}</TableCell>
-                      <TableCell>{formatCurrency(item.amount)}</TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <div>{formatCurrency(item.amount)}</div>
+                          {item.feePlan?.feeComponents &&
+                          Array.isArray(item.feePlan.feeComponents) &&
+                          item.feePlan.feeComponents.length > 0 ? (
+                            <div className="text-xs text-muted-foreground space-y-0.5 max-w-[220px]">
+                              {(item.feePlan.feeComponents as { label?: string; amount?: number }[])
+                                .slice(0, 3)
+                                .map((c, ci) => (
+                                  <div key={ci} className="truncate" title={`${c.label}: ${formatCurrency(c.amount)}`}>
+                                    {c.label}: {formatCurrency(c.amount)}
+                                  </div>
+                                ))}
+                              {item.feePlan.feeComponents.length > 3 ? (
+                                <div>+{item.feePlan.feeComponents.length - 3} more</div>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      </TableCell>
                       <TableCell>{formatCurrency(item.paidAmount)}</TableCell>
                       <TableCell>{formatCurrency(item.remainingAmount)}</TableCell>
                       <TableCell>{formatDate(item.paidAt)}</TableCell>

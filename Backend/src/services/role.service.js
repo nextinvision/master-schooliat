@@ -32,6 +32,40 @@ const getRoleByName = async (roleName) => {
   );
 };
 
+/**
+ * Ensure a role exists in DB; auto-create from default map if missing.
+ * This prevents runtime failures on role-dependent routes.
+ */
+const getOrCreateRoleByName = async (roleName) => {
+  const existing = await getRoleByName(roleName);
+  if (existing) return existing;
+
+  const defaultPermissions = defaultRolePermissionsMap[roleName];
+  if (!defaultPermissions) {
+    throw new Error(`No default permissions configured for role: ${roleName}`);
+  }
+
+  try {
+    const created = await prisma.role.create({
+      data: {
+        name: roleName,
+        permissions: defaultPermissions,
+        createdBy: "system",
+      },
+    });
+    await cacheService.delete(`role:${roleName}`).catch(() => {});
+    return created;
+  } catch (error) {
+    // If another request created it concurrently, fetch it.
+    if (error?.code === "P2002") {
+      await cacheService.delete(`role:${roleName}`).catch(() => {});
+      const retried = await getRoleByName(roleName);
+      if (retried) return retried;
+    }
+    throw error;
+  }
+};
+
 const getExistingRolesNames = async () => {
   const roles = await prisma.role.findMany();
   return roles.map((role) => role.name);
@@ -443,6 +477,7 @@ const updateRolePermissions = async () => {
 
 const roleService = {
   getRoleByName,
+  getOrCreateRoleByName,
   createDefaultRoles,
   updateRolePermissions,
   defaultRolePermissionsMap,

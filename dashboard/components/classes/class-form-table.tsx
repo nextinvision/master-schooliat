@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Trash2, Plus } from "lucide-react";
 import {
@@ -13,6 +13,15 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ClassItem } from "@/lib/schemas/class-schema";
+import type { FeeComponentRow } from "@/lib/class-fee-structure";
+import { sumFeeComponentRows, getClassAnnualFeeDisplay } from "@/lib/class-fee-structure";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const GRADE_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
   value: String(i + 1),
@@ -39,6 +48,9 @@ export function ClassFormTable({
   onChange,
   onFieldChange,
 }: ClassFormTableProps) {
+  const [feeDialogIndex, setFeeDialogIndex] = useState<number | null>(null);
+  const [feeDraft, setFeeDraft] = useState<FeeComponentRow[]>([]);
+
   const addRow = () => {
     onChange([
       ...classes,
@@ -49,6 +61,7 @@ export function ClassFormTable({
         classTeacherId: null,
         defaultAnnualFee: null,
         defaultMonthlyFee: null,
+        defaultFeeComponents: null,
       },
     ]);
   };
@@ -63,6 +76,58 @@ export function ClassFormTable({
     value: teacher.id,
     label: `${teacher.firstName} ${teacher.lastName}`,
   }));
+
+  const openFeeDialog = (index: number) => {
+    const cls = classes[index];
+    let draft: FeeComponentRow[];
+    if (cls.defaultFeeComponents && cls.defaultFeeComponents.length > 0) {
+      draft = cls.defaultFeeComponents.map((r) => ({
+        label: r.label,
+        amount: Number(r.amount) || 0,
+      }));
+    } else if (cls.defaultAnnualFee != null && cls.defaultAnnualFee > 0) {
+      draft = [{ label: "Annual fee", amount: cls.defaultAnnualFee }];
+    } else {
+      draft = [{ label: "", amount: 0 }];
+    }
+    setFeeDraft(draft);
+    setFeeDialogIndex(index);
+  };
+
+  const applyFeeDraft = () => {
+    if (feeDialogIndex === null) return;
+    const finalRows = feeDraft
+      .map((r) => ({
+        label: r.label.trim(),
+        amount: Math.max(0, Math.round(Number(r.amount) || 0)),
+      }))
+      .filter((r) => r.label.length > 0 && r.amount > 0);
+
+    const newClasses = [...classes];
+    if (finalRows.length === 0) {
+      newClasses[feeDialogIndex] = {
+        ...newClasses[feeDialogIndex],
+        defaultFeeComponents: null,
+        defaultAnnualFee: null,
+      };
+    } else {
+      newClasses[feeDialogIndex] = {
+        ...newClasses[feeDialogIndex],
+        defaultFeeComponents: finalRows,
+        defaultAnnualFee: null,
+      };
+    }
+    onChange(newClasses);
+    setFeeDialogIndex(null);
+  };
+
+  const addFeeLine = () => {
+    setFeeDraft((d) => [...d, { label: "", amount: 0 }]);
+  };
+
+  const removeFeeLine = (i: number) => {
+    setFeeDraft((d) => (d.length <= 1 ? d : d.filter((_, j) => j !== i)));
+  };
 
   return (
     <div className="space-y-4">
@@ -88,8 +153,8 @@ export function ClassFormTable({
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[220px]">
                   Class Teacher
                 </th>
-                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[140px]">
-                  Annual fee (₹)
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[220px]">
+                  Annual fee structure
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 min-w-[140px]">
                   Monthly fee (₹)
@@ -168,22 +233,28 @@ export function ClassFormTable({
                       </SelectContent>
                     </Select>
                   </td>
-                  <td className="px-4 py-3">
-                    <Input
-                      type="number"
-                      min={0}
-                      step={1}
-                      placeholder="School default"
-                      value={cls.defaultAnnualFee ?? ""}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        onFieldChange(
-                          index,
-                          "defaultAnnualFee",
-                          v === "" ? null : Math.max(0, parseInt(v, 10) || 0),
-                        );
-                      }}
-                    />
+                  <td className="px-4 py-3 align-top">
+                    <div className="space-y-1 min-w-[200px]">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        onClick={() => openFeeDialog(index)}
+                      >
+                        {cls.defaultFeeComponents && cls.defaultFeeComponents.length > 0
+                          ? "Edit fee lines"
+                          : "Set fee lines"}
+                      </Button>
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        {getClassAnnualFeeDisplay(cls).primary}
+                        {cls.defaultFeeComponents && cls.defaultFeeComponents.length > 0 ? (
+                          <span className="block mt-0.5 tabular-nums">
+                            Total ₹{sumFeeComponentRows(cls.defaultFeeComponents).toLocaleString("en-IN")}
+                          </span>
+                        ) : null}
+                      </p>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <Input
@@ -221,7 +292,83 @@ export function ClassFormTable({
           </table>
         </div>
       </div>
+
+      <Dialog open={feeDialogIndex !== null} onOpenChange={(o) => !o && setFeeDialogIndex(null)}>
+        <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Annual fee structure</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Add named fee lines (e.g. tuition, transport). The total is used as the annual fee for new
+            student fee plans in this class. Leave empty to use school defaults from Settings → Fees.
+          </p>
+          <div className="space-y-3 py-2">
+            {feeDraft.map((row, i) => (
+              <div key={i} className="flex gap-2 items-start">
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs">Label</Label>
+                  <Input
+                    placeholder="e.g. Tuition"
+                    value={row.label}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setFeeDraft((d) => {
+                        const next = [...d];
+                        next[i] = { ...next[i], label: v };
+                        return next;
+                      });
+                    }}
+                  />
+                </div>
+                <div className="w-28 space-y-1">
+                  <Label className="text-xs">Amount (₹)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={row.amount === 0 ? "" : row.amount}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      const n = v === "" ? 0 : Math.max(0, parseInt(v, 10) || 0);
+                      setFeeDraft((d) => {
+                        const next = [...d];
+                        next[i] = { ...next[i], amount: n };
+                        return next;
+                      });
+                    }}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="mt-6 shrink-0 text-muted-foreground"
+                  onClick={() => removeFeeLine(i)}
+                  disabled={feeDraft.length <= 1}
+                  aria-label="Remove line"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </div>
+            ))}
+          </div>
+          <Button type="button" variant="outline" size="sm" className="gap-2" onClick={addFeeLine}>
+            <Plus className="w-4 h-4" />
+            Add fee line
+          </Button>
+          <p className="text-sm font-medium tabular-nums">
+            Sum: ₹{sumFeeComponentRows(feeDraft).toLocaleString("en-IN")}
+          </p>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setFeeDialogIndex(null)}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={applyFeeDraft}>
+              Apply
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
-

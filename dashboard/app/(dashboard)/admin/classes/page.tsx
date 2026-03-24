@@ -7,7 +7,7 @@ import {
   useClassesPage,
   type ClassesListFilters,
 } from "@/lib/hooks/use-classes";
-import { useTeachersPage } from "@/lib/hooks/use-teachers";
+import { TEACHERS_MAX_PAGE_SIZE, useTeachersPage } from "@/lib/hooks/use-teachers";
 import { useDebouncedValue } from "@/lib/hooks/use-debounced-value";
 
 const DEFAULT_FILTERS: ClassesListFilters = {
@@ -38,7 +38,7 @@ export default function ClassesPage() {
     debouncedFilters,
   );
 
-  const { data: teachersData } = useTeachersPage(1, 500);
+  const { data: teachersData } = useTeachersPage(1, TEACHERS_MAX_PAGE_SIZE);
 
   const classes = data?.data ?? [];
   const totalPages = data?.totalPages ?? 1;

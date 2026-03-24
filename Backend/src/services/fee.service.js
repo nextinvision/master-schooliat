@@ -7,8 +7,34 @@ import {
 import logger from "../config/logger.js";
 import notificationService from "./notification.service.js";
 
+const MAX_FEE_COMPONENT_LABEL_LEN = 120;
+
+/**
+ * @param {unknown} raw
+ * @returns {{ label: string, amount: number }[] | null}
+ */
+const normalizeDefaultFeeComponents = (raw) => {
+  if (raw == null) return null;
+  if (!Array.isArray(raw)) return null;
+  const out = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const label = String(row.label ?? "")
+      .trim()
+      .slice(0, MAX_FEE_COMPONENT_LABEL_LEN);
+    const amount = Math.round(Number(row.amount));
+    if (!label || !Number.isFinite(amount) || amount < 0) continue;
+    out.push({ label, amount });
+  }
+  return out.length > 0 ? out : null;
+};
+
+const sumFeeComponents = (components) =>
+  (components || []).reduce((s, c) => s + (Number(c.amount) || 0), 0);
+
 /**
  * Resolve annual fee total and installment count for a student (class defaults override school settings).
+ * Returns feeComponents for snapshot on the Fee row (breakdown for fees management UI).
  */
 const resolveFeePlanForStudent = async (studentId, schoolId) => {
   const settings = await prisma.settings.findFirst({
@@ -26,6 +52,7 @@ const resolveFeePlanForStudent = async (studentId, schoolId) => {
 
   const numberOfInstallments = settings.studentFeeInstallments || 12;
   let totalAmount = settings.studentFeeAmount || 0;
+  let feeComponents = null;
 
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: studentId },
@@ -34,21 +61,37 @@ const resolveFeePlanForStudent = async (studentId, schoolId) => {
         select: {
           defaultAnnualFee: true,
           defaultMonthlyFee: true,
+          defaultFeeComponents: true,
         },
       },
     },
   });
 
   const cls = profile?.class;
-  if (cls) {
+  const fromComponents = normalizeDefaultFeeComponents(cls?.defaultFeeComponents);
+  if (fromComponents && sumFeeComponents(fromComponents) > 0) {
+    totalAmount = sumFeeComponents(fromComponents);
+    feeComponents = fromComponents;
+  } else if (cls) {
     if (cls.defaultAnnualFee != null && cls.defaultAnnualFee > 0) {
       totalAmount = cls.defaultAnnualFee;
+      feeComponents = [{ label: "Annual fee", amount: totalAmount }];
     } else if (cls.defaultMonthlyFee != null && cls.defaultMonthlyFee > 0) {
       totalAmount = cls.defaultMonthlyFee * numberOfInstallments;
+      feeComponents = [
+        {
+          label: "Monthly fee (× installments)",
+          amount: totalAmount,
+        },
+      ];
     }
   }
 
-  return { totalAmount, numberOfInstallments, settings };
+  if (feeComponents == null && totalAmount > 0) {
+    feeComponents = [{ label: "School default fee", amount: totalAmount }];
+  }
+
+  return { totalAmount, numberOfInstallments, settings, feeComponents };
 };
 
 /**
@@ -75,10 +118,8 @@ const createFeeInstallementsForStudent = async (
     return { ...existingFee, installments };
   }
 
-  const { totalAmount, numberOfInstallments } = await resolveFeePlanForStudent(
-    studentId,
-    schoolId,
-  );
+  const { totalAmount, numberOfInstallments, feeComponents } =
+    await resolveFeePlanForStudent(studentId, schoolId);
   const currentYear = new Date().getFullYear();
 
   const baseInstallmentAmount = Math.floor(totalAmount / numberOfInstallments);
@@ -90,6 +131,7 @@ const createFeeInstallementsForStudent = async (
         schoolId,
         studentId,
         year: currentYear,
+        feeComponents: feeComponents ?? null,
         totalAmount,
         totalPaidAmount: 0,
         totalRemainingAmount: totalAmount,
