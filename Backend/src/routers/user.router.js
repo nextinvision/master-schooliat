@@ -23,6 +23,8 @@ import {
 } from "../schemas/user/bulk-delete-users.schema.js";
 import otpDeletionService from "../services/otp-deletion.service.js";
 import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
+import createStudentSchema from "../schemas/user/create-student.schema.js";
+import updateStudentSchema from "../schemas/user/update-student.schema.js";
 
 const router = Router();
 
@@ -47,7 +49,37 @@ function parseUniqueConstraintField(error) {
   if (message.includes("users_unique_public_user_id") || message.includes("public_user_id"))
     return "publicUserId";
   if (message.includes("aadhaar")) return "aadhaarId";
+  if (message.includes("apaar")) return "apaarId";
   return null;
+}
+
+function normalizeNullableTrim(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text.length > 0 ? text : null;
+}
+
+function normalizeAddressLines(address) {
+  if (!Array.isArray(address)) return [];
+  return address
+    .map((line) => String(line ?? "").trim())
+    .filter((line) => line.length > 0 && line !== "," && line !== "-");
+}
+
+function parseRollNumberOrZero(value) {
+  if (value === undefined || value === null || String(value).trim() === "") return 0;
+  const parsed = Number.parseInt(String(value), 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+async function generateStudentPublicUserId({ schoolId, roleId, schoolCode, attempt = 0 }) {
+  const existingStudents = await prisma.user.count({
+    where: {
+      schoolId,
+      roleId,
+    },
+  });
+  return `${schoolCode}S${String(existingStudents + 1 + attempt).padStart(4, "0")}`;
 }
 
 // Create teacher
@@ -1034,6 +1066,7 @@ router.delete(
 router.post(
   "/students",
   withPermission(Permission.CREATE_STUDENT),
+  validateRequest(createStudentSchema),
   async (req, res) => {
     try {
       const request = req.body.request;
@@ -1081,59 +1114,91 @@ router.post(
       }
 
       // Get student role
-      const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
+      const studentRole = await roleService.getOrCreateRoleByName(RoleName.STUDENT);
 
       // Generate password
       const generatedPassword = stringUtil.generateRandomString(15);
 
-      // Generate public user ID (format: SCHOOLCODE + S + 4 digits)
-      const existingStudents = await prisma.user.count({
-        where: {
-          schoolId: currentUser.schoolId,
-          roleId: studentRole.id,
-        },
-      });
-      const publicUserId = `${school.code}S${String(existingStudents + 1).padStart(4, "0")}`;
+      const normalizedRequest = {
+        ...request,
+        email: String(request.email || "").trim().toLowerCase(),
+        firstName: String(request.firstName || "").trim(),
+        lastName: String(request.lastName || "").trim(),
+        contact: String(request.contact || "").trim(),
+        address: normalizeAddressLines(request.address),
+        aadhaarId: normalizeNullableTrim(request.aadhaarId),
+        apaarId: normalizeNullableTrim(request.apaarId),
+        fatherName: String(request.fatherName || "").trim(),
+        motherName: String(request.motherName || "").trim(),
+        fatherContact: String(request.fatherContact || "").trim(),
+        motherContact: String(request.motherContact || "").trim(),
+        fatherOccupation: normalizeNullableTrim(request.fatherOccupation),
+        annualIncome: normalizeNullableTrim(request.annualIncome),
+      };
 
-      // Create user
-      const user = await prisma.user.create({
-        data: {
-          email: request.email.trim(),
-          password: await bcryptjs.hash(generatedPassword, 10),
-          firstName: request.firstName.trim(),
-          lastName: request.lastName?.trim() || "",
-          contact: request.contact.trim(),
-          gender: request.gender,
-          dateOfBirth: new Date(request.dateOfBirth),
-          address: request.address || [],
-          aadhaarId: request.aadhaarId?.trim() || null,
-          userType: UserType.SCHOOL,
-          roleId: studentRole.id,
+      let user = null;
+      let lastCreateError = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const publicUserId = await generateStudentPublicUserId({
           schoolId: currentUser.schoolId,
-          publicUserId,
-          registrationPhotoId: request.registrationPhotoId || null,
-          idPhotoId: request.idPhotoId || null,
-          createdBy: currentUser.id,
-        },
-        select: userService.getStudentSelect(),
-      });
+          roleId: studentRole.id,
+          schoolCode: school.code,
+          attempt,
+        });
+        try {
+          user = await prisma.user.create({
+            data: {
+              email: normalizedRequest.email,
+              password: await bcryptjs.hash(generatedPassword, 10),
+              firstName: normalizedRequest.firstName,
+              lastName: normalizedRequest.lastName,
+              contact: normalizedRequest.contact,
+              gender: normalizedRequest.gender,
+              dateOfBirth: new Date(normalizedRequest.dateOfBirth),
+              address: normalizedRequest.address,
+              aadhaarId: normalizedRequest.aadhaarId,
+              userType: UserType.SCHOOL,
+              roleId: studentRole.id,
+              schoolId: currentUser.schoolId,
+              publicUserId,
+              registrationPhotoId: normalizedRequest.registrationPhotoId || null,
+              idPhotoId: normalizedRequest.idPhotoId || null,
+              createdBy: currentUser.id,
+            },
+            select: userService.getStudentSelect(),
+          });
+          break;
+        } catch (createErr) {
+          lastCreateError = createErr;
+          if (
+            createErr?.code === "P2002" &&
+            parseUniqueConstraintField(createErr) === "publicUserId"
+          ) {
+            continue;
+          }
+          throw createErr;
+        }
+      }
+      if (!user) throw lastCreateError || new Error("Failed to create student user");
 
       // Create student profile
       await prisma.studentProfile.create({
         data: {
           userId: user.id,
-          rollNumber: request.rollNumber ? parseInt(request.rollNumber) : 0,
-          apaarId: request.apaarId?.trim() || null,
-          classId: request.classId,
-          transportId: request.transportId || null,
-          fatherName: request.fatherName?.trim() || "",
-          motherName: request.motherName?.trim() || "",
-          fatherContact: request.fatherContact?.trim() || "",
-          motherContact: request.motherContact?.trim() || "",
-          fatherOccupation: request.fatherOccupation?.trim() || null,
-          annualIncome: request.annualIncome ? parseFloat(request.annualIncome) : null,
-          accommodationType: request.accommodationType || "DAY_SCHOLAR",
-          bloodGroup: request.bloodGroup || null,
+          rollNumber: parseRollNumberOrZero(normalizedRequest.rollNumber),
+          apaarId: normalizedRequest.apaarId,
+          classId: normalizedRequest.classId,
+          transportId: normalizedRequest.transportId || null,
+          fatherName: normalizedRequest.fatherName,
+          motherName: normalizedRequest.motherName,
+          fatherContact: normalizedRequest.fatherContact,
+          motherContact: normalizedRequest.motherContact,
+          fatherOccupation: normalizedRequest.fatherOccupation,
+          annualIncome: normalizedRequest.annualIncome
+            ? Number.parseFloat(normalizedRequest.annualIncome)
+            : null,
+          accommodationType: normalizedRequest.accommodationType || "DAY_SCHOLAR",
+          bloodGroup: normalizedRequest.bloodGroup || null,
           createdBy: currentUser.id,
         },
       });
@@ -1160,8 +1225,16 @@ router.post(
       });
     } catch (error) {
       if (error.code === "P2002") {
+        const field = parseUniqueConstraintField(error);
         return res.status(400).json({
-          message: "Email or Aadhaar ID already exists!",
+          message:
+            field === "email"
+              ? "Email already exists!"
+              : field === "aadhaarId"
+                ? "Aadhaar ID already exists!"
+                : field === "publicUserId"
+                  ? "Student ID generation conflict, please retry."
+                  : "Email or Aadhaar ID already exists!",
         });
       }
       return res.status(400).json({
@@ -1297,13 +1370,14 @@ router.get(
 router.patch(
   "/students/:id",
   withPermission(Permission.EDIT_STUDENT),
+  validateRequest(updateStudentSchema),
   async (req, res) => {
     try {
       const { id } = req.params;
       const request = req.body.request || {};
       const currentUser = req.context.user;
 
-      const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
+      const studentRole = await roleService.getOrCreateRoleByName(RoleName.STUDENT);
 
       // Check if student exists
       const existingStudent = await prisma.user.findFirst({
@@ -1361,9 +1435,9 @@ router.patch(
       };
 
       if (request.firstName !== undefined)
-        userUpdateData.firstName = request.firstName.trim();
+        userUpdateData.firstName = String(request.firstName).trim();
       if (request.lastName !== undefined)
-        userUpdateData.lastName = request.lastName?.trim() || null;
+        userUpdateData.lastName = String(request.lastName ?? "").trim();
       if (request.email !== undefined) {
         const nextEmail = String(request.email).trim().toLowerCase();
         if (nextEmail.length > 0) {
@@ -1371,13 +1445,14 @@ router.patch(
         }
       }
       if (request.contact !== undefined)
-        userUpdateData.contact = request.contact.trim();
+        userUpdateData.contact = String(request.contact).trim();
       if (request.gender !== undefined) userUpdateData.gender = request.gender;
       if (request.dateOfBirth !== undefined)
         userUpdateData.dateOfBirth = new Date(request.dateOfBirth);
-      if (request.address !== undefined) userUpdateData.address = request.address;
+      if (request.address !== undefined)
+        userUpdateData.address = normalizeAddressLines(request.address);
       if (request.aadhaarId !== undefined)
-        userUpdateData.aadhaarId = request.aadhaarId?.trim() || null;
+        userUpdateData.aadhaarId = normalizeNullableTrim(request.aadhaarId);
       if (request.registrationPhotoId !== undefined)
         userUpdateData.registrationPhotoId = request.registrationPhotoId || null;
       if (request.idPhotoId !== undefined)
@@ -1393,31 +1468,30 @@ router.patch(
       // Update student profile
       const profileUpdateData = {};
       if (request.rollNumber !== undefined) {
-        const raw = request.rollNumber;
-        const n =
-          raw === null || raw === ""
-            ? 0
-            : Number.parseInt(String(raw), 10);
-        profileUpdateData.rollNumber = Number.isFinite(n) ? n : 0;
+        profileUpdateData.rollNumber = parseRollNumberOrZero(request.rollNumber);
       }
       if (request.apaarId !== undefined)
-        profileUpdateData.apaarId = request.apaarId?.trim() || null;
+        profileUpdateData.apaarId = normalizeNullableTrim(request.apaarId);
       if (request.classId !== undefined)
         profileUpdateData.classId = request.classId;
       if (request.transportId !== undefined)
         profileUpdateData.transportId = request.transportId || null;
       if (request.fatherName !== undefined)
-        profileUpdateData.fatherName = request.fatherName?.trim() || "";
+        profileUpdateData.fatherName = String(request.fatherName ?? "").trim();
       if (request.motherName !== undefined)
-        profileUpdateData.motherName = request.motherName?.trim() || "";
+        profileUpdateData.motherName = String(request.motherName ?? "").trim();
       if (request.fatherContact !== undefined)
-        profileUpdateData.fatherContact = request.fatherContact?.trim() || "";
+        profileUpdateData.fatherContact = String(request.fatherContact ?? "").trim();
       if (request.motherContact !== undefined)
-        profileUpdateData.motherContact = request.motherContact?.trim() || "";
+        profileUpdateData.motherContact = String(request.motherContact ?? "").trim();
       if (request.fatherOccupation !== undefined)
-        profileUpdateData.fatherOccupation = request.fatherOccupation?.trim() || null;
+        profileUpdateData.fatherOccupation = normalizeNullableTrim(
+          request.fatherOccupation,
+        );
       if (request.annualIncome !== undefined)
-        profileUpdateData.annualIncome = request.annualIncome ? parseFloat(request.annualIncome) : null;
+        profileUpdateData.annualIncome = normalizeNullableTrim(request.annualIncome)
+          ? Number.parseFloat(String(request.annualIncome).trim())
+          : null;
       if (request.accommodationType !== undefined)
         profileUpdateData.accommodationType = request.accommodationType;
       if (request.bloodGroup !== undefined)
@@ -1457,8 +1531,16 @@ router.patch(
       });
     } catch (error) {
       if (error.code === "P2002") {
+        const field = parseUniqueConstraintField(error);
         return res.status(400).json({
-          message: "Email or Aadhaar ID already exists!",
+          message:
+            field === "email"
+              ? "Email already exists!"
+              : field === "aadhaarId"
+                ? "Aadhaar ID already exists!"
+                : field === "apaarId"
+                  ? "APAAR ID already exists!"
+                  : "Email or Aadhaar ID already exists!",
         });
       }
       return res.status(400).json({

@@ -5,7 +5,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useFile, getFileUrl } from "@/lib/hooks/use-file-upload";
 import { User } from "lucide-react";
-import Image from "next/image";
 
 interface StudentDetailModalProps {
   visible: boolean;
@@ -140,11 +139,10 @@ export function StudentDetailModal({ visible, onClose, student }: StudentDetailM
                   </div>
                 ) : userImageUrl ? (
                   <div className="relative w-28 h-28 rounded-full overflow-hidden border-4 border-[#1f5e00]/25 shadow-lg">
-                    <Image
+                    <img
                       src={userImageUrl}
                       alt="Student"
-                      fill
-                      className="object-cover"
+                      className="h-full w-full object-cover"
                     />
                   </div>
                 ) : (

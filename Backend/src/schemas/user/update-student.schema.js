@@ -43,7 +43,6 @@ const updateStudentSchema = z
         apaarId: z
           .string()
           .trim()
-          .min(1, "Apaar ID cannot be empty")
           .optional(),
         fatherName: z
           .string()
@@ -109,6 +108,7 @@ const updateStudentSchema = z
           .string()
           .uuid("ID photo ID must be a valid UUID")
           .optional(),
+        rollNumber: z.string().trim().optional().nullable(),
       })
       ,
     query: z.object({}),

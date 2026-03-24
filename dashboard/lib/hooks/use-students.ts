@@ -12,6 +12,18 @@ function fetchStudent(studentId: string) {
   return get(`/users/students/${studentId}`);
 }
 
+function buildAddressLines(form: any) {
+  const line1 = (form.areaStreet ?? "").trim();
+  const line2Parts = [form.location, form.district]
+    .map((v: unknown) => String(v ?? "").trim())
+    .filter(Boolean);
+  const line2 = line2Parts.join(", ");
+  const state = String(form.state ?? "").trim();
+  const pincode = String(form.pincode ?? "").trim();
+  const line3 = [state, pincode].filter(Boolean).join(" - ");
+  return [line1, line2, line3].filter(Boolean);
+}
+
 function createStudentApi(form: any) {
   const payload = {
     request: {
@@ -22,11 +34,7 @@ function createStudentApi(form: any) {
       contact: form.phone?.trim(),
       email: form.email?.trim().toLowerCase(),
       classId: form.classId,
-      address: [
-        `${form.areaStreet}`,
-        `${form.location}, ${form.district}`,
-        `${form.state} - ${form.pincode}`,
-      ].filter(Boolean),
+      address: buildAddressLines(form),
       fatherName: form.fatherName?.trim(),
       fatherContact: form.fatherContact?.trim(),
       motherName: form.motherName?.trim(),
@@ -55,11 +63,7 @@ function updateStudentApi(studentId: string, form: any) {
     dateOfBirth: form.dob,
     contact: form.phone?.trim(),
     classId: form.classId,
-    address: [
-      `${form.areaStreet}`,
-      `${form.location}, ${form.district}`,
-      `${form.state} - ${form.pincode}`,
-    ].filter(Boolean),
+    address: buildAddressLines(form),
     fatherName: form.fatherName?.trim(),
     fatherContact: form.fatherContact?.trim(),
     motherName: form.motherName?.trim(),

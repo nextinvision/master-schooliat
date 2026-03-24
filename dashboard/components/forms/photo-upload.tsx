@@ -6,7 +6,6 @@ import { useFileUpload, useFile, getFileUrl } from "@/lib/hooks/use-file-upload"
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Upload, X, Loader2 } from "lucide-react";
-import Image from "next/image";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { User } from "lucide-react";
 
@@ -164,11 +163,10 @@ export function PhotoUpload({
                 ) : currentDisplayImageUri ? (
                   <div className="flex flex-col items-center gap-4">
                     <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200">
-                      <Image
+                      <img
                         src={currentDisplayImageUri}
                         alt="Photo"
-                        fill
-                        className="object-cover"
+                        className="h-full w-full object-cover"
                       />
                       {uploading && (
                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center">

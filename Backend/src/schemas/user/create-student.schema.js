@@ -29,11 +29,11 @@ const createStudentSchema = z
           .uuid("Transport ID must be a valid UUID")
           .optional()
           .nullable(),
-        apaarId: z.string().trim().min(1, "Apaar ID is required"),
+        apaarId: z.string().trim().optional().nullable(),
         fatherName: z.string().trim().min(1, "Father name is required"),
-        motherName: z.string().trim().min(1, "Mother name is required"),
+        motherName: z.string().trim().optional(),
         fatherContact: z.string().trim().min(1, "Father contact is required"),
-        motherContact: z.string().trim().min(1, "Mother contact is required"),
+        motherContact: z.string().trim().optional(),
         fatherOccupation: z.string().trim().optional(),
         annualIncome: z
           .string()
@@ -77,6 +77,7 @@ const createStudentSchema = z
           .string()
           .uuid("ID photo ID must be a valid UUID")
           .optional(),
+        rollNumber: z.string().trim().optional().nullable(),
       })
       ,
     query: z.object({}),

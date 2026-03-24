@@ -9,7 +9,6 @@ import { User, FileDown, Loader2 } from "lucide-react";
 import { BASE_URL } from "@/lib/api/config";
 import { toast } from "sonner";
 import { useState } from "react";
-import Image from "next/image";
 
 interface TeacherDetailModalProps {
   visible: boolean;
@@ -254,11 +253,10 @@ export function TeacherDetailModal({ visible, onClose, teacher }: TeacherDetailM
                 </div>
               ) : userImageUrl ? (
                 <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-gray-200">
-                  <Image
+                  <img
                     src={userImageUrl}
                     alt={`${teacher.firstName || ""} ${teacher.lastName || ""}`}
-                    fill
-                    className="object-cover"
+                    className="h-full w-full object-cover"
                   />
                 </div>
               ) : (
