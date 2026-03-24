@@ -38,6 +38,20 @@ function buildImageRemotePatterns() {
     });
   }
 
+  // Production API host fallback (when NEXT_PUBLIC_API_URL is missing at build time)
+  for (const host of ["api.schooliat.com"]) {
+    patterns.push({
+      protocol: "https",
+      hostname: host,
+      pathname: "/files/**",
+    });
+    patterns.push({
+      protocol: "https",
+      hostname: host,
+      pathname: "/api/v1/files/**",
+    });
+  }
+
   // Dev: dashboard rewrites /files to backend (same tab origin is localhost:3000)
   for (const host of ["localhost", "127.0.0.1"]) {
     patterns.push({

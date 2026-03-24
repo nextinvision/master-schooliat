@@ -13,6 +13,21 @@ export interface FileResponse {
   type?: string;
 }
 
+function normalizeForNextImage(url: string): string {
+  if (!url) return url;
+  const trimmed = url.trim();
+  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
+  try {
+    const u = new URL(trimmed);
+    if (u.pathname.startsWith("/files/") || u.pathname.startsWith("/api/v1/files/")) {
+      return `${u.pathname}${u.search || ""}`;
+    }
+    return trimmed;
+  } catch {
+    return trimmed;
+  }
+}
+
 export function useFileUpload() {
   return useMutation({
     mutationFn: async (file: File | { uri: string; name: string; type: string }) => {
@@ -63,7 +78,7 @@ export function useFile(fileId: string | null | undefined, options: { enabled?: 
 // Helper function to extract URL from file data
 export function getFileUrl(fileData: FileResponse | string | undefined | null): string | null {
   if (!fileData) return null;
-  if (typeof fileData === 'string') return fileData;
-  return fileData.url || null;
+  if (typeof fileData === "string") return normalizeForNextImage(fileData);
+  return fileData.url ? normalizeForNextImage(fileData.url) : null;
 }
 

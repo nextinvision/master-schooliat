@@ -252,6 +252,11 @@ export async function uploadFile(
  * Get file URL
  */
 export function getFile(fileId: string): string {
+  // Prefer same-origin file route so Next rewrites can proxy backend files.
+  // This avoids cross-origin next/image optimizer host restrictions.
+  if (typeof window !== "undefined") {
+    return `/files/${fileId}`;
+  }
   return getFullUrl(`/files/${fileId}`);
 }
 
