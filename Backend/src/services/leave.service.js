@@ -4,6 +4,14 @@ import { LeaveStatus } from "../prisma/generated/index.js";
 import logger from "../config/logger.js";
 import notificationService from "./notification.service.js";
 
+const leaveBalanceCompoundUnique = (userId, leaveTypeId, year) => ({
+  leave_balances_unique_user_type_year: {
+    userId,
+    leaveTypeId,
+    year,
+  },
+});
+
 /**
  * Create leave request
  * @param {Object} data - Leave request data
@@ -35,13 +43,7 @@ const createLeaveRequest = async (data) => {
   // Check leave balance
   const currentYear = new Date().getFullYear();
   const leaveBalance = await prisma.leaveBalance.findUnique({
-    where: {
-      userId_leaveTypeId_year: {
-        userId,
-        leaveTypeId,
-        year: currentYear,
-      },
-    },
+    where: leaveBalanceCompoundUnique(userId, leaveTypeId, currentYear),
   });
 
   // Calculate days requested
@@ -128,13 +130,11 @@ const approveLeave = async (leaveRequestId, approvedBy) => {
     const maxLeaves = leaveRequest.leaveType?.maxLeaves ?? 12;
 
     await tx.leaveBalance.upsert({
-      where: {
-        userId_leaveTypeId_year: {
-          userId: leaveRequest.userId,
-          leaveTypeId: leaveRequest.leaveTypeId,
-          year: currentYear,
-        },
-      },
+      where: leaveBalanceCompoundUnique(
+        leaveRequest.userId,
+        leaveRequest.leaveTypeId,
+        currentYear,
+      ),
       update: {
         usedLeaves: {
           increment: days,

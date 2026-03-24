@@ -7,51 +7,44 @@ import logger from "../config/logger.js";
  * @param {Object} options - Filter and pagination options
  * @returns {Promise<Object>} - Subjects list and total count
  */
+const SUBJECTS_MAX_PAGE_SIZE = 100;
+
 const getSubjects = async (schoolId, options = {}) => {
-    const { classId, page = 1, limit = 20 } = options;
+  const { page = 1, limit = 20 } = options;
 
-    const pageNumber = Number(page) || 1;
-    const limitNumber = Number(limit) || 20;
-    const skip = (pageNumber - 1) * limitNumber;
+  if (!schoolId || typeof schoolId !== "string") {
+    throw new Error("School context is required to fetch subjects");
+  }
 
-    const where = {
-        schoolId,
-        deletedAt: null,
-    };
+  const pageNumber = Math.max(1, Number(page) || 1);
+  const limitNumber = Math.min(
+    SUBJECTS_MAX_PAGE_SIZE,
+    Math.max(1, Number(limit) || 20),
+  );
+  const skip = (pageNumber - 1) * limitNumber;
 
-    console.time("getSubjects-queries");
-    const [subjects, total] = await Promise.all([
-        // Alphabetical by display name: case-insensitive, trim leading/trailing spaces in sort key.
-        // Stable tie-breaker on id so pagination is deterministic.
-        prisma.$queryRaw`
-          SELECT
-            s.id,
-            s.name,
-            s.code,
-            s.description,
-            s.school_id AS "schoolId",
-            s.created_by AS "createdBy",
-            s.updated_by AS "updatedBy",
-            s.deleted_by AS "deletedBy",
-            s.created_at AS "createdAt",
-            s.updated_at AS "updatedAt",
-            s.deleted_at AS "deletedAt"
-          FROM subjects s
-          WHERE s.school_id = ${schoolId}::uuid
-            AND s.deleted_at IS NULL
-          ORDER BY LOWER(TRIM(s.name)) ASC, s.id ASC
-          LIMIT ${limitNumber}
-          OFFSET ${skip}
-        `,
-        prisma.subject.count({ where }),
-    ]);
-    console.timeEnd("getSubjects-queries");
+  const where = {
+    schoolId,
+    deletedAt: null,
+  };
 
-    return {
-        subjects,
-        total,
-        totalPages: Math.ceil(total / limitNumber),
-    };
+  const [subjects, total] = await Promise.all([
+    prisma.subject.findMany({
+      where,
+      skip,
+      take: limitNumber,
+      orderBy: [{ name: "asc" }, { id: "asc" }],
+    }),
+    prisma.subject.count({ where }),
+  ]);
+
+  return {
+    subjects,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limitNumber)),
+    page: pageNumber,
+    limit: limitNumber,
+  };
 };
 
 /**

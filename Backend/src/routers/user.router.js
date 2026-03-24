@@ -37,6 +37,19 @@ function mapTeachersWithSubjects(users) {
   return users.map(withTeacherSubjects);
 }
 
+function parseUniqueConstraintField(error) {
+  const target = error?.meta?.target;
+  if (Array.isArray(target) && target.length > 0) {
+    return String(target[0]);
+  }
+  const message = String(error?.message || "");
+  if (message.includes("users_unique_email") || message.includes("email")) return "email";
+  if (message.includes("users_unique_public_user_id") || message.includes("public_user_id"))
+    return "publicUserId";
+  if (message.includes("aadhaar")) return "aadhaarId";
+  return null;
+}
+
 // Create teacher
 router.post(
   "/teachers",
@@ -69,14 +82,7 @@ router.post(
 
       // Generate or Use Provided publicUserId
       let publicUserId = req.body.request.publicUserId;
-      if (publicUserId) {
-        const existingIdUser = await prisma.user.findFirst({
-          where: { publicUserId },
-        });
-        if (existingIdUser) {
-          return res.status(400).json({ message: "Login ID already exists!" });
-        }
-      } else {
+      if (!publicUserId) {
         // Generate T for Teacher Type
         const existingTeachers = await prisma.user.count({
           where: {
@@ -89,55 +95,176 @@ router.post(
       }
 
       const emailNormalized = request.email.trim().toLowerCase();
+      const aadhaarNormalized = request.aadhaarId?.trim() || null;
+      const panCardNormalized = request.panCardNumber?.trim() || null;
 
-      // Create user (hashed password enables mobile TEACHER login)
-      const user = await prisma.user.create({
-        data: {
-          publicUserId,
-          email: emailNormalized,
-          password: await bcryptjs.hash(generatedPassword, 10),
-          firstName: request.firstName.trim(),
-          lastName: request.lastName?.trim() || "",
-          contact: request.contact.trim(),
-          gender: request.gender,
-          dateOfBirth: new Date(request.dateOfBirth),
-          address: request.address || [],
-          aadhaarId: request.aadhaarId?.trim() || null,
-          userType: UserType.SCHOOL,
-          roleId: teacherRole.id,
-          schoolId: currentUser.schoolId,
-          registrationPhotoId: registrationPhotoId || null,
-          idPhotoId: request.idPhotoId || null,
-          createdBy: currentUser.id,
-        },
-        select: userService.getTeacherSelect(),
-      });
+      const [existingByEmail, existingByPublicUserId, existingByAadhaar] = await Promise.all([
+        prisma.user.findUnique({ where: { email: emailNormalized } }),
+        prisma.user.findUnique({ where: { publicUserId } }),
+        aadhaarNormalized
+          ? prisma.user.findUnique({ where: { aadhaarId: aadhaarNormalized } })
+          : Promise.resolve(null),
+      ]);
 
-      // Create teacher profile
-      await prisma.teacherProfile.create({
-        data: {
-          userId: user.id,
-          designation: request.designation?.trim() || null,
-          highestQualification: request.highestQualification?.trim() || "",
-          university: request.university?.trim() || "",
-          yearOfPassing: request.yearOfPassing ? parseInt(request.yearOfPassing) : 0,
-          grade: request.grade?.trim() || "",
-          subjects: request.subjects?.trim() || null,
-          transportId: request.transportId || null,
-          panCardNumber: request.panCardNumber?.trim() || null,
-          bloodGroup: request.bloodGroup || null,
-          basicSalary: request.basicSalary !== undefined && request.basicSalary !== "" ? Number(request.basicSalary) : null,
-          createdBy: currentUser.id,
-        },
-      });
+      const activeEmailConflict = existingByEmail && existingByEmail.deletedAt == null;
+      if (activeEmailConflict) {
+        return res.status(400).json({
+          message:
+            "Email already exists for an active account. Use a different email or reactivate that user.",
+        });
+      }
+      const activePublicIdConflict =
+        existingByPublicUserId && existingByPublicUserId.deletedAt == null;
+      if (activePublicIdConflict) {
+        return res.status(400).json({
+          message:
+            "Login ID already exists for an active account. Use a different Login ID.",
+        });
+      }
+      const activeAadhaarConflict = existingByAadhaar && existingByAadhaar.deletedAt == null;
+      if (activeAadhaarConflict) {
+        return res.status(400).json({
+          message:
+            "Aadhaar ID already exists for an active account. Use a different Aadhaar ID.",
+        });
+      }
 
-      const fullUser = await prisma.user.findFirst({
-        where: { id: user.id },
-        select: userService.getTeacherSelect(),
-      });
+      const reviveCandidate = [existingByEmail, existingByPublicUserId, existingByAadhaar]
+        .filter(Boolean)
+        .find(
+          (u) =>
+            u.deletedAt != null &&
+            u.schoolId === currentUser.schoolId &&
+            u.roleId === teacherRole.id,
+        );
+      const canReviveDeletedTeacher = Boolean(reviveCandidate);
+
+      let user;
+      if (canReviveDeletedTeacher) {
+        user = await prisma.$transaction(async (tx) => {
+          const revived = await tx.user.update({
+            where: { id: reviveCandidate.id },
+            data: {
+              publicUserId,
+              email: emailNormalized,
+              password: await bcryptjs.hash(generatedPassword, 10),
+              firstName: request.firstName.trim(),
+              lastName: request.lastName?.trim() || "",
+              contact: request.contact.trim(),
+              gender: request.gender,
+              dateOfBirth: new Date(request.dateOfBirth),
+              address: request.address || [],
+              aadhaarId: aadhaarNormalized,
+              userType: UserType.SCHOOL,
+              roleId: teacherRole.id,
+              schoolId: currentUser.schoolId,
+              registrationPhotoId: registrationPhotoId || null,
+              idPhotoId: request.idPhotoId || null,
+              deletedAt: null,
+              deletedBy: null,
+              updatedBy: currentUser.id,
+            },
+            select: userService.getTeacherSelect(),
+          });
+
+          await tx.teacherProfile.upsert({
+            where: { userId: revived.id },
+            update: {
+              designation: request.designation?.trim() || null,
+              highestQualification: request.highestQualification?.trim() || "",
+              university: request.university?.trim() || "",
+              yearOfPassing: request.yearOfPassing ? parseInt(request.yearOfPassing) : 0,
+              grade: request.grade?.trim() || "",
+              subjects: request.subjects?.trim() || null,
+              transportId: request.transportId || null,
+              panCardNumber: panCardNormalized,
+              bloodGroup: request.bloodGroup || null,
+              basicSalary:
+                request.basicSalary !== undefined && request.basicSalary !== ""
+                  ? Number(request.basicSalary)
+                  : null,
+              updatedBy: currentUser.id,
+              deletedAt: null,
+              deletedBy: null,
+            },
+            create: {
+              userId: revived.id,
+              designation: request.designation?.trim() || null,
+              highestQualification: request.highestQualification?.trim() || "",
+              university: request.university?.trim() || "",
+              yearOfPassing: request.yearOfPassing ? parseInt(request.yearOfPassing) : 0,
+              grade: request.grade?.trim() || "",
+              subjects: request.subjects?.trim() || null,
+              transportId: request.transportId || null,
+              panCardNumber: panCardNormalized,
+              bloodGroup: request.bloodGroup || null,
+              basicSalary:
+                request.basicSalary !== undefined && request.basicSalary !== ""
+                  ? Number(request.basicSalary)
+                  : null,
+              createdBy: currentUser.id,
+            },
+          });
+
+          const full = await tx.user.findFirst({
+            where: { id: revived.id },
+            select: userService.getTeacherSelect(),
+          });
+          return full;
+        });
+      } else {
+        // Create user (hashed password enables mobile TEACHER login)
+        user = await prisma.user.create({
+          data: {
+            publicUserId,
+            email: emailNormalized,
+            password: await bcryptjs.hash(generatedPassword, 10),
+            firstName: request.firstName.trim(),
+            lastName: request.lastName?.trim() || "",
+            contact: request.contact.trim(),
+            gender: request.gender,
+            dateOfBirth: new Date(request.dateOfBirth),
+            address: request.address || [],
+            aadhaarId: aadhaarNormalized,
+            userType: UserType.SCHOOL,
+            roleId: teacherRole.id,
+            schoolId: currentUser.schoolId,
+            registrationPhotoId: registrationPhotoId || null,
+            idPhotoId: request.idPhotoId || null,
+            createdBy: currentUser.id,
+          },
+          select: userService.getTeacherSelect(),
+        });
+
+        // Create teacher profile
+        await prisma.teacherProfile.create({
+          data: {
+            userId: user.id,
+            designation: request.designation?.trim() || null,
+            highestQualification: request.highestQualification?.trim() || "",
+            university: request.university?.trim() || "",
+            yearOfPassing: request.yearOfPassing ? parseInt(request.yearOfPassing) : 0,
+            grade: request.grade?.trim() || "",
+            subjects: request.subjects?.trim() || null,
+            transportId: request.transportId || null,
+            panCardNumber: panCardNormalized,
+            bloodGroup: request.bloodGroup || null,
+            basicSalary:
+              request.basicSalary !== undefined && request.basicSalary !== ""
+                ? Number(request.basicSalary)
+                : null,
+            createdBy: currentUser.id,
+          },
+        });
+
+        user = await prisma.user.findFirst({
+          where: { id: user.id },
+          select: userService.getTeacherSelect(),
+        });
+      }
 
       // Attach file URLs
-      const usersWithUrls = await userService.attachFileURLs([fullUser]);
+      const usersWithUrls = await userService.attachFileURLs([user]);
 
       return res.status(201).json({
         message: "Teacher created!",
@@ -145,6 +272,13 @@ router.post(
       });
     } catch (error) {
       if (error.code === "P2002") {
+        const field = parseUniqueConstraintField(error);
+        if (field === "publicUserId") {
+          return res.status(400).json({ message: "Login ID already exists!" });
+        }
+        if (field === "aadhaarId") {
+          return res.status(400).json({ message: "Aadhaar ID already exists!" });
+        }
         return res.status(400).json({
           message: "Email already exists!",
         });

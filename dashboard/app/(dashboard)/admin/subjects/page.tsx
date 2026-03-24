@@ -35,7 +35,7 @@ import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities"
 
 export default function SubjectsPage() {
     const [page, setPage] = useState(1);
-    const { data, isLoading, refetch } = useSubjects({ page, limit: 15 });
+    const { data, isLoading, isError, error, refetch } = useSubjects({ page, limit: 15 });
     const createSubject = useCreateSubject();
     const updateSubject = useUpdateSubject();
     const deleteSubject = useDeleteSubject();
@@ -123,6 +123,16 @@ export default function SubjectsPage() {
                 {isLoading ? (
                     <div className="p-6">
                         <Skeleton className="h-64 w-full" />
+                    </div>
+                ) : isError ? (
+                    <div className="p-6 text-center">
+                        <p className="text-red-600 font-medium">Failed to load subjects</p>
+                        <p className="text-sm text-gray-600 mt-1">
+                            {(error as Error)?.message || "Please check school setup and try again."}
+                        </p>
+                        <Button variant="outline" className="mt-4" onClick={() => refetch()}>
+                            Retry
+                        </Button>
                     </div>
                 ) : (
                     <div className="overflow-x-auto">

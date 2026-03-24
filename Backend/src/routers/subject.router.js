@@ -17,34 +17,37 @@ router.get(
     withPermission([Permission.GET_CLASSES, Permission.GET_HOMEWORK]),
     validateRequest(getSubjectsSchema),
     async (req, res) => {
-        console.time("GET /subjects total");
         const currentUser = req.context.user;
-        const { classId, page, limit } = req.query;
+        const { page, limit } = req.query;
+
+        if (!currentUser?.schoolId) {
+            return res.status(400).json({
+                errorCode: "SCHOOL_CONTEXT_REQUIRED",
+                message: "User is not associated with a school.",
+            });
+        }
 
         try {
             const result = await subjectService.getSubjects(currentUser.schoolId, {
-                classId,
                 page,
                 limit,
             });
 
-            console.timeEnd("GET /subjects total");
             return res.json({
                 message: "Subjects fetched successfully",
                 data: result.subjects,
                 pagination: {
                     total: result.total,
                     totalPages: result.totalPages,
-                    page: page,
-                    limit: limit,
+                    page: result.page,
+                    limit: result.limit,
                 },
             });
         } catch (error) {
-            console.timeEnd("GET /subjects total");
             logger.error({ error, query: req.query }, "Failed to fetch subjects");
             return res.status(500).json({
                 errorCode: "SUBJECTS_FETCH_FAILED",
-                message: "Failed to fetch subjects",
+                message: error.message || "Failed to fetch subjects",
             });
         }
     },
