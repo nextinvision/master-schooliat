@@ -6,6 +6,7 @@
 import { apiEvents, API_EVENTS } from "./events";
 import { clearToken } from "@/lib/auth/storage";
 import { BASE_URL } from "./config";
+import { resolvePublicFileUrl } from "@/lib/utils/resolve-public-file-url";
 
 export { BASE_URL };
 
@@ -249,15 +250,12 @@ export async function uploadFile(
 }
 
 /**
- * Get file URL
+ * Public URL for an uploaded file (images, PDFs, etc.).
+ * Always use resolvePublicFileUrl so production hits the API directly; never rely on
+ * app-origin `/files` + Next rewrites (requires BACKEND_URL and breaks binary streams when misconfigured).
  */
 export function getFile(fileId: string): string {
-  // Prefer same-origin file route so Next rewrites can proxy backend files.
-  // This avoids cross-origin next/image optimizer host restrictions.
-  if (typeof window !== "undefined") {
-    return `/files/${fileId}`;
-  }
-  return getFullUrl(`/files/${fileId}`);
+  return resolvePublicFileUrl(`/files/${fileId}`);
 }
 
 /**

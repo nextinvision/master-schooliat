@@ -9,6 +9,7 @@ import path from "path";
 import fs from "fs";
 import validateRequest from "../middlewares/validate-request.middleware.js";
 import getFileSchema from "../schemas/file/get-file.schema.js";
+import logger from "../config/logger.js";
 
 const router = Router();
 
@@ -62,40 +63,70 @@ const canStream =
   config.FILE_STORAGE === "aws-s3";
 
 router.get("/:id", validateRequest(getFileSchema), async (req, res) => {
-  const file = await fileService.getFileById(req.params.id);
-  if (!file) {
-    return res.status(404).json({ error: "File not found" });
-  }
-
-  if (canStream) {
-    const key = `${file.id}.${file.extension}`;
-    let result;
-    try {
-      result = await getFileStream(key);
-    } catch (err) {
+  try {
+    const file = await fileService.getFileById(req.params.id);
+    if (!file) {
       return res.status(404).json({ error: "File not found" });
     }
-    if (!result?.stream) {
-      return res.status(404).json({ error: "File not found" });
-    }
-    res.setHeader("Content-Type", result.contentType || file.contentType || "application/octet-stream");
-    res.setHeader("Content-Disposition", `inline; filename="${file.name}.${file.extension}"`);
-    result.stream.pipe(res);
-    return;
-  }
 
-  // Production with cloud S3: return metadata and URL (client uses URL to fetch)
-  const fileWithUrl = fileService.attachFileURL({ ...file });
-  return res.json({
-    message: "File metadata",
-    data: {
-      id: fileWithUrl.id,
-      filename: `${file.name}.${file.extension}`,
-      size: file.size,
-      mimeType: file.contentType,
-      url: fileWithUrl.url,
-    },
-  });
+    if (canStream) {
+      const key = `${file.id}.${file.extension}`;
+      let result;
+      try {
+        result = await getFileStream(key);
+      } catch (err) {
+        logger.warn({ err, key }, "GET /files/:id storage read failed");
+        return res.status(404).json({ error: "File not found" });
+      }
+      if (!result?.stream) {
+        return res.status(404).json({ error: "File not found" });
+      }
+      res.setHeader(
+        "Content-Type",
+        result.contentType || file.contentType || "application/octet-stream",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${file.name}.${file.extension}"`,
+      );
+
+      result.stream.on("error", (err) => {
+        logger.error({ err, key }, "GET /files/:id stream error");
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Failed to read file" });
+        } else {
+          res.destroy(err);
+        }
+      });
+      res.on("close", () => {
+        if (typeof result.stream.destroy === "function") {
+          result.stream.destroy();
+        }
+      });
+
+      result.stream.pipe(res);
+      return;
+    }
+
+    // Non-streaming storage: return metadata and URL (client uses URL to fetch)
+    const fileWithUrl = fileService.attachFileURL({ ...file });
+    return res.json({
+      message: "File metadata",
+      data: {
+        id: fileWithUrl.id,
+        filename: `${file.name}.${file.extension}`,
+        size: file.size,
+        mimeType: file.contentType,
+        url: fileWithUrl.url,
+      },
+    });
+  } catch (err) {
+    logger.error({ err, id: req.params?.id }, "GET /files/:id failed");
+    if (!res.headersSent) {
+      return res.status(500).json({ error: "Failed to load file" });
+    }
+    return undefined;
+  }
 });
 
 export default router;

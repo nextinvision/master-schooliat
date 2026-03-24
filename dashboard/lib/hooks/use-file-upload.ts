@@ -3,6 +3,7 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { uploadFile, getFile } from "@/lib/api/client";
 import { get } from "@/lib/api/client";
+import { resolvePublicFileUrl } from "@/lib/utils/resolve-public-file-url";
 
 // File response type
 export interface FileResponse {
@@ -11,21 +12,6 @@ export interface FileResponse {
   name?: string;
   size?: number;
   type?: string;
-}
-
-function normalizeForNextImage(url: string): string {
-  if (!url) return url;
-  const trimmed = url.trim();
-  if (!/^https?:\/\//i.test(trimmed)) return trimmed;
-  try {
-    const u = new URL(trimmed);
-    if (u.pathname.startsWith("/files/") || u.pathname.startsWith("/api/v1/files/")) {
-      return `${u.pathname}${u.search || ""}`;
-    }
-    return trimmed;
-  } catch {
-    return trimmed;
-  }
 }
 
 export function useFileUpload() {
@@ -78,7 +64,7 @@ export function useFile(fileId: string | null | undefined, options: { enabled?: 
 // Helper function to extract URL from file data
 export function getFileUrl(fileData: FileResponse | string | undefined | null): string | null {
   if (!fileData) return null;
-  if (typeof fileData === "string") return normalizeForNextImage(fileData);
-  return fileData.url ? normalizeForNextImage(fileData.url) : null;
+  if (typeof fileData === "string") return resolvePublicFileUrl(fileData);
+  return fileData.url ? resolvePublicFileUrl(fileData.url) : null;
 }
 

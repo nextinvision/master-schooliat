@@ -65,6 +65,13 @@ function buildImageRemotePatterns() {
   return patterns;
 }
 
+/** Backend origin for rewrites (server-side proxy). Prefer BACKEND_URL; else same as NEXT_PUBLIC_API_URL so production works without a separate secret. */
+const backendOrigin = (
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:4000"
+).replace(/\/$/, "");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
@@ -88,15 +95,15 @@ const nextConfig = {
     return [
       {
         source: "/api/:path*",
-        destination: `${process.env.BACKEND_URL || "http://localhost:4000"}/api/:path*`,
+        destination: `${backendOrigin}/api/:path*`,
       },
       {
         source: "/auth/:path*",
-        destination: `${process.env.BACKEND_URL || "http://localhost:4000"}/auth/:path*`,
+        destination: `${backendOrigin}/auth/:path*`,
       },
       {
         source: "/files/:path*",
-        destination: `${process.env.BACKEND_URL || "http://localhost:4000"}/files/:path*`,
+        destination: `${backendOrigin}/files/:path*`,
       },
     ];
   },
