@@ -1397,8 +1397,16 @@ router.post(
         );
       }
 
-      // Attach file URLs
-      const usersWithUrls = await userService.attachFileURLs([user]);
+      const fullUser = await prisma.user.findFirst({
+        where: { id: user.id },
+        select: userService.getStudentSelect(),
+      });
+      if (!fullUser) {
+        return res.status(500).json({ message: "Student was created but could not be loaded." });
+      }
+      // Attach file URLs + list metrics (profile + fee exist only after steps above)
+      const usersWithUrls = await userService.attachFileURLs([fullUser]);
+      await userService.attachStudentListMetrics(usersWithUrls, currentUser.schoolId);
 
       return res.status(201).json({
         message: "Student created!",
@@ -1486,8 +1494,9 @@ router.get(
 
       const totalCount = await prisma.user.count({ where });
 
-      // Attach file URLs
+      // Attach file URLs + list metrics (attendance %, transport label, fee status)
       const studentsWithUrls = await userService.attachFileURLs(students);
+      await userService.attachStudentListMetrics(studentsWithUrls, currentUser.schoolId);
 
       const totalPages = Math.ceil(totalCount / limit);
       const hasNext = page < totalPages;
@@ -1627,8 +1636,9 @@ router.get(
         return res.status(404).json({ message: "Student not found!" });
       }
 
-      // Attach file URLs
+      // Attach file URLs + list metrics
       const studentsWithUrls = await userService.attachFileURLs([student]);
+      await userService.attachStudentListMetrics(studentsWithUrls, currentUser.schoolId);
 
       return res.json({
         message: "Student fetched!",
@@ -1798,8 +1808,16 @@ router.patch(
         }
       }
 
-      // Attach file URLs
-      const usersWithUrls = await userService.attachFileURLs([updatedUser]);
+      // Re-fetch so studentProfile (transport, class, etc.) matches DB after profile update
+      const refreshedStudent = await prisma.user.findFirst({
+        where: { id },
+        select: userService.getStudentSelect(),
+      });
+      if (!refreshedStudent) {
+        return res.status(404).json({ message: "Student not found!" });
+      }
+      const usersWithUrls = await userService.attachFileURLs([refreshedStudent]);
+      await userService.attachStudentListMetrics(usersWithUrls, currentUser.schoolId);
 
       return res.json({
         message: "Student updated!",

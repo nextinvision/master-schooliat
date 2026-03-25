@@ -278,7 +278,9 @@ export function StudentsTable({
                       {student.studentProfile?.fatherName || "N/A"}
                     </TableCell>
                     <TableCell className="text-center">
-                      {student.attendance?.percentage || "N/A"}%
+                      {student.attendance?.percentage != null
+                        ? `${student.attendance.percentage}%`
+                        : "N/A"}
                     </TableCell>
                     <TableCell>{student.transport || "N/A"}</TableCell>
                     <TableCell>

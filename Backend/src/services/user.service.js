@@ -261,10 +261,10 @@ const attachClassTeacherAssignments = async (users, schoolId) => {
   return users;
 };
 
-/** Labels for list UI (aligned with admin teachers table). */
-const TEACHER_ATTENDANCE_COUNTED_STATUSES = new Set(["PRESENT", "LATE", "HALF_DAY"]);
+/** Student attendance rows & teacher "marked" rows: count these as present-like. */
+const ATTENDANCE_PRESENT_LIKE_STATUSES = new Set(["PRESENT", "LATE", "HALF_DAY"]);
 
-function formatTeacherTransportLabel(transport) {
+function formatTransportLabel(transport) {
   if (!transport) return null;
   const typeRaw = transport.type != null ? String(transport.type) : "";
   const type = typeRaw.replace(/_/g, " ");
@@ -323,7 +323,7 @@ const attachTeacherListMetrics = async (users, schoolId) => {
     const s = statsByTeacher.get(id);
     const c = row._count._all;
     s.total += c;
-    if (TEACHER_ATTENDANCE_COUNTED_STATUSES.has(row.status)) {
+    if (ATTENDANCE_PRESENT_LIKE_STATUSES.has(row.status)) {
       s.present += c;
     }
   }
@@ -331,7 +331,7 @@ const attachTeacherListMetrics = async (users, schoolId) => {
   for (const user of users) {
     if (!user) continue;
     const tp = user.teacherProfile;
-    user.transport = formatTeacherTransportLabel(tp?.transport) ?? null;
+    user.transport = formatTransportLabel(tp?.transport) ?? null;
 
     const base = tp?.basicSalary;
     if (paidThisMonth.has(user.id)) {
@@ -348,6 +348,93 @@ const attachTeacherListMetrics = async (users, schoolId) => {
       user.attendance = { percentage: pct };
     } else {
       user.attendance = null;
+    }
+  }
+
+  return users;
+};
+
+/**
+ * Flattens metrics the admin students table expects on each user:
+ * - `transport` (string) from StudentProfile.transport
+ * - `fees` "PAID" | "DUE" | null from Fee (latest year row per student)
+ * - `attendance` { percentage } from Attendance rows for this student (current calendar month)
+ */
+const attachStudentListMetrics = async (users, schoolId) => {
+  if (!Array.isArray(users) || users.length === 0 || !schoolId) return users;
+
+  const studentIds = users.map((u) => u?.id).filter(Boolean);
+  if (studentIds.length === 0) return users;
+
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const [attendanceGroups, feeRows] = await Promise.all([
+    prisma.attendance.groupBy({
+      by: ["studentId", "status"],
+      where: {
+        schoolId,
+        studentId: { in: studentIds },
+        date: { gte: startOfMonth, lte: endOfMonth },
+        deletedAt: null,
+      },
+      _count: { _all: true },
+    }),
+    prisma.fee.findMany({
+      where: {
+        schoolId,
+        studentId: { in: studentIds },
+        deletedAt: null,
+      },
+      select: {
+        studentId: true,
+        totalRemainingAmount: true,
+        year: true,
+      },
+      orderBy: [{ year: "desc" }, { id: "desc" }],
+    }),
+  ]);
+
+  const statsByStudent = new Map();
+  for (const row of attendanceGroups) {
+    const id = row.studentId;
+    if (!statsByStudent.has(id)) {
+      statsByStudent.set(id, { present: 0, total: 0 });
+    }
+    const s = statsByStudent.get(id);
+    const c = row._count._all;
+    s.total += c;
+    if (ATTENDANCE_PRESENT_LIKE_STATUSES.has(row.status)) {
+      s.present += c;
+    }
+  }
+
+  const feeByStudent = new Map();
+  for (const f of feeRows) {
+    if (f.studentId && !feeByStudent.has(f.studentId)) {
+      feeByStudent.set(f.studentId, f);
+    }
+  }
+
+  for (const user of users) {
+    if (!user) continue;
+    const sp = user.studentProfile;
+    user.transport = formatTransportLabel(sp?.transport) ?? null;
+
+    const st = statsByStudent.get(user.id);
+    if (st && st.total > 0) {
+      const pct = Math.round((st.present / st.total) * 100);
+      user.attendance = { percentage: pct };
+    } else {
+      user.attendance = null;
+    }
+
+    const fee = feeByStudent.get(user.id);
+    if (fee) {
+      user.fees = fee.totalRemainingAmount > 0 ? "DUE" : "PAID";
+    } else {
+      user.fees = null;
     }
   }
 
@@ -396,6 +483,7 @@ const userService = {
   attachFileURLs,
   attachClassTeacherAssignments,
   attachTeacherListMetrics,
+  attachStudentListMetrics,
 };
 
 export default userService;
