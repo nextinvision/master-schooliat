@@ -13,7 +13,12 @@ import {
 import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
 import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { BulkUploadDialog } from "@/components/common/bulk-upload-dialog";
-import { FileDown, FileUp, Loader2, Plus, Search, Trash2, Mail, Phone, MapPin, User, ShieldCheck } from "lucide-react";
+import {
+  TEACHER_BULK_CSV,
+  getTeacherBulkUploadCsv,
+  triggerCsvDownload,
+} from "@/lib/bulk-upload/school-csv-templates";
+import { FileDown, FileUp, Loader2, Plus, Search, Trash2, Mail, Phone, MapPin, User, ShieldCheck, Download } from "lucide-react";
 import { downloadFromApi } from "@/lib/api/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -164,6 +169,17 @@ export default function TeachersPage() {
           </Button>
           <Button
             variant="outline"
+            onClick={() => {
+              triggerCsvDownload(TEACHER_BULK_CSV.filename, getTeacherBulkUploadCsv());
+              toast.success("Sample CSV downloaded — replace the example row with your data.");
+            }}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download sample
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setIsBulkUploadDialogOpen(true)}
             className="gap-2"
           >
@@ -175,7 +191,7 @@ export default function TeachersPage() {
             onClick={async () => {
               setIsExporting(true);
               try {
-                const blob = await downloadFromApi("/api/v1/users/teachers/export");
+                const blob = await downloadFromApi("/users/teachers/export");
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -737,12 +753,9 @@ export default function TeachersPage() {
         title="Bulk Upload Teachers"
         description="Upload a CSV file with teacher details. A mobile login password is created for each successful row; download the credentials CSV from the results (shown once)."
         onUpload={(csv) => bulkUploadTeachers.mutateAsync(csv)}
-        templateFilename="teachers_template.csv"
-        templateHeaders={[
-          "FirstName", "LastName", "Email", "Contact", "Gender", "DateOfBirth",
-          "Designation", "HighestQualification", "University", "YearOfPassing",
-          "Grade", "AadhaarId", "PanCardNumber"
-        ]}
+        templateFilename={TEACHER_BULK_CSV.filename}
+        templateHeaders={[...TEACHER_BULK_CSV.headers]}
+        templateSampleRow={[...TEACHER_BULK_CSV.sampleRow]}
       />
 
       <DeletionOtpDialog

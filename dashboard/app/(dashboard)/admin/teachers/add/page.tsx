@@ -28,6 +28,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Copy, KeyRound } from "lucide-react";
+import {
+  TEACHER_BULK_CSV,
+  getTeacherBulkUploadCsv,
+  triggerCsvDownload,
+} from "@/lib/bulk-upload/school-csv-templates";
 
 type CreatedCredentials = {
   email: string;
@@ -121,25 +126,12 @@ export default function AddTeacherPage() {
             <button
               type="button"
               onClick={() => {
-                const headers = [
-                  "FirstName", "LastName", "Email", "Contact", "Gender", "DateOfBirth",
-                  "Designation", "HighestQualification", "University", "YearOfPassing",
-                  "Grade", "AadhaarId", "PanCardNumber"
-                ];
-                const csvContent = headers.join(",") + "\n";
-                const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.setAttribute("href", url);
-                link.setAttribute("download", "teachers_template.csv");
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                toast.success("Template downloaded!");
+                triggerCsvDownload(TEACHER_BULK_CSV.filename, getTeacherBulkUploadCsv());
+                toast.success("Sample CSV downloaded — same format as Teachers → Bulk Upload.");
               }}
               className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-md hover:bg-blue-100 transition-colors"
             >
-              Download Template
+              Download sample
             </button>
           }
         />

@@ -14,6 +14,11 @@ import {
 import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
 import { SCHOOL_DELETION_ENTITY } from "@/lib/deletion/school-deletion-entities";
 import { BulkUploadDialog } from "@/components/common/bulk-upload-dialog";
+import {
+  STUDENT_BULK_CSV,
+  getStudentBulkUploadCsv,
+  triggerCsvDownload,
+} from "@/lib/bulk-upload/school-csv-templates";
 import { useTCs, useCreateTC, useUpdateTCStatus } from "@/lib/hooks/use-tc";
 import { useStudents } from "@/lib/hooks/use-students";
 import { Button } from "@/components/ui/button";
@@ -36,6 +41,7 @@ import {
   FileText,
   FileUp,
   FileDown,
+  Download,
   Eye,
   CheckCircle,
   XCircle,
@@ -286,6 +292,17 @@ export default function StudentsPage() {
           </Button>
           <Button
             variant="outline"
+            onClick={() => {
+              triggerCsvDownload(STUDENT_BULK_CSV.filename, getStudentBulkUploadCsv());
+              toast.success("Sample CSV downloaded — use a ClassName that exists in your school.");
+            }}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download sample
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setIsBulkUploadDialogOpen(true)}
             className="gap-2"
           >
@@ -297,7 +314,7 @@ export default function StudentsPage() {
             onClick={async () => {
               setIsExporting(true);
               try {
-                const blob = await downloadFromApi("/api/v1/users/students/export");
+                const blob = await downloadFromApi("/users/students/export");
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
@@ -1062,12 +1079,9 @@ export default function StudentsPage() {
         title="Bulk Upload Students"
         description="Upload a CSV file with student details. Ensure the class names match existing classes."
         onUpload={(csv) => bulkUploadStudents.mutateAsync(csv)}
-        templateFilename="students_template.csv"
-        templateHeaders={[
-          "FirstName", "LastName", "Email", "Contact", "Gender", "DateOfBirth",
-          "FatherName", "MotherName", "FatherContact", "MotherContact",
-          "ClassName", "ApaarId", "RollNumber"
-        ]}
+        templateFilename={STUDENT_BULK_CSV.filename}
+        templateHeaders={[...STUDENT_BULK_CSV.headers]}
+        templateSampleRow={[...STUDENT_BULK_CSV.sampleRow]}
       />
 
       <DeletionOtpDialog

@@ -627,18 +627,22 @@ const paymentRouter = Router();
 
 // GET /salary-payments - Get salary payments by month
 paymentRouter.get("/", async (req, res) => {
-  const { month, schoolId, userId } = req.query;
+  const { month, schoolId: schoolIdQuery, userId } = req.query;
+  const currentUser = req.context.user;
 
   const where = {
     deletedAt: null,
   };
 
-  if (month) {
-    where.month = month;
+  // School-bound users always see their school only (ignore forged query schoolId).
+  if (currentUser.schoolId) {
+    where.schoolId = currentUser.schoolId;
+  } else if (schoolIdQuery) {
+    where.schoolId = schoolIdQuery;
   }
 
-  if (schoolId) {
-    where.schoolId = schoolId;
+  if (month) {
+    where.month = month;
   }
 
   if (userId) {
@@ -693,6 +697,8 @@ paymentRouter.get("/", async (req, res) => {
 
     return {
       ...payment,
+      /** Alias for dashboard (expects `amount`) */
+      amount: payment.totalAmount,
       slipUrl,
     };
   });
@@ -707,6 +713,24 @@ paymentRouter.get("/", async (req, res) => {
 paymentRouter.post("/generate", async (req, res) => {
   const request = req.body.request;
   const currentUser = req.context.user;
+
+  if (!request || typeof request.month !== "string") {
+    return res.status(400).json({
+      message: "Invalid request: month (YYYY-MM) is required",
+    });
+  }
+
+  // Resolve school: school admins/staff use JWT schoolId; platform users without a school
+  // may pass request.schoolId (e.g. super-admin tooling).
+  let schoolId = currentUser.schoolId || null;
+  if (!schoolId && request.schoolId != null && String(request.schoolId).trim() !== "") {
+    schoolId = String(request.schoolId).trim();
+  }
+  if (!schoolId) {
+    return res.status(400).json({
+      message: "School context is required to generate salary payments",
+    });
+  }
 
   // Validate month format (YYYY-MM)
   const monthRegex = /^\d{4}-\d{2}$/;
@@ -728,7 +752,7 @@ paymentRouter.post("/generate", async (req, res) => {
   // Get all teachers and staff users for the school
   const users = await prisma.user.findMany({
     where: {
-      schoolId: request.schoolId,
+      schoolId,
       userType: UserType.SCHOOL,
       roleId: {
         in: [teacherRole.id, staffRole.id],
@@ -752,7 +776,7 @@ paymentRouter.post("/generate", async (req, res) => {
       const existingPayment = await tx.salaryPayments.findFirst({
         where: {
           userId: user.id,
-          schoolId: request.schoolId,
+          schoolId,
           month: request.month,
           deletedAt: null,
         },
@@ -776,7 +800,7 @@ paymentRouter.post("/generate", async (req, res) => {
         const approvedLeaves = await tx.leaveRequest.findMany({
           where: {
             userId: user.id,
-            schoolId: request.schoolId,
+            schoolId,
             status: "APPROVED",
             startDate: { lte: monthEnd },
             endDate: { gte: monthStart },
@@ -803,7 +827,7 @@ paymentRouter.post("/generate", async (req, res) => {
         const salaryAssignment = await tx.salary.findFirst({
           where: {
             userId: user.id,
-            schoolId: request.schoolId,
+            schoolId,
             from: { lte: monthStart },
             till: { gte: monthEnd },
             deletedAt: null,
@@ -863,7 +887,7 @@ paymentRouter.post("/generate", async (req, res) => {
       // Create salary payment record
       const salaryPayment = await tx.salaryPayments.create({
         data: {
-          schoolId: request.schoolId,
+          schoolId,
           userId: user.id,
           month: request.month,
           totalAmount,
@@ -877,7 +901,7 @@ paymentRouter.post("/generate", async (req, res) => {
       await tx.notification.create({
         data: {
           userId: user.id,
-          schoolId: request.schoolId,
+          schoolId,
           title: "Salary Slip Generated",
           content: `Your salary slip for ${request.month} has been generated and is ready to view.`,
           type: NotificationType.GENERAL,

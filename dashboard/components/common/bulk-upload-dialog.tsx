@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { FileUp, Download, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { buildCsvDocument, triggerCsvDownload } from "@/lib/bulk-upload/school-csv-templates";
 
 interface BulkUploadDialogProps {
     open: boolean;
@@ -24,6 +25,8 @@ interface BulkUploadDialogProps {
     onUpload: (csvData: string) => Promise<any>;
     templateHeaders: string[];
     templateFilename: string;
+    /** One example data row (same order as headers); included in the downloaded CSV. */
+    templateSampleRow?: string[];
 }
 
 export function BulkUploadDialog({
@@ -34,6 +37,7 @@ export function BulkUploadDialog({
     onUpload,
     templateHeaders,
     templateFilename,
+    templateSampleRow,
 }: BulkUploadDialogProps) {
     const [file, setFile] = useState<File | null>(null);
     const [isUploading, setIsUploading] = useState(false);
@@ -47,15 +51,11 @@ export function BulkUploadDialog({
     };
 
     const handleDownloadTemplate = () => {
-        const csvContent = templateHeaders.join(",") + "\n";
-        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute("download", templateFilename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        const csvContent = buildCsvDocument(
+            templateHeaders,
+            templateSampleRow ? [templateSampleRow] : [],
+        );
+        triggerCsvDownload(templateFilename, csvContent);
     };
 
     const handleUpload = async () => {
@@ -66,19 +66,38 @@ export function BulkUploadDialog({
 
         try {
             const reader = new FileReader();
+            reader.onerror = () => {
+                toast.error("Could not read the file. Try saving the CSV as UTF-8 and upload again.");
+                setIsUploading(false);
+            };
             reader.onload = async (e) => {
                 const text = e.target?.result as string;
                 try {
                     const response = await onUpload(text);
-                    setResults(response.data);
-                    toast.success("Bulk upload completed");
+                    const data = response?.data;
+                    setResults(data ?? null);
+                    if (data && typeof data.success === "number" && typeof data.failed === "number") {
+                        if (data.failed > 0 && data.success === 0) {
+                            toast.error(
+                                data.failed === 1
+                                    ? "Bulk upload failed for that row."
+                                    : `Bulk upload failed for all ${data.failed} rows.`,
+                            );
+                        } else if (data.failed > 0) {
+                            toast.warning(`${data.success} row(s) succeeded, ${data.failed} failed.`);
+                        } else {
+                            toast.success("Bulk upload completed.");
+                        }
+                    } else {
+                        toast.success("Bulk upload completed.");
+                    }
                 } catch (error: any) {
                     toast.error(error?.message || "Upload failed");
                 } finally {
                     setIsUploading(false);
                 }
             };
-            reader.readAsText(file);
+            reader.readAsText(file, "UTF-8");
         } catch (error: any) {
             toast.error("Failed to read file");
             setIsUploading(false);
@@ -105,12 +124,14 @@ export function BulkUploadDialog({
                 <div className="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
                     <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-dashed text-sm">
                         <div className="space-y-1">
-                            <p className="font-medium">Need a template?</p>
-                            <p className="text-muted-foreground">Download our CSV template to ensure correct formatting.</p>
+                            <p className="font-medium">Need a sample file?</p>
+                            <p className="text-muted-foreground">
+                                Download CSV with headers and one example row matching the upload format.
+                            </p>
                         </div>
                         <Button variant="outline" size="sm" onClick={handleDownloadTemplate} className="gap-2">
                             <Download className="h-4 w-4" />
-                            Template
+                            Download sample
                         </Button>
                     </div>
 

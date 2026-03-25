@@ -25,6 +25,7 @@ import otpDeletionService from "../services/otp-deletion.service.js";
 import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
 import createStudentSchema from "../schemas/user/create-student.schema.js";
 import updateStudentSchema from "../schemas/user/update-student.schema.js";
+import { allocateTeacherPublicUserId } from "../utils/teacher-public-user-id.util.js";
 
 const router = Router();
 
@@ -112,18 +113,18 @@ router.post(
         registrationPhotoId = req.body.request.registrationPhotoId;
       }
 
-      // Generate or Use Provided publicUserId
-      let publicUserId = req.body.request.publicUserId;
+      // Login ID: optional manual value; otherwise allocate from max existing + free scan
+      // (avoids collisions with soft-deleted teachers who still hold their public_user_id).
+      const manualLoginIdRequested = Boolean(
+        String(req.body.request.publicUserId ?? "").trim(),
+      );
+      let publicUserId = String(req.body.request.publicUserId ?? "").trim() || null;
       if (!publicUserId) {
-        // Generate T for Teacher Type
-        const existingTeachers = await prisma.user.count({
-          where: {
-            schoolId: school.id,
-            roleId: teacherRole.id,
-            deletedAt: null,
-          },
-        });
-        publicUserId = `${school.code}T${String(existingTeachers + 1).padStart(4, "0")}`;
+        publicUserId = await allocateTeacherPublicUserId(
+          school.code,
+          school.id,
+          teacherRole.id,
+        );
       }
 
       const emailNormalized = request.email.trim().toLowerCase();
@@ -149,8 +150,10 @@ router.post(
         existingByPublicUserId && existingByPublicUserId.deletedAt == null;
       if (activePublicIdConflict) {
         return res.status(400).json({
-          message:
-            "Login ID already exists for an active account. Use a different Login ID.",
+          errorCode: "TEACHER_LOGIN_ID_IN_USE",
+          message: manualLoginIdRequested
+            ? `Login ID "${publicUserId}" is already in use by another account. Enter a different Login ID.`
+            : "Could not assign a unique Login ID automatically (this can happen under heavy load). Please try again in a moment, or set a custom Login ID in the form.",
         });
       }
       const activeAadhaarConflict = existingByAadhaar && existingByAadhaar.deletedAt == null;
@@ -310,13 +313,22 @@ router.post(
       if (error.code === "P2002") {
         const field = parseUniqueConstraintField(error);
         if (field === "publicUserId") {
-          return res.status(400).json({ message: "Login ID already exists!" });
+          return res.status(400).json({
+            errorCode: "TEACHER_LOGIN_ID_UNIQUE",
+            message: manualLoginIdRequested
+              ? `Login ID "${String(req.body.request?.publicUserId ?? "").trim()}" is already in use. Choose a different Login ID.`
+              : "Login ID conflict while saving. Please try again, or set a custom Login ID in the form.",
+          });
         }
         if (field === "aadhaarId") {
-          return res.status(400).json({ message: "Aadhaar ID already exists!" });
+          return res.status(400).json({
+            errorCode: "TEACHER_AADHAAR_UNIQUE",
+            message: "Aadhaar ID already exists for another account.",
+          });
         }
         return res.status(400).json({
-          message: "Email already exists!",
+          errorCode: "TEACHER_EMAIL_UNIQUE",
+          message: "Email already exists for another account.",
         });
       }
       return res.status(400).json({
@@ -392,6 +404,90 @@ router.get(
       return res.status(500).json({
         message:
           "Failed to fetch teachers. Please verify role setup and school context, then retry.",
+      });
+    }
+  },
+);
+
+// Export all teachers as CSV — MUST be registered before GET /teachers/:id or "export" is matched as :id
+router.get(
+  "/teachers/export",
+  withPermission(Permission.GET_TEACHERS),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+
+      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
+      if (!teacherRole) {
+        return res.status(404).json({ message: "Teacher role not found!" });
+      }
+
+      const teachers = await prisma.user.findMany({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: teacherRole.id,
+          deletedAt: null,
+        },
+        select: {
+          publicUserId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          contact: true,
+          gender: true,
+          dateOfBirth: true,
+          aadhaarId: true,
+          teacherProfile: {
+            select: {
+              designation: true,
+              highestQualification: true,
+              university: true,
+              panCardNumber: true,
+              bloodGroup: true,
+              basicSalary: true,
+              subjects: true,
+            },
+          },
+        },
+        orderBy: { firstName: "asc" },
+      });
+
+      const headers = [
+        "Teacher ID", "First Name", "Last Name", "Email", "Contact",
+        "Gender", "Date of Birth", "Designation", "Qualification",
+        "University", "Subjects", "Aadhaar", "PAN", "Blood Group", "Basic Salary"
+      ];
+
+      const rows = teachers.map((t) => [
+        t.publicUserId || "",
+        t.firstName,
+        t.lastName || "",
+        t.email,
+        t.contact || "",
+        t.gender || "",
+        t.dateOfBirth ? new Date(t.dateOfBirth).toLocaleDateString("en-IN") : "",
+        t.teacherProfile?.designation || "",
+        t.teacherProfile?.highestQualification || "",
+        t.teacherProfile?.university || "",
+        t.teacherProfile?.subjects || "",
+        t.aadhaarId || "",
+        t.teacherProfile?.panCardNumber || "",
+        t.teacherProfile?.bloodGroup || "",
+        t.teacherProfile?.basicSalary != null ? String(t.teacherProfile.basicSalary) : "",
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=all_teachers.csv");
+      return res.send(csvContent);
+    } catch (error) {
+      logger.error({ err: error }, "Failed to export teachers");
+      return res.status(400).json({
+        message: error.message || "Failed to export teachers",
       });
     }
   },
@@ -1341,6 +1437,101 @@ router.get(
   },
 );
 
+// Export all students as CSV — MUST be registered before GET /students/:id or "export" is matched as :id
+router.get(
+  "/students/export",
+  withPermission(Permission.GET_STUDENTS),
+  async (req, res) => {
+    try {
+      const currentUser = req.context.user;
+
+      const studentRole = await roleService.getOrCreateRoleByName(RoleName.STUDENT);
+      if (!studentRole) {
+        return res.status(404).json({ message: "Student role not found!" });
+      }
+
+      const students = await prisma.user.findMany({
+        where: {
+          schoolId: currentUser.schoolId,
+          roleId: studentRole.id,
+          deletedAt: null,
+        },
+        select: {
+          publicUserId: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          contact: true,
+          gender: true,
+          dateOfBirth: true,
+          aadhaarId: true,
+          studentProfile: {
+            select: {
+              rollNumber: true,
+              apaarId: true,
+              fatherName: true,
+              motherName: true,
+              fatherContact: true,
+              motherContact: true,
+              bloodGroup: true,
+              accommodationType: true,
+              class: {
+                select: { grade: true, division: true },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { studentProfile: { class: { grade: "asc" } } },
+          { studentProfile: { rollNumber: "asc" } },
+        ],
+      });
+
+      const headers = [
+        "Student ID", "Roll No", "First Name", "Last Name", "Email", "Contact",
+        "Gender", "Date of Birth", "Class", "Division",
+        "Father Name", "Father Contact", "Mother Name", "Mother Contact",
+        "Aadhaar", "Apaar ID", "Blood Group", "Accommodation"
+      ];
+
+      const rows = students.map((s) => [
+        s.publicUserId || "",
+        s.studentProfile?.rollNumber || "",
+        s.firstName,
+        s.lastName || "",
+        s.email,
+        s.contact || "",
+        s.gender || "",
+        s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString("en-IN") : "",
+        s.studentProfile?.class?.grade || "",
+        s.studentProfile?.class?.division || "",
+        s.studentProfile?.fatherName || "",
+        s.studentProfile?.fatherContact || "",
+        s.studentProfile?.motherName || "",
+        s.studentProfile?.motherContact || "",
+        s.aadhaarId || "",
+        s.studentProfile?.apaarId || "",
+        s.studentProfile?.bloodGroup || "",
+        s.studentProfile?.accommodationType || "",
+      ]);
+
+      const csvContent = [
+        headers.join(","),
+        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
+      ].join("\n");
+
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", "attachment; filename=all_students.csv");
+      return res.send(csvContent);
+    } catch (error) {
+      logger.error({ err: error }, "Failed to export students");
+      return res.status(400).json({
+        message: error.message || "Failed to export students",
+      });
+    }
+  },
+);
+
 // Get student by ID
 router.get(
   "/students/:id",
@@ -1755,16 +1946,13 @@ router.post(
         credentials: [],
       };
 
-      let currentTeacherCount = await prisma.user.count({
-        where: {
-          schoolId: currentUser.schoolId,
-          roleId: teacherRole.id,
-        },
-      });
-
       for (const row of rows) {
         try {
-          const publicUserId = `${school.code}T${String(++currentTeacherCount).padStart(4, "0")}`;
+          const publicUserId = await allocateTeacherPublicUserId(
+            school.code,
+            currentUser.schoolId,
+            teacherRole.id,
+          );
           const generatedPassword = stringUtil.generateRandomString(15);
           const emailNorm = String(row.email).trim().toLowerCase();
 
@@ -1818,7 +2006,6 @@ router.post(
             row: row.email || row.firstname,
             error: error.message,
           });
-          currentTeacherCount--; // Reset if failed
         }
       }
 
@@ -1957,187 +2144,6 @@ router.post(
     } catch (error) {
       return res.status(400).json({
         message: error.message || "Failed to bulk upload students",
-      });
-    }
-  }
-);
-
-// Export all students as CSV
-router.get(
-  "/students/export",
-  withPermission(Permission.GET_STUDENTS),
-  async (req, res) => {
-    try {
-      const currentUser = req.context.user;
-      console.log(`Exporting students for school: ${currentUser.schoolId}`);
-
-      const studentRole = await roleService.getRoleByName(RoleName.STUDENT);
-      if (!studentRole) {
-        console.error("Student role not found!");
-        return res.status(404).json({ message: "Student role not found!" });
-      }
-
-      const students = await prisma.user.findMany({
-        where: {
-          schoolId: currentUser.schoolId,
-          roleId: studentRole.id,
-          deletedAt: null,
-        },
-        select: {
-          publicUserId: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          contact: true,
-          gender: true,
-          dateOfBirth: true,
-          aadhaarId: true,
-          studentProfile: {
-            select: {
-              rollNumber: true,
-              apaarId: true,
-              fatherName: true,
-              motherName: true,
-              fatherContact: true,
-              motherContact: true,
-              bloodGroup: true,
-              accommodationType: true,
-              class: {
-                select: { grade: true, division: true },
-              },
-            },
-          },
-        },
-        orderBy: [
-          { studentProfile: { class: { grade: "asc" } } },
-          { studentProfile: { rollNumber: "asc" } },
-        ],
-      });
-
-      const headers = [
-        "Student ID", "Roll No", "First Name", "Last Name", "Email", "Contact",
-        "Gender", "Date of Birth", "Class", "Division",
-        "Father Name", "Father Contact", "Mother Name", "Mother Contact",
-        "Aadhaar", "Apaar ID", "Blood Group", "Accommodation"
-      ];
-
-      const rows = students.map((s) => [
-        s.publicUserId || "",
-        s.studentProfile?.rollNumber || "",
-        s.firstName,
-        s.lastName || "",
-        s.email,
-        s.contact || "",
-        s.gender || "",
-        s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString("en-IN") : "",
-        s.studentProfile?.class?.grade || "",
-        s.studentProfile?.class?.division || "",
-        s.studentProfile?.fatherName || "",
-        s.studentProfile?.fatherContact || "",
-        s.studentProfile?.motherName || "",
-        s.studentProfile?.motherContact || "",
-        s.aadhaarId || "",
-        s.studentProfile?.apaarId || "",
-        s.studentProfile?.bloodGroup || "",
-        s.studentProfile?.accommodationType || "",
-      ]);
-
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
-      ].join("\n");
-
-      res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", "attachment; filename=all_students.csv");
-      return res.send(csvContent);
-    } catch (error) {
-      return res.status(400).json({
-        message: error.message || "Failed to export students",
-      });
-    }
-  }
-);
-
-// Export all teachers as CSV
-router.get(
-  "/teachers/export",
-  withPermission(Permission.GET_TEACHERS),
-  async (req, res) => {
-    try {
-      const currentUser = req.context.user;
-      console.log(`Exporting teachers for school: ${currentUser.schoolId}`);
-
-      const teacherRole = await roleService.getOrCreateRoleByName(RoleName.TEACHER);
-      if (!teacherRole) {
-        console.error("Teacher role not found!");
-        return res.status(404).json({ message: "Teacher role not found!" });
-      }
-
-      const teachers = await prisma.user.findMany({
-        where: {
-          schoolId: currentUser.schoolId,
-          roleId: teacherRole.id,
-          deletedAt: null,
-        },
-        select: {
-          publicUserId: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          contact: true,
-          gender: true,
-          dateOfBirth: true,
-          aadhaarId: true,
-          teacherProfile: {
-            select: {
-              designation: true,
-              highestQualification: true,
-              university: true,
-              panCardNumber: true,
-              bloodGroup: true,
-              basicSalary: true,
-              subjects: true,
-            },
-          },
-        },
-        orderBy: { firstName: "asc" },
-      });
-
-      const headers = [
-        "Teacher ID", "First Name", "Last Name", "Email", "Contact",
-        "Gender", "Date of Birth", "Designation", "Qualification",
-        "University", "Subjects", "Aadhaar", "PAN", "Blood Group", "Basic Salary"
-      ];
-
-      const rows = teachers.map((t) => [
-        t.publicUserId || "",
-        t.firstName,
-        t.lastName || "",
-        t.email,
-        t.contact || "",
-        t.gender || "",
-        t.dateOfBirth ? new Date(t.dateOfBirth).toLocaleDateString("en-IN") : "",
-        t.teacherProfile?.designation || "",
-        t.teacherProfile?.highestQualification || "",
-        t.teacherProfile?.university || "",
-        t.teacherProfile?.subjects || "",
-        t.aadhaarId || "",
-        t.teacherProfile?.panCardNumber || "",
-        t.teacherProfile?.bloodGroup || "",
-        t.teacherProfile?.basicSalary != null ? String(t.teacherProfile.basicSalary) : "",
-      ]);
-
-      const csvContent = [
-        headers.join(","),
-        ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")),
-      ].join("\n");
-
-      res.setHeader("Content-Type", "text/csv");
-      res.setHeader("Content-Disposition", "attachment; filename=all_teachers.csv");
-      return res.send(csvContent);
-    } catch (error) {
-      return res.status(400).json({
-        message: error.message || "Failed to export teachers",
       });
     }
   }

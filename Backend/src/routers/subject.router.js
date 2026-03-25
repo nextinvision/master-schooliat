@@ -58,8 +58,15 @@ router.post(
     withPermission([Permission.CREATE_CLASSES]),
     validateRequest(createSubjectSchema),
     async (req, res) => {
-        console.time("POST /subjects total");
         const currentUser = req.context.user;
+
+        if (!currentUser?.schoolId) {
+            return res.status(400).json({
+                errorCode: "SCHOOL_CONTEXT_REQUIRED",
+                message: "User is not associated with a school.",
+            });
+        }
+
         const { name, code, description } = req.body.request;
 
         try {
@@ -71,13 +78,11 @@ router.post(
                 createdBy: currentUser.id,
             });
 
-            console.timeEnd("POST /subjects total");
             return res.status(201).json({
                 message: "Subject created successfully",
                 data: subject,
             });
         } catch (error) {
-            console.timeEnd("POST /subjects total");
             logger.error({ error, body: req.body }, "Failed to create subject");
             return res.status(400).json({
                 errorCode: "SUBJECT_CREATION_FAILED",
@@ -93,6 +98,14 @@ router.patch(
     validateRequest(updateSubjectSchema),
     async (req, res) => {
         const currentUser = req.context.user;
+
+        if (!currentUser?.schoolId) {
+            return res.status(400).json({
+                errorCode: "SCHOOL_CONTEXT_REQUIRED",
+                message: "User is not associated with a school.",
+            });
+        }
+
         const { id } = req.params;
         const updateData = req.body.request;
 
@@ -125,6 +138,14 @@ router.delete(
     requireDeletionOTP({ entityType: "Subject" }),
     async (req, res) => {
         const currentUser = req.context.user;
+
+        if (!currentUser?.schoolId) {
+            return res.status(400).json({
+                errorCode: "SCHOOL_CONTEXT_REQUIRED",
+                message: "User is not associated with a school.",
+            });
+        }
+
         const { id } = req.params;
 
         try {

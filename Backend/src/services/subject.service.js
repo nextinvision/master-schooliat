@@ -7,7 +7,14 @@ import logger from "../config/logger.js";
  * @param {Object} options - Filter and pagination options
  * @returns {Promise<Object>} - Subjects list and total count
  */
-const SUBJECTS_MAX_PAGE_SIZE = 100;
+/** Aligned with dashboard (homework, notes, syllabus) which request large subject lists. */
+const SUBJECTS_MAX_PAGE_SIZE = 1000;
+
+function normalizeOptionalText(value) {
+  if (value === undefined || value === null) return null;
+  const t = String(value).trim();
+  return t.length > 0 ? t : null;
+}
 
 const getSubjects = async (schoolId, options = {}) => {
   const { page = 1, limit = 20 } = options;
@@ -33,7 +40,8 @@ const getSubjects = async (schoolId, options = {}) => {
       where,
       skip,
       take: limitNumber,
-      orderBy: [{ name: "asc" }, { id: "asc" }],
+      // Newest first matches admin CRUD expectations (new subject visible on page 1).
+      orderBy: [{ createdAt: "desc" }, { name: "asc" }, { id: "asc" }],
     }),
     prisma.subject.count({ where }),
   ]);
@@ -58,17 +66,44 @@ const getSubjects = async (schoolId, options = {}) => {
  * @returns {Promise<Object>} - Created subject
  */
 const createSubject = async (data) => {
-    console.time("prisma-subject-create");
-    try {
-        const result = await prisma.subject.create({
-            data,
-        });
-        console.timeEnd("prisma-subject-create");
-        return result;
-    } catch (error) {
-        console.timeEnd("prisma-subject-create");
-        throw error;
+  if (!data?.schoolId || typeof data.schoolId !== "string") {
+    throw new Error("School context is required to create a subject");
+  }
+  if (!data?.createdBy || typeof data.createdBy !== "string") {
+    throw new Error("Creator context is required to create a subject");
+  }
+
+  const name = String(data.name ?? "").trim();
+  if (!name) {
+    throw new Error("Subject name is required");
+  }
+
+  const payload = {
+    name,
+    code: normalizeOptionalText(data.code),
+    description: normalizeOptionalText(data.description),
+    schoolId: data.schoolId,
+    createdBy: data.createdBy,
+  };
+
+  try {
+    return await prisma.subject.create({
+      data: payload,
+    });
+  } catch (error) {
+    if (error?.code === "P2002") {
+      const target = error?.meta?.target;
+      const fields = Array.isArray(target) ? target.join(",") : "";
+      if (fields.includes("name") || String(error?.message || "").includes("name")) {
+        throw new Error(
+          "A subject with this name already exists for your school. Use a different name or edit the existing subject.",
+        );
+      }
+      throw new Error("Could not create subject due to a duplicate or conflict.");
     }
+    logger.error({ err: error }, "createSubject prisma error");
+    throw error;
+  }
 };
 
 /**
@@ -80,21 +115,45 @@ const createSubject = async (data) => {
  * @returns {Promise<Object>} - Updated subject
  */
 const updateSubject = async (id, data, schoolId, updatedBy) => {
-    const subject = await prisma.subject.findUnique({
-        where: { id },
-    });
+  const subject = await prisma.subject.findUnique({
+    where: { id },
+  });
 
-    if (!subject || subject.schoolId !== schoolId || subject.deletedAt) {
-        throw new Error("Subject not found");
+  if (!subject || subject.schoolId !== schoolId || subject.deletedAt) {
+    throw new Error("Subject not found");
+  }
+
+  const patch = {};
+  if (data.name !== undefined) {
+    const n = String(data.name ?? "").trim();
+    if (!n) {
+      throw new Error("Subject name cannot be empty");
     }
+    patch.name = n;
+  }
+  if (data.code !== undefined) {
+    patch.code = normalizeOptionalText(data.code);
+  }
+  if (data.description !== undefined) {
+    patch.description = normalizeOptionalText(data.description);
+  }
 
+  try {
     return await prisma.subject.update({
-        where: { id },
-        data: {
-            ...data,
-            updatedBy,
-        },
+      where: { id },
+      data: {
+        ...patch,
+        updatedBy,
+      },
     });
+  } catch (error) {
+    if (error?.code === "P2002") {
+      throw new Error(
+        "A subject with this name already exists for your school. Choose a different name.",
+      );
+    }
+    throw error;
+  }
 };
 
 /**

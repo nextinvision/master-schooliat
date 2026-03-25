@@ -99,6 +99,7 @@ export default function SubjectsPage() {
             } else {
                 await createSubject.mutateAsync(payload);
                 toast.success("Subject created successfully");
+                setPage(1);
             }
             setIsDialogOpen(false);
             refetch();
