@@ -32,10 +32,13 @@ import {
 } from "../utils/teacher-public-user-id.util.js";
 import {
   bulkPlaceholderEmail,
+  formatBulkImportError,
   normalizeBulkContact,
   normalizeBulkPersonName,
   parseBulkAadhaarId,
   parseBulkDateOfBirth,
+  parseBulkRollNumber,
+  parseRollNumberFromValue,
   resolveStudentClassForBulk,
 } from "../utils/bulk-user-import.util.js";
 
@@ -81,12 +84,6 @@ function normalizeAddressLines(address) {
   return address
     .map((line) => String(line ?? "").trim())
     .filter((line) => line.length > 0 && line !== "," && line !== "-");
-}
-
-function parseRollNumberOrZero(value) {
-  if (value === undefined || value === null || String(value).trim() === "") return 0;
-  const parsed = Number.parseInt(String(value), 10);
-  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 async function generateStudentPublicUserId({ schoolId, roleId, schoolCode, attempt = 0 }) {
@@ -1365,7 +1362,7 @@ router.post(
       await prisma.studentProfile.create({
         data: {
           userId: user.id,
-          rollNumber: parseRollNumberOrZero(normalizedRequest.rollNumber),
+          rollNumber: parseRollNumberFromValue(normalizedRequest.rollNumber),
           apaarId: normalizedRequest.apaarId,
           classId: normalizedRequest.classId,
           transportId: normalizedRequest.transportId || null,
@@ -1743,7 +1740,7 @@ router.patch(
       // Update student profile
       const profileUpdateData = {};
       if (request.rollNumber !== undefined) {
-        profileUpdateData.rollNumber = parseRollNumberOrZero(request.rollNumber);
+        profileUpdateData.rollNumber = parseRollNumberFromValue(request.rollNumber);
       }
       if (request.apaarId !== undefined)
         profileUpdateData.apaarId = normalizeNullableTrim(request.apaarId);
@@ -2220,13 +2217,19 @@ router.post(
       };
 
       for (const row of rows) {
+        let rowLabel =
+          String(row.name ?? "").trim() ||
+          String(row.firstname ?? "").trim() ||
+          String(row.email ?? "").trim() ||
+          "(row)";
         try {
           const { firstName, lastName } = normalizeBulkPersonName(row);
+          rowLabel = firstName || rowLabel;
           const contact = normalizeBulkContact(row);
           if (!firstName || !contact) {
             results.failed++;
             results.errors.push({
-              row: firstName || String(row.name ?? "").trim() || "(row)",
+              row: rowLabel,
               error:
                 "First name (or Name) and a valid 10-digit contact (Contact/Phone/Mobile) are required",
             });
@@ -2237,7 +2240,7 @@ router.post(
           if (!classResolution.ok) {
             results.failed++;
             results.errors.push({
-              row: firstName,
+              row: rowLabel,
               error: classResolution.error,
             });
             continue;
@@ -2277,7 +2280,7 @@ router.post(
             await tx.studentProfile.create({
               data: {
                 userId: user.id,
-                rollNumber: row.rollnumber ? parseInt(row.rollnumber, 10) : 0,
+                rollNumber: parseBulkRollNumber(row),
                 apaarId: row.apaarid?.trim() || null,
                 classId: classEntity.id,
                 fatherName: row.fathername?.trim() || "",
@@ -2307,8 +2310,8 @@ router.post(
         } catch (error) {
           results.failed++;
           results.errors.push({
-            row: row.email || row.firstname || row.name || "(row)",
-            error: error.message,
+            row: rowLabel,
+            error: formatBulkImportError(error),
           });
         }
       }
@@ -2319,7 +2322,7 @@ router.post(
       });
     } catch (error) {
       return res.status(400).json({
-        message: error.message || "Failed to bulk upload students",
+        message: formatBulkImportError(error) || "Failed to bulk upload students",
       });
     }
   }

@@ -56,6 +56,70 @@ export function parseBulkDateOfBirth(raw) {
 }
 
 /**
+ * Roll number for StudentProfile.rollNumber (Int). Matches single-student create behavior:
+ * empty → 0; non-numeric / partial text → 0 (never NaN).
+ */
+export function parseRollNumberFromValue(value) {
+  if (value === undefined || value === null || String(value).trim() === "") return 0;
+  const parsed = Number.parseInt(String(value).trim(), 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+/**
+ * @param {Record<string, string>} row
+ */
+export function parseBulkRollNumber(row) {
+  const raw = row.rollnumber ?? row.roll_number ?? row.roll ?? "";
+  return parseRollNumberFromValue(raw);
+}
+
+/**
+ * Turn Prisma / validation failures into short messages for bulk row `errors[]`
+ * (avoid dumping full `Invalid prisma.xxx invocation` blobs to the UI).
+ */
+export function formatBulkImportError(error) {
+  if (!error) return "Unknown error.";
+  const code = error.code;
+
+  if (code === "P2002") {
+    const target = error?.meta?.target;
+    const t = Array.isArray(target) ? String(target[0]) : target != null ? String(target) : "";
+    if (t.includes("apaar") || t === "apaar_id") {
+      return "APAAR ID is already used by another student. Use a different value or leave the column empty.";
+    }
+    if (t.includes("email")) {
+      return "Email is already in use. Use a different email or leave empty for a generated address.";
+    }
+    if (t.includes("public_user") || t.includes("publicUserId")) {
+      return "Login ID conflict. Try the upload again in a moment.";
+    }
+    if (t.includes("aadhaar")) {
+      return "Aadhaar is already registered to another account.";
+    }
+    return "This row conflicts with existing data (duplicate unique value).";
+  }
+
+  const msg = String(error.message || "");
+
+  if (/Invalid `prisma\./i.test(msg) || msg.includes("prisma.")) {
+    if (msg.includes("rollNumber") || msg.includes("roll_number") || /\bNaN\b/.test(msg)) {
+      return "Invalid roll number. Use a whole number (e.g. 1, 12) or leave the Roll column empty for 0.";
+    }
+    if (msg.includes("Argument `class`")) {
+      return "Could not save the class link. Check ClassName matches a class in this school and try again.";
+    }
+    return "Could not save this row. Check class, roll number, APAAR ID, and email for invalid or duplicate values.";
+  }
+
+  if (msg.length > 300) {
+    const first = msg.split("\n")[0].trim();
+    return first.length > 280 ? `${first.slice(0, 277)}…` : first;
+  }
+
+  return msg;
+}
+
+/**
  * Aadhaar from CSV (User.aadhaarId is globally @unique). Normalizes to 12 digits;
  * empty / placeholder (e.g. all zeros) → null. Invalid length → row error object.
  *
