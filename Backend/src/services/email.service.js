@@ -127,7 +127,6 @@ const sendOTPEmail = async (to, otp, purpose = "verification", expiryMinutes = 1
     "password-reset": "Password Reset",
     login: "Login Verification",
     deletion: "Account Deletion",
-    "fee-payment": "Fee Payment Verification",
   }[purpose] || "Verification";
 
   const html = `

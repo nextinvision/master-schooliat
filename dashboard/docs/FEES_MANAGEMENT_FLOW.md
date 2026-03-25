@@ -22,16 +22,21 @@ This document describes the **fees management** flow on the School Admin panel: 
 - **UI**: “Record Payment” opens `PaymentModal` with:
   - **Payment method**: CASH (Offline), CHEQUE (Offline), UPI (Online), BANK_TRANSFER (Online).
   - **Amount**, **Transaction/Ref ID** (for online/bank), **Remarks**, **Waiver** toggle.
-  - **OTP**: “Get OTP” calls `POST /api/v1/fees/request-otp`; user enters 6-digit OTP for verification.
 - **API**: `PATCH /api/v1/fees/installments/:id/payment`  
-  Body: `{ request: { amount, paymentMethod, isWaiver, transactionId, remarks, otp } }`.
+  Body: `{ request: { amount, paymentMethod, isWaiver, transactionId, remarks } }`.
 - **Backend**:
-  - Verifies OTP for the current user.
   - Validates amount (integer; must be ≤ remaining amount; waived installments can omit amount).
   - Generates fee receipt HTML, uploads it, stores `receiptFileId` on the installment.
   - Updates installment (`paidAmount`, `remainingAmount`, `paymentStatus`, **paymentMethod**) and fee totals.
   - Returns updated installment with `receiptFileUrl`.
 - **Amount**: All amounts are **integers** (DB and API). Dashboard rounds the entered value before sending.
+
+### 2b. Cancel installment
+
+- **UI**: Cancel action opens `CancelFeeInstallmentModal` with optional **reason** only (no OTP).
+- **API**: `PATCH /api/v1/fees/installments/:id/cancel`  
+  Body: `{ request: { reason?: string } }`.
+- **Backend**: `Permission.RECORD_FEE_PAYMENT`; runs `feeService.cancelFeeInstallment`.
 
 ### 3. Receipt generation and download
 
@@ -75,6 +80,12 @@ This document describes the **fees management** flow on the School Admin panel: 
 4. **Receipt in Fee Details Modal**  
    - Fee details modal shows each installment with a “Receipt” button when `receiptFileUrl` is present, and displays status (Paid / Partially Paid / Waived / Pending) correctly.
 
+5. **No OTP on fees**  
+   - Fee payment and installment cancel do not use email OTP. Authorization is via session + `RECORD_FEE_PAYMENT` (and related fee permissions).
+
+6. **Validate middleware**  
+   - PATCH/POST bodies always assign `req.body.request` after Zod validation, including when every field is optional and the validated `request` object is empty—so handlers never read `undefined` where an empty object was validated.
+
 ## Configuration
 
 - **Fees config** (Settings → Fees): Default student fee amount and number of installments. Used when creating new fee structures.
@@ -86,8 +97,8 @@ This document describes the **fees management** flow on the School Admin panel: 
 |-----------------|--------|-----------------------------------------------|
 | List installments | GET  | `/api/v1/fees/installments/:n?end=&academicYear=` |
 | Student fees    | GET    | `/api/v1/fees/student/:studentId`            |
-| Request OTP     | POST   | `/api/v1/fees/request-otp`                    |
 | Record payment  | PATCH  | `/api/v1/fees/installments/:id/payment`      |
+| Cancel installment | PATCH | `/api/v1/fees/installments/:id/cancel`   |
 | Export installments CSV | GET | `/api/v1/fees/export?academicYear=` |
 | School ledger (paginated) | GET | `/api/v1/fees/ledger?academicYear=&studentId=&entryType=&page=&limit=` |
 | Export ledger CSV | GET | `/api/v1/fees/ledger/export?...` |

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { get, patch, post } from "@/lib/api/client";
+import { get, patch } from "@/lib/api/client";
 
 function fetchInstallments(installmentNumber: number, endInstallmentNumber?: number, academicYear?: string) {
   const query = endInstallmentNumber ? `?end=${endInstallmentNumber}` : "";
@@ -59,13 +59,9 @@ function recordPaymentApi(
   });
 }
 
-function requestFeeOTPApi() {
-  return post("/fees/request-otp", {});
-}
-
-function cancelInstallmentApi(installmentId: string, otp: string, reason?: string) {
+function cancelInstallmentApi(installmentId: string, reason?: string) {
   return patch(`/fees/installments/${installmentId}/cancel`, {
-    request: { otp, reason },
+    request: { reason },
   });
 }
 
@@ -119,6 +115,26 @@ export function useSchoolFeeLedger(
 
 export { buildSchoolLedgerQuery };
 
+export function useCancelFeeInstallment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      installmentId,
+      reason,
+    }: {
+      installmentId: string;
+      reason?: string;
+    }) => cancelInstallmentApi(installmentId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fees", "installments"] });
+      queryClient.invalidateQueries({ queryKey: ["fees", "student"] });
+      queryClient.invalidateQueries({ queryKey: ["fees", "ledger"] });
+      queryClient.invalidateQueries({ queryKey: ["fees", "school-ledger"] });
+    },
+  });
+}
+
 export function useRecordPayment() {
   const queryClient = useQueryClient();
 
@@ -146,32 +162,3 @@ export function useRecordPayment() {
     },
   });
 }
-
-export function useRequestOTP() {
-  return useMutation({
-    mutationFn: requestFeeOTPApi,
-  });
-}
-
-export function useCancelFeeInstallment() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      installmentId,
-      otp,
-      reason,
-    }: {
-      installmentId: string;
-      otp: string;
-      reason?: string;
-    }) => cancelInstallmentApi(installmentId, otp, reason),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["fees", "installments"] });
-      queryClient.invalidateQueries({ queryKey: ["fees", "student"] });
-      queryClient.invalidateQueries({ queryKey: ["fees", "ledger"] });
-      queryClient.invalidateQueries({ queryKey: ["fees", "school-ledger"] });
-    },
-  });
-}
-

@@ -732,7 +732,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                             onClick={() => setCancelInstallment(item)}
                             disabled={status === "Cancelled"}
                             className="h-8 w-8 text-destructive hover:text-destructive"
-                            title="Cancel installment (OTP)"
+                            title="Cancel installment"
                           >
                             <Ban className="w-4 h-4" />
                           </Button>

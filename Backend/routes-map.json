@@ -185,8 +185,8 @@
     { "method": "GET", "path": "/status" },
     { "method": "GET", "path": "/installments/:installmentNumber" },
     { "method": "GET", "path": "/student/:studentId" },
-    { "method": "POST", "path": "/request-otp" },
     { "method": "PATCH", "path": "/installments/:id/payment" },
+    { "method": "PATCH", "path": "/installments/:id/cancel" },
     { "method": "GET", "path": "/export" }
   ],
   "grievances": [

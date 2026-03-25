@@ -30,14 +30,15 @@ const validateRequest = (schema) => {
         });
       }
 
-      // Modify req.body, req.params, and req.query directly with validated data
-      // For POST/PATCH: set req.body.request to validated body
-      // For GET/DELETE: ensure body is empty (validated body will be empty object)
-      if (Object.keys(result.data.request).length > 0) {
-        req.body.request = result.data.request;
-      } else {
-        // For GET/DELETE, ensure body is empty
+      // Apply validated request to req.body. PATCH/POST may legitimately have an empty
+      // `request` object (all fields optional); must still set req.body.request or handlers
+      // see undefined after validation.
+      const validatedRequest = result.data.request ?? {};
+      if (req.method === "GET" || req.method === "HEAD") {
         req.body = {};
+      } else {
+        req.body = req.body || {};
+        req.body.request = validatedRequest;
       }
 
       // Update query params with validated data
