@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { format } from "date-fns";
 import { useStudent } from "@/lib/hooks/use-students";
 import { useStudentFees, useStudentFeeLedger } from "@/lib/hooks/use-fees";
 import { useMarks, useResults } from "@/lib/hooks/use-marks";
 import { useHomework } from "@/lib/hooks/use-homework";
+import { useAttendance, useAttendanceStatistics } from "@/lib/hooks/use-attendance";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,15 +21,69 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowLeft, Pencil, IndianRupee, BookOpen, Award, FileText } from "lucide-react";
+import { ArrowLeft, Pencil, IndianRupee, BookOpen, Award, FileText, CalendarCheck } from "lucide-react";
+
+function statusBadgeVariant(
+  status: string,
+): "default" | "secondary" | "destructive" | "outline" {
+  switch (status) {
+    case "PRESENT":
+      return "default";
+    case "ABSENT":
+      return "destructive";
+    case "LATE":
+      return "secondary";
+    case "HALF_DAY":
+      return "outline";
+    default:
+      return "secondary";
+  }
+}
 
 export default function StudentProfilePage() {
   const params = useParams();
   const router = useRouter();
   const studentId = params.id as string;
 
+  const ytdRange = useMemo(() => {
+    const y = new Date().getFullYear();
+    return {
+      startDate: `${y}-01-01`,
+      endDate: format(new Date(), "yyyy-MM-dd"),
+    };
+  }, []);
+
   const { data: studentRes, isLoading: loadingStudent } = useStudent(studentId);
   const student = studentRes?.data;
+
+  const { data: attendanceRes, isLoading: loadingAttendance } = useAttendance({
+    studentId,
+    startDate: ytdRange.startDate,
+    endDate: ytdRange.endDate,
+  });
+  const attendanceRows = attendanceRes?.data ?? [];
+
+  const { data: statsRes, isLoading: loadingStats } = useAttendanceStatistics({
+    studentId,
+    startDate: ytdRange.startDate,
+    endDate: ytdRange.endDate,
+  });
+  const stats = statsRes?.data as
+    | {
+        total: number;
+        present: number;
+        absent: number;
+        late: number;
+        halfDay: number;
+        attendancePercentage?: number;
+      }
+    | undefined;
+
+  const presentLikePct = useMemo(() => {
+    if (!stats || stats.total <= 0) return null;
+    const like = stats.present + stats.late + stats.halfDay;
+    return Math.round((like / stats.total) * 100);
+  }, [stats]);
 
   const { data: feesRes, isLoading: loadingFees } = useStudentFees(studentId, {
     enabled: !!studentId,
@@ -165,6 +222,136 @@ export default function StudentProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <CalendarCheck className="h-4 w-4" />
+              Attendance (this month)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              {student.attendance?.percentage !== null &&
+              student.attendance?.percentage !== undefined
+                ? `${student.attendance.percentage}%`
+                : "—"}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Same metric as the students list: calendar month, present + late + half-day.
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Year-to-date ({ytdRange.startDate} → {ytdRange.endDate})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {loadingStats ? (
+              <Skeleton className="h-12 w-full" />
+            ) : stats && stats.total > 0 ? (
+              <>
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                  <span>
+                    <span className="text-muted-foreground">Total marks: </span>
+                    <span className="font-medium tabular-nums">{stats.total}</span>
+                  </span>
+                  <span>
+                    <span className="text-muted-foreground">Present rate: </span>
+                    <span className="font-medium tabular-nums">
+                      {stats.attendancePercentage != null ? `${stats.attendancePercentage}%` : "—"}
+                    </span>
+                  </span>
+                  {presentLikePct != null && (
+                    <span>
+                      <span className="text-muted-foreground">Present-like: </span>
+                      <span className="font-medium tabular-nums">{presentLikePct}%</span>
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Counts include each class period row. Present rate = present ÷ total rows; present-like
+                  includes late and half-day.
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">No attendance recorded in this range yet.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarCheck className="h-4 w-4" />
+            Attendance records ({ytdRange.startDate} → {ytdRange.endDate})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loadingAttendance ? (
+            <Skeleton className="h-40 w-full" />
+          ) : attendanceRows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No rows in this date range. Record attendance under{" "}
+              <Link href="/admin/attendance" className="text-primary underline underline-offset-2">
+                Mark Attendance
+              </Link>
+              .
+            </p>
+          ) : (
+            <div className="overflow-x-auto max-h-[420px] overflow-y-auto border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Class</TableHead>
+                    <TableHead>Period</TableHead>
+                    <TableHead>Marked by</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {attendanceRows.map((row: Record<string, unknown>, idx: number) => {
+                    const rowId = String(row.id ?? `att-${idx}`);
+                    const d = row.date as string | undefined;
+                    const status = String(row.status ?? "—");
+                    const cls = row.class as { grade?: string; division?: string } | undefined;
+                    const period = row.period as { name?: string } | undefined;
+                    const marker = row.markedByUser as
+                      | { firstName?: string; lastName?: string }
+                      | undefined;
+                    const classStr =
+                      cls?.grade != null
+                        ? `${cls.grade}${cls.division ? ` ${cls.division}` : ""}`
+                        : "—";
+                    return (
+                      <TableRow key={rowId}>
+                        <TableCell className="whitespace-nowrap text-sm">
+                          {d ? format(new Date(d), "d MMM yyyy") : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusBadgeVariant(status)}>{status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">{classStr}</TableCell>
+                        <TableCell className="text-sm">{period?.name ?? "—"}</TableCell>
+                        <TableCell className="text-sm">
+                          {marker
+                            ? `${marker.firstName ?? ""} ${marker.lastName ?? ""}`.trim()
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

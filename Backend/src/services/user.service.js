@@ -357,6 +357,88 @@ const attachTeacherListMetrics = async (users, schoolId) => {
 };
 
 /**
+ * Flattens metrics the admin staff list/detail UIs expect on each staff user:
+ * - `transport` is always `null` (StaffProfile has no transport; avoids shape drift vs teachers).
+ * - `salary` "PAID" | "DUE" | null from SalaryPayments (month) + staffProfile.basicSalary
+ * - `attendance` { percentage } from **this staff member's own** rows (current calendar month).
+ *   Staff attendance stores the attendee in `Attendance.studentId` (same as teachers).
+ */
+const attachStaffListMetrics = async (users, schoolId) => {
+  if (!Array.isArray(users) || users.length === 0 || !schoolId) return users;
+
+  const staffIds = users.map((u) => u?.id).filter(Boolean);
+  if (staffIds.length === 0) return users;
+
+  const now = new Date();
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const [payments, attendanceGroups] = await Promise.all([
+    prisma.salaryPayments.findMany({
+      where: {
+        schoolId,
+        userId: { in: staffIds },
+        month: monthStr,
+        deletedAt: null,
+      },
+      select: { userId: true },
+    }),
+    prisma.attendance.groupBy({
+      by: ["studentId", "status"],
+      where: {
+        schoolId,
+        studentId: { in: staffIds },
+        date: { gte: startOfMonth, lte: endOfMonth },
+        deletedAt: null,
+      },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const paidThisMonth = new Set(payments.map((p) => p.userId));
+
+  const statsByStaff = new Map();
+  for (const row of attendanceGroups) {
+    const id = row.studentId;
+    if (!statsByStaff.has(id)) {
+      statsByStaff.set(id, { present: 0, total: 0 });
+    }
+    const s = statsByStaff.get(id);
+    const c = row._count._all;
+    s.total += c;
+    if (ATTENDANCE_PRESENT_LIKE_STATUSES.has(row.status)) {
+      s.present += c;
+    }
+  }
+
+  for (const user of users) {
+    if (!user) continue;
+    user.transport = null;
+
+    const sp = user.staffProfile;
+    const base = sp?.basicSalary;
+    if (paidThisMonth.has(user.id)) {
+      user.salary = "PAID";
+    } else if (base != null && base > 0) {
+      user.salary = "DUE";
+    } else {
+      user.salary = null;
+    }
+
+    const st = statsByStaff.get(user.id);
+    if (st && st.total > 0) {
+      const pct = Math.round((st.present / st.total) * 100);
+      user.attendance = { percentage: pct };
+    } else {
+      user.attendance = null;
+    }
+  }
+
+  return users;
+};
+
+/**
  * Flattens metrics the admin students table expects on each user:
  * - `transport` (string) from StudentProfile.transport
  * - `fees` "PAID" | "DUE" | null from Fee (latest year row per student)
@@ -485,6 +567,7 @@ const userService = {
   attachFileURLs,
   attachClassTeacherAssignments,
   attachTeacherListMetrics,
+  attachStaffListMetrics,
   attachStudentListMetrics,
 };
 

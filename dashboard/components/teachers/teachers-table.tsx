@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TeacherDetailModal } from "./teacher-detail-modal";
 import { PasswordResetModal } from "../students/password-reset-modal";
 import { cn } from "@/lib/utils";
 
@@ -96,8 +96,6 @@ export function TeachersTable({
   const [selectedDivision, setSelectedDivision] = useState(divisionFilter.defaultValue);
   const [selectedSubject, setSelectedSubject] = useState("All Subjects");
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [passwordResetVisible, setPasswordResetVisible] = useState(false);
   const [resetTeacher, setResetTeacher] = useState<any>(null);
 
@@ -136,11 +134,6 @@ export function TeachersTable({
         .includes(selectedSubject.toLowerCase())
     );
   }
-
-  const handleViewDetails = (teacher: any) => {
-    setSelectedTeacher(teacher);
-    setModalVisible(true);
-  };
 
   const handlePasswordReset = (teacher: any) => {
     setResetTeacher(teacher);
@@ -325,7 +318,10 @@ export function TeachersTable({
                         {String((page * 15) + index + 1).padStart(2, "0")}
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-3">
+                        <Link
+                          href={`/admin/teachers/${teacher.id}`}
+                          className="flex items-center gap-3 font-medium text-foreground hover:text-primary hover:underline"
+                        >
                           <Avatar size="sm">
                             {registrationPhotoUrl ? (
                               <AvatarImage src={registrationPhotoUrl} alt={`${teacher.firstName} ${teacher.lastName}`} />
@@ -334,10 +330,10 @@ export function TeachersTable({
                               {getInitials(teacher.firstName, teacher.lastName)}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="font-medium">
+                          <span>
                             {teacher.firstName} {teacher.lastName}
                           </span>
-                        </div>
+                        </Link>
                       </TableCell>
                       <TableCell>{teacher.publicUserId || "N/A"}</TableCell>
                       <TableCell>
@@ -367,13 +363,10 @@ export function TeachersTable({
                       <TableCell>{formatPhoneNumber(teacher.contact)}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleViewDetails(teacher)}
-                            className="h-8 w-8"
-                          >
-                            <Eye className="w-4 h-4" />
+                          <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                            <Link href={`/admin/teachers/${teacher.id}`} aria-label="View teacher profile">
+                              <Eye className="w-4 h-4" />
+                            </Link>
                           </Button>
                           <Button
                             variant="ghost"
@@ -439,14 +432,6 @@ export function TeachersTable({
       )}
 
       {/* Modals */}
-      <TeacherDetailModal
-        visible={modalVisible}
-        onClose={() => {
-          setModalVisible(false);
-          setTimeout(() => setSelectedTeacher(null), 300);
-        }}
-        teacher={selectedTeacher}
-      />
       <PasswordResetModal
         visible={passwordResetVisible}
         onClose={handlePasswordResetClose}

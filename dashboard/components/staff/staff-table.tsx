@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Edit, Trash2, Key, Plus } from "lucide-react";
+import { Edit, Trash2, Key, Plus, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STAFF_COLUMNS = [
@@ -208,7 +209,10 @@ export function StaffTable({
                                                 {String((page * 15) + index + 1).padStart(2, "0")}
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-3">
+                                                <Link
+                                                    href={`/admin/staff/${staffMember.id}`}
+                                                    className="flex items-center gap-3 font-semibold text-gray-900 hover:text-primary hover:underline"
+                                                >
                                                     <Avatar className="h-9 w-9 border border-gray-100 shadow-sm">
                                                         {photoUrl ? (
                                                             <AvatarImage src={photoUrl} alt={`${staffMember.firstName} ${staffMember.lastName}`} />
@@ -217,10 +221,10 @@ export function StaffTable({
                                                             {getInitials(staffMember.firstName, staffMember.lastName)}
                                                         </AvatarFallback>
                                                     </Avatar>
-                                                    <span className="font-semibold text-gray-900">
+                                                    <span>
                                                         {staffMember.firstName} {staffMember.lastName}
                                                     </span>
-                                                </div>
+                                                </Link>
                                             </TableCell>
                                             <TableCell className="text-gray-600 font-medium">{staffMember.email}</TableCell>
                                             <TableCell className="text-gray-600">{formatPhoneNumber(staffMember.contact)}</TableCell>
@@ -234,6 +238,14 @@ export function StaffTable({
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-1.5">
+                                                    <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                                                        <Link
+                                                            href={`/admin/staff/${staffMember.id}`}
+                                                            aria-label="View staff profile"
+                                                        >
+                                                            <Eye className="w-4 h-4" />
+                                                        </Link>
+                                                    </Button>
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"

@@ -969,8 +969,9 @@ router.get(
 
       const totalCount = await prisma.user.count({ where });
 
-      // Attach file URLs
+      // Attach file URLs + list metrics (attendance %, salary — same model as teachers)
       const staffWithUrls = await userService.attachFileURLs(staff);
+      await userService.attachStaffListMetrics(staffWithUrls, currentUser.schoolId);
 
       const totalPages = Math.ceil(totalCount / pageSize);
       const hasNext = pageNumber < totalPages;
@@ -1015,8 +1016,9 @@ router.get(
         return res.status(404).json({ message: "Staff member not found!" });
       }
 
-      // Attach file URLs
+      // Attach file URLs + metrics (attendance, salary)
       const usersWithUrls = await userService.attachFileURLs([staffMember]);
+      await userService.attachStaffListMetrics(usersWithUrls, currentUser.schoolId);
 
       return res.json({
         message: "Staff member fetched!",
