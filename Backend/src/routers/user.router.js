@@ -34,6 +34,7 @@ import {
   bulkPlaceholderEmail,
   normalizeBulkContact,
   normalizeBulkPersonName,
+  parseBulkAadhaarId,
   parseBulkDateOfBirth,
   resolveStudentClassForBulk,
 } from "../utils/bulk-user-import.util.js";
@@ -1984,6 +1985,31 @@ router.post(
         return res.status(400).json({ message: "No valid data found in CSV" });
       }
 
+      const aadhaarCandidates = [];
+      for (const row of rows) {
+        const parsed = parseBulkAadhaarId(row);
+        if ("value" in parsed && parsed.value) aadhaarCandidates.push(parsed.value);
+      }
+      const uniqueAadhaarIds = [...new Set(aadhaarCandidates)];
+      const existingByAadhaar =
+        uniqueAadhaarIds.length > 0
+          ? new Map(
+              (
+                await prisma.user.findMany({
+                  where: { aadhaarId: { in: uniqueAadhaarIds } },
+                  select: {
+                    aadhaarId: true,
+                    deletedAt: true,
+                    firstName: true,
+                    lastName: true,
+                  },
+                })
+              ).map((u) => [u.aadhaarId, u]),
+            )
+          : new Map();
+
+      const batchAadhaarReserved = new Set();
+
       const results = {
         success: 0,
         failed: 0,
@@ -2004,6 +2030,45 @@ router.post(
                 "First name (or Name) and a valid 10-digit contact (Contact/Phone/Mobile) are required",
             });
             continue;
+          }
+
+          const aadhaarParsed = parseBulkAadhaarId(row);
+          if ("error" in aadhaarParsed) {
+            results.failed++;
+            results.errors.push({
+              row: firstName,
+              error: aadhaarParsed.error,
+            });
+            continue;
+          }
+          const aadhaarNormalized = aadhaarParsed.value;
+
+          if (aadhaarNormalized) {
+            if (batchAadhaarReserved.has(aadhaarNormalized)) {
+              results.failed++;
+              results.errors.push({
+                row: firstName,
+                error:
+                  "Duplicate Aadhaar in this file (the same 12-digit number appears on more than one row). Remove duplicates or leave Aadhaar empty where not needed.",
+              });
+              continue;
+            }
+            const existingUser = existingByAadhaar.get(aadhaarNormalized);
+            if (existingUser) {
+              results.failed++;
+              const label = existingUser.deletedAt
+                ? "a deleted account"
+                : "an active account";
+              const name = [existingUser.firstName, existingUser.lastName]
+                .filter(Boolean)
+                .join(" ")
+                .trim();
+              results.errors.push({
+                row: firstName,
+                error: `This Aadhaar is already linked to ${label}${name ? ` (${name})` : ""}. Use a different number or leave Aadhaar empty.`,
+              });
+              continue;
+            }
           }
 
           const publicUserId = await allocateTeacherPublicUserId(
@@ -2032,7 +2097,7 @@ router.post(
                 schoolId: currentUser.schoolId,
                 publicUserId,
                 createdBy: currentUser.id,
-                aadhaarId: row.aadhaarid?.trim() || null,
+                aadhaarId: aadhaarNormalized,
               },
             });
 
@@ -2060,11 +2125,28 @@ router.post(
             password: generatedPassword,
           });
           results.success++;
+          if (aadhaarNormalized) {
+            batchAadhaarReserved.add(aadhaarNormalized);
+          }
         } catch (error) {
           results.failed++;
+          let message = error.message;
+          if (error.code === "P2002") {
+            const field = parseUniqueConstraintField(error);
+            if (field === "aadhaarId") {
+              message =
+                "This Aadhaar number is already registered. Use a unique value or leave Aadhaar empty.";
+            } else if (field === "email") {
+              message =
+                "Email conflict while saving this row. Use a different email or leave it empty for a generated address.";
+            } else if (field === "publicUserId") {
+              message =
+                "Login ID conflict while saving. Please try the upload again in a moment.";
+            }
+          }
           results.errors.push({
             row: row.email || row.firstname || row.name || "(row)",
-            error: error.message,
+            error: message,
           });
         }
       }

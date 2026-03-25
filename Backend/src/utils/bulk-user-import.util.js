@@ -56,23 +56,103 @@ export function parseBulkDateOfBirth(raw) {
 }
 
 /**
+ * Aadhaar from CSV (User.aadhaarId is globally @unique). Normalizes to 12 digits;
+ * empty / placeholder (e.g. all zeros) → null. Invalid length → row error object.
+ *
+ * @param {Record<string, string>} row
+ * @returns {{ value: string | null } | { error: string }}
+ */
+export function parseBulkAadhaarId(row) {
+  const raw = row.aadhaarid ?? row.aadhaar_id ?? row.aadhaar ?? "";
+  const s = String(raw).trim();
+  if (!s) return { value: null };
+
+  const digits = s.replace(/\D/g, "");
+  if (digits.length === 12) {
+    if (/^0{12}$/.test(digits)) return { value: null };
+    return { value: digits };
+  }
+
+  return {
+    error:
+      "Aadhaar must be exactly 12 digits (optional). Leave the column empty or enter a valid number without letters.",
+  };
+}
+
+/**
+ * Parse ClassName into grade + division (e.g. "10A", "10 A", "10-A", "12 Science").
+ */
+function parseClassNameInput(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+  const m = s.match(/^(\d+)\s*[-]?\s*(.+)$/);
+  if (!m) return null;
+  const division = m[2].trim();
+  if (!division) return null;
+  return { grade: m[1], division };
+}
+
+function matchClassCompact(classes, inputName) {
+  const key = inputName.replace(/\s+/g, "").replace(/-/g, "").toLowerCase();
+  if (!key) return null;
+  return classes.find((c) => {
+    const g = String(c.grade ?? "").trim();
+    const d = String(c.division ?? "").trim();
+    return `${g}${d}`.toLowerCase() === key;
+  });
+}
+
+function matchClassGradeDivision(classes, inputName) {
+  const parsed = parseClassNameInput(inputName);
+  if (!parsed) return null;
+  const g = String(parsed.grade).trim();
+  const d = parsed.division;
+  return classes.find((c) => {
+    const cg = String(c.grade ?? "").trim();
+    const cd = String(c.division ?? "").trim();
+    return cg === g && cd.toLowerCase() === d.toLowerCase();
+  });
+}
+
+/** Legacy: exact "grade division" or "grade-division" (case-insensitive). */
+function matchClassLegacyExact(classes, inputName) {
+  const lower = inputName.toLowerCase().trim();
+  return classes.find((c) => {
+    const div = c.division ?? "";
+    const a = `${c.grade} ${div}`.toLowerCase().trim();
+    const b = `${c.grade}-${div}`.toLowerCase();
+    return a === lower || b === lower;
+  });
+}
+
+/**
  * Resolve class for bulk student row. If ClassName is empty, use first class (grade, then division).
  */
 export function resolveStudentClassForBulk(row, classes) {
   const raw = String(row.classname ?? "").trim();
-  const matchOne = (inputName) => {
-    const lower = inputName.toLowerCase();
-    return classes.find((c) => {
-      const className = `${c.grade} ${c.division}`.toLowerCase();
-      const altName = `${c.grade}-${c.division}`.toLowerCase();
-      return className === lower || altName === lower;
-    });
+
+  const formatClassHint = () => {
+    if (!classes.length) return "";
+    const samples = classes
+      .slice(0, 6)
+      .map((c) => {
+        const div = c.division != null && String(c.division).trim() !== "" ? ` ${c.division}` : "";
+        return `${c.grade}${div}`.trim();
+      })
+      .filter(Boolean);
+    return samples.length ? ` Available examples: ${samples.join(", ")}.` : "";
   };
 
   if (raw) {
-    const found = matchOne(raw);
+    const found =
+      matchClassCompact(classes, raw) ||
+      matchClassGradeDivision(classes, raw) ||
+      matchClassLegacyExact(classes, raw);
     if (!found) {
-      return { ok: false, error: `Class "${raw}" not found. Use e.g. "10 A" or "10-A", or leave ClassName empty to use the school's first class.` };
+      return {
+        ok: false,
+        error: `Class "${raw}" not found.${formatClassHint()} Use "10 A", "10-A", "10A", or leave ClassName empty to use the school's first class.`,
+      };
     }
     return { ok: true, classEntity: found };
   }
