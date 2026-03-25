@@ -383,29 +383,40 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
     const currentInstallmentNumber =
       schoolSettings?.currentInstallmentNumber ?? 1;
 
-    // Get fee IDs for the selected academic year
-    const currentYearFees = await prisma.fee.findMany({
+    /**
+     * Fee.year is the calendar year when the fee row was created (see fee.service).
+     * An academic year (Apr–Mar) spans two calendar years, so matching only
+     * academicStart.getFullYear() drops fees created in the second year and makes
+     * feeId filters empty → all fee stats showed 0.
+     */
+    const feeCalendarYears = [];
+    for (let y = academicStart.getFullYear(); y <= academicEnd.getFullYear(); y++) {
+      feeCalendarYears.push(y);
+    }
+
+    let feeRowsForFilter = await prisma.fee.findMany({
       where: {
         schoolId,
-        year: currentYear,
+        year: { in: feeCalendarYears },
         deletedAt: null,
       },
       select: { id: true },
     });
 
-    const currentYearFeeIds = currentYearFees.map((f) => f.id);
+    if (feeRowsForFilter.length === 0) {
+      feeRowsForFilter = await prisma.fee.findMany({
+        where: { schoolId, deletedAt: null },
+        select: { id: true },
+      });
+    }
 
-    // Get start and end of current year for financial calculations
-    const firstDayOfYear = new Date(currentYear, 0, 1);
-    const lastDayOfYear = new Date(currentYear, 11, 31, 23, 59, 59, 999);
+    const currentYearFeeIds = feeRowsForFilter.map((f) => f.id);
 
-    // Build fee filter - if no fees exist, we need to handle this differently
-    // Prisma doesn't handle empty arrays in `in` filters well, so we conditionally add the filter
+    // Build fee filter - if no fees exist for the school, match nothing
     const buildFeeFilter = (baseWhere) => {
       if (currentYearFeeIds.length > 0) {
         return { ...baseWhere, feeId: { in: currentYearFeeIds } };
       }
-      // If no fees exist, return a filter that matches nothing (using an impossible condition)
       return { ...baseWhere, feeId: { in: ["00000000-0000-0000-0000-000000000000"] } };
     };
 
@@ -545,12 +556,16 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
           deletedAt: null,
         }),
       }),
-      // Total fee income for current year (sum of all paid amounts)
+      // Total fee income in the selected academic window (payments recorded in range)
       prisma.feeInstallements.aggregate({
         where: buildFeeFilter({
           schoolId,
           paymentStatus: { in: [FeePaymentStatus.PAID, FeePaymentStatus.PARTIALLY_PAID] },
           deletedAt: null,
+          updatedAt: {
+            gte: academicStart,
+            lte: academicEnd,
+          },
         }),
         _sum: {
           paidAmount: true,
@@ -637,30 +652,32 @@ const getSchoolAdminDashboardData = async (currentUser, schoolId, academicYear, 
           student: { role: { name: { in: ["STAFF", "TEACHER"] } }, deletedAt: null }
         }
       }),
-      // Dynamic Collection (Today or Filtered Date)
+      // Collection in the dashboard filter window (aligned with attendance date range)
       prisma.feeInstallements.aggregate({
         where: buildFeeFilter({
           schoolId,
           paymentStatus: { in: [FeePaymentStatus.PAID, FeePaymentStatus.PARTIALLY_PAID] },
           deletedAt: null,
-          updatedAt: {
-            gte: (filterType === 'date' && attendanceStart) ? attendanceStart : new Date(new Date().setHours(0, 0, 0, 0)),
-            lte: (filterType === 'date' && attendanceEnd) ? attendanceEnd : new Date(new Date().setHours(23, 59, 59, 999)),
-          },
+          updatedAt:
+            filterType === "term" && filterValue
+              ? { gte: attendanceStart, lte: attendanceEnd }
+              : { gte: attendanceStart, lt: attendanceEnd },
         }),
         _sum: {
           paidAmount: true,
         },
       }),
-      // Pending fee amount
+      // Outstanding unpaid balance (pending + partial)
       prisma.feeInstallements.aggregate({
         where: buildFeeFilter({
           schoolId,
-          paymentStatus: FeePaymentStatus.PENDING,
+          paymentStatus: {
+            in: [FeePaymentStatus.PENDING, FeePaymentStatus.PARTIALLY_PAID],
+          },
           deletedAt: null,
         }),
         _sum: {
-          amount: true,
+          remainingAmount: true,
         },
       }),
     ]);
