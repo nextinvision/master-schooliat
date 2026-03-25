@@ -65,10 +65,16 @@ const baseTeacherSchema = z.object({
   }),
   transportId: z.string().default(""),
   registrationPhotoId: z.string().nullable().default(null),
-  aadhaarId: z
-    .string()
-    .default("")
-    .refine((val) => !val || /^\d{12}$/.test(val), "Aadhaar ID must be exactly 12 digits"),
+  /** Optional. Accepts formatted input (spaces/dashes); we keep digits only before validating length. */
+  aadhaarId: z.preprocess(
+    (val) => {
+      if (val === null || val === undefined) return "";
+      return String(val).replace(/\D/g, "");
+    },
+    z.string().refine((val) => val === "" || val.length === 12, {
+      message: "Aadhaar ID must be exactly 12 digits",
+    }),
+  ),
   panCardNumber: z
     .string()
     .default("")
