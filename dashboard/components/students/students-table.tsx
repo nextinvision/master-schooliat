@@ -59,7 +59,10 @@ interface StudentsTableProps {
   onEdit: (student: any) => void;
   onDelete: (studentId: string) => void;
   onBulkDelete: (ids: string[]) => void;
+  /** 0-based index of the current server page (matches paginator state). */
   page: number;
+  /** Rows per page from the server (used to compute global S.No. across pages). */
+  pageSize: number;
   onPageChange: (page: number) => void;
   serverTotalPages: number;
   loading: boolean;
@@ -73,6 +76,7 @@ export function StudentsTable({
   onDelete,
   onBulkDelete,
   page,
+  pageSize,
   onPageChange,
   serverTotalPages,
   loading,
@@ -235,7 +239,11 @@ export function StudentsTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredStudents.map((student, index) => (
+                filteredStudents.map((student, index) => {
+                  const indexInServerPage = students.findIndex((s) => s.id === student.id);
+                  const globalSerial =
+                    page * pageSize + (indexInServerPage >= 0 ? indexInServerPage : index) + 1;
+                  return (
                   <TableRow
                     key={student.id}
                     className={cn(
@@ -249,7 +257,7 @@ export function StudentsTable({
                       />
                     </TableCell>
                     <TableCell className="font-medium">
-                      {String(index + 1).padStart(2, "0")}
+                      {String(globalSerial).padStart(2, "0")}
                     </TableCell>
                     <TableCell className="font-medium">
                       <Link
@@ -326,7 +334,8 @@ export function StudentsTable({
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>

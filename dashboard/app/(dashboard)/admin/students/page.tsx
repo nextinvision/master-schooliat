@@ -379,6 +379,7 @@ export default function StudentsPage() {
             onDelete={handleDeleteStudent}
             onBulkDelete={handleBulkDelete}
             page={page - 1}
+            pageSize={limit}
             onPageChange={(newPage) => setPage(newPage + 1)}
             serverTotalPages={studentsTotalPages}
             loading={studentsLoading}
