@@ -277,7 +277,9 @@ function formatTransportLabel(transport) {
  * Flattens metrics the dashboard expects on each teacher user:
  * - `transport` (string) from TeacherProfile.transport
  * - `salary` "PAID" | "DUE" | null from SalaryPayments (month) + basicSalary
- * - `attendance` { percentage } from Attendance rows marked by this teacher (current calendar month)
+ * - `attendance` { percentage } from **this teacher's own** attendance rows (current calendar month).
+ *   Staff/teacher attendance (admin `/admin/attendance/staff`) stores the attendee in `Attendance.studentId`
+ *   (same field as students). It must NOT use `markedBy` (that is who recorded the row, e.g. when marking students).
  */
 const attachTeacherListMetrics = async (users, schoolId) => {
   if (!Array.isArray(users) || users.length === 0 || !schoolId) return users;
@@ -301,10 +303,10 @@ const attachTeacherListMetrics = async (users, schoolId) => {
       select: { userId: true },
     }),
     prisma.attendance.groupBy({
-      by: ["markedBy", "status"],
+      by: ["studentId", "status"],
       where: {
         schoolId,
-        markedBy: { in: teacherIds },
+        studentId: { in: teacherIds },
         date: { gte: startOfMonth, lte: endOfMonth },
         deletedAt: null,
       },
@@ -316,7 +318,7 @@ const attachTeacherListMetrics = async (users, schoolId) => {
 
   const statsByTeacher = new Map();
   for (const row of attendanceGroups) {
-    const id = row.markedBy;
+    const id = row.studentId;
     if (!statsByTeacher.has(id)) {
       statsByTeacher.set(id, { present: 0, total: 0 });
     }
