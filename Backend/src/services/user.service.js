@@ -261,6 +261,99 @@ const attachClassTeacherAssignments = async (users, schoolId) => {
   return users;
 };
 
+/** Labels for list UI (aligned with admin teachers table). */
+const TEACHER_ATTENDANCE_COUNTED_STATUSES = new Set(["PRESENT", "LATE", "HALF_DAY"]);
+
+function formatTeacherTransportLabel(transport) {
+  if (!transport) return null;
+  const typeRaw = transport.type != null ? String(transport.type) : "";
+  const type = typeRaw.replace(/_/g, " ");
+  const v = transport.vehicleNumber?.trim?.() ?? "";
+  const parts = [type, v].filter(Boolean);
+  return parts.length ? parts.join(" · ") : null;
+}
+
+/**
+ * Flattens metrics the dashboard expects on each teacher user:
+ * - `transport` (string) from TeacherProfile.transport
+ * - `salary` "PAID" | "DUE" | null from SalaryPayments (month) + basicSalary
+ * - `attendance` { percentage } from Attendance rows marked by this teacher (current calendar month)
+ */
+const attachTeacherListMetrics = async (users, schoolId) => {
+  if (!Array.isArray(users) || users.length === 0 || !schoolId) return users;
+
+  const teacherIds = users.map((u) => u?.id).filter(Boolean);
+  if (teacherIds.length === 0) return users;
+
+  const now = new Date();
+  const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  const [payments, attendanceGroups] = await Promise.all([
+    prisma.salaryPayments.findMany({
+      where: {
+        schoolId,
+        userId: { in: teacherIds },
+        month: monthStr,
+        deletedAt: null,
+      },
+      select: { userId: true },
+    }),
+    prisma.attendance.groupBy({
+      by: ["markedBy", "status"],
+      where: {
+        schoolId,
+        markedBy: { in: teacherIds },
+        date: { gte: startOfMonth, lte: endOfMonth },
+        deletedAt: null,
+      },
+      _count: { _all: true },
+    }),
+  ]);
+
+  const paidThisMonth = new Set(payments.map((p) => p.userId));
+
+  const statsByTeacher = new Map();
+  for (const row of attendanceGroups) {
+    const id = row.markedBy;
+    if (!statsByTeacher.has(id)) {
+      statsByTeacher.set(id, { present: 0, total: 0 });
+    }
+    const s = statsByTeacher.get(id);
+    const c = row._count._all;
+    s.total += c;
+    if (TEACHER_ATTENDANCE_COUNTED_STATUSES.has(row.status)) {
+      s.present += c;
+    }
+  }
+
+  for (const user of users) {
+    if (!user) continue;
+    const tp = user.teacherProfile;
+    user.transport = formatTeacherTransportLabel(tp?.transport) ?? null;
+
+    const base = tp?.basicSalary;
+    if (paidThisMonth.has(user.id)) {
+      user.salary = "PAID";
+    } else if (base != null && base > 0) {
+      user.salary = "DUE";
+    } else {
+      user.salary = null;
+    }
+
+    const st = statsByTeacher.get(user.id);
+    if (st && st.total > 0) {
+      const pct = Math.round((st.present / st.total) * 100);
+      user.attendance = { percentage: pct };
+    } else {
+      user.attendance = null;
+    }
+  }
+
+  return users;
+};
+
 const attachFileURLs = async (users) => {
   // Handle both array and single user
   if (users.length === 0) return users;
@@ -302,6 +395,7 @@ const userService = {
   getEmployeeById,
   attachFileURLs,
   attachClassTeacherAssignments,
+  attachTeacherListMetrics,
 };
 
 export default userService;

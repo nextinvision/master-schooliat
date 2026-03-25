@@ -317,6 +317,7 @@ router.post(
         usersWithUrls,
         currentUser.schoolId,
       );
+      await userService.attachTeacherListMetrics(usersWithUrls, currentUser.schoolId);
 
       return res.status(201).json({
         message: "Teacher created!",
@@ -402,6 +403,7 @@ router.get(
         teachersWithUrls,
         currentUser.schoolId,
       );
+      await userService.attachTeacherListMetrics(teachersWithUrls, currentUser.schoolId);
 
       const totalPages = Math.ceil(totalCount / pageSize);
       const hasNext = pageNumber < totalPages;
@@ -538,6 +540,7 @@ router.get(
         teachersWithUrls,
         currentUser.schoolId,
       );
+      await userService.attachTeacherListMetrics(teachersWithUrls, currentUser.schoolId);
 
       return res.json({
         message: "Teacher fetched!",
@@ -658,6 +661,7 @@ router.patch(
         usersWithUrls,
         currentUser.schoolId,
       );
+      await userService.attachTeacherListMetrics(usersWithUrls, currentUser.schoolId);
 
       return res.json({
         message: "Teacher updated!",
