@@ -86,3 +86,43 @@ export async function allocateStaffPublicUserId(schoolCode, schoolId, staffRoleI
     "Could not allocate a unique Login ID for this school. Try again or set a custom Login ID.",
   );
 }
+
+/**
+ * Allocate next `{schoolCode}S####` Login ID for students (bulk + single create pattern).
+ * Considers all student-role users for the school (including soft-deleted).
+ */
+export async function allocateStudentPublicUserId(schoolCode, schoolId, studentRoleId) {
+  const prefix = `${schoolCode}S`;
+  const users = await prisma.user.findMany({
+    where: {
+      schoolId,
+      roleId: studentRoleId,
+    },
+    select: { publicUserId: true },
+  });
+
+  const re = new RegExp(`^${escapeRegex(schoolCode)}S(\\d+)$`);
+  let maxSuffix = 0;
+  for (const u of users) {
+    const m = u.publicUserId?.match(re);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      if (Number.isFinite(n)) maxSuffix = Math.max(maxSuffix, n);
+    }
+  }
+
+  let n = maxSuffix + 1;
+  const maxAttempts = 100000;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const candidate = `${prefix}${String(n).padStart(4, "0")}`;
+    const taken = await prisma.user.findUnique({
+      where: { publicUserId: candidate },
+    });
+    if (!taken) return candidate;
+    n += 1;
+  }
+
+  throw new Error(
+    "Could not allocate a unique student Login ID for this school. Try again.",
+  );
+}

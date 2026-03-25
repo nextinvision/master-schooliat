@@ -28,7 +28,15 @@ import updateStudentSchema from "../schemas/user/update-student.schema.js";
 import {
   allocateTeacherPublicUserId,
   allocateStaffPublicUserId,
+  allocateStudentPublicUserId,
 } from "../utils/teacher-public-user-id.util.js";
+import {
+  bulkPlaceholderEmail,
+  normalizeBulkContact,
+  normalizeBulkPersonName,
+  parseBulkDateOfBirth,
+  resolveStudentClassForBulk,
+} from "../utils/bulk-user-import.util.js";
 
 const router = Router();
 
@@ -1986,47 +1994,61 @@ router.post(
 
       for (const row of rows) {
         try {
+          const { firstName, lastName } = normalizeBulkPersonName(row);
+          const contact = normalizeBulkContact(row);
+          if (!firstName || !contact) {
+            results.failed++;
+            results.errors.push({
+              row: firstName || String(row.name ?? "").trim() || "(row)",
+              error:
+                "First name (or Name) and a valid 10-digit contact (Contact/Phone/Mobile) are required",
+            });
+            continue;
+          }
+
           const publicUserId = await allocateTeacherPublicUserId(
             school.code,
             currentUser.schoolId,
             teacherRole.id,
           );
           const generatedPassword = stringUtil.generateRandomString(15);
-          const emailNorm = String(row.email).trim().toLowerCase();
+          const emailRaw = String(row.email ?? "").trim().toLowerCase();
+          const emailNorm = emailRaw || bulkPlaceholderEmail(currentUser.schoolId, "t");
+          const dateOfBirth = parseBulkDateOfBirth(row.dateofbirth);
 
           await prisma.$transaction(async (tx) => {
             const user = await tx.user.create({
               data: {
                 email: emailNorm,
                 password: await bcryptjs.hash(generatedPassword, 10),
-                firstName: row.firstname,
-                lastName: row.lastname || "",
-                contact: row.contact,
+                firstName,
+                lastName: lastName || "",
+                contact,
                 gender: row.gender?.toUpperCase() === "FEMALE" ? "FEMALE" : "MALE",
-                dateOfBirth: new Date(row.dateofbirth),
+                dateOfBirth,
                 address: [],
                 userType: UserType.SCHOOL,
                 roleId: teacherRole.id,
                 schoolId: currentUser.schoolId,
                 publicUserId,
                 createdBy: currentUser.id,
-                aadhaarId: row.aadhaarid || null,
+                aadhaarId: row.aadhaarid?.trim() || null,
               },
             });
 
             await tx.teacherProfile.create({
               data: {
                 userId: user.id,
-                designation: row.designation || null,
-                highestQualification: row.highestqualification || "",
-                university: row.university || "",
-                yearOfPassing: row.yearofpassing ? parseInt(row.yearofpassing) : 0,
-                grade: row.grade || "",
+                designation: row.designation?.trim() || null,
+                highestQualification: row.highestqualification?.trim() || "",
+                university: row.university?.trim() || "",
+                yearOfPassing: row.yearofpassing ? parseInt(row.yearofpassing, 10) : 0,
+                grade: row.grade?.trim() || "",
                 subjects:
                   (row.subjects && String(row.subjects).trim()) ||
                   (row.subject && String(row.subject).trim()) ||
                   null,
-                panCardNumber: row.pancardnumber || null,
+                panCardNumber: row.pancardnumber?.trim() || null,
                 createdBy: currentUser.id,
               },
             });
@@ -2041,7 +2063,7 @@ router.post(
         } catch (error) {
           results.failed++;
           results.errors.push({
-            row: row.email || row.firstname,
+            row: row.email || row.firstname || row.name || "(row)",
             error: error.message,
           });
         }
@@ -2094,39 +2116,52 @@ router.post(
         errors: [],
       };
 
-      let currentStudentCount = await prisma.user.count({
-        where: {
-          schoolId: currentUser.schoolId,
-          roleId: studentRole.id,
-        },
-      });
-
       for (const row of rows) {
         try {
-          // Resolve class (Format: "10 A" or "10-A")
-          const classEntity = classes.find(c => {
-            const className = `${c.grade} ${c.division}`.toLowerCase();
-            const altName = `${c.grade}-${c.division}`.toLowerCase();
-            const inputName = row.classname?.toLowerCase();
-            return className === inputName || altName === inputName;
-          });
+          const { firstName, lastName } = normalizeBulkPersonName(row);
+          const contact = normalizeBulkContact(row);
+          if (!firstName || !contact) {
+            results.failed++;
+            results.errors.push({
+              row: firstName || String(row.name ?? "").trim() || "(row)",
+              error:
+                "First name (or Name) and a valid 10-digit contact (Contact/Phone/Mobile) are required",
+            });
+            continue;
+          }
 
-          if (!classEntity) throw new Error(`Class ${row.classname} not found`);
+          const classResolution = resolveStudentClassForBulk(row, classes);
+          if (!classResolution.ok) {
+            results.failed++;
+            results.errors.push({
+              row: firstName,
+              error: classResolution.error,
+            });
+            continue;
+          }
+          const classEntity = classResolution.classEntity;
 
-          const publicUserId = `${school.code}S${String(++currentStudentCount).padStart(4, "0")}`;
+          const publicUserId = await allocateStudentPublicUserId(
+            school.code,
+            currentUser.schoolId,
+            studentRole.id,
+          );
           const generatedPassword = stringUtil.generateRandomString(15);
+          const emailRaw = String(row.email ?? "").trim().toLowerCase();
+          const emailNorm = emailRaw || bulkPlaceholderEmail(currentUser.schoolId, "s");
+          const dateOfBirth = parseBulkDateOfBirth(row.dateofbirth);
 
           let newStudentId;
           await prisma.$transaction(async (tx) => {
             const user = await tx.user.create({
               data: {
-                email: row.email.toLowerCase(),
+                email: emailNorm,
                 password: await bcryptjs.hash(generatedPassword, 10),
-                firstName: row.firstname,
-                lastName: row.lastname || "",
-                contact: row.contact,
+                firstName,
+                lastName: lastName || "",
+                contact,
                 gender: row.gender?.toUpperCase() === "FEMALE" ? "FEMALE" : "MALE",
-                dateOfBirth: new Date(row.dateofbirth),
+                dateOfBirth,
                 userType: UserType.SCHOOL,
                 roleId: studentRole.id,
                 schoolId: currentUser.schoolId,
@@ -2139,13 +2174,14 @@ router.post(
             await tx.studentProfile.create({
               data: {
                 userId: user.id,
-                rollNumber: row.rollnumber ? parseInt(row.rollnumber) : 0,
-                apaarId: row.apaarid || null,
+                rollNumber: row.rollnumber ? parseInt(row.rollnumber, 10) : 0,
+                apaarId: row.apaarid?.trim() || null,
                 classId: classEntity.id,
-                fatherName: row.fathername || "",
-                motherName: row.mothername || "",
-                fatherContact: row.fathercontact || "",
-                motherContact: row.mothercontact || "",
+                fatherName: row.fathername?.trim() || "",
+                motherName: row.mothername?.trim() || "",
+                fatherContact: row.fathercontact?.trim() || "",
+                motherContact: row.mothercontact?.trim() || "",
+                accommodationType: "DAY_SCHOLAR",
                 createdBy: currentUser.id,
               },
             });
@@ -2168,10 +2204,9 @@ router.post(
         } catch (error) {
           results.failed++;
           results.errors.push({
-            row: row.email || row.firstname,
+            row: row.email || row.firstname || row.name || "(row)",
             error: error.message,
           });
-          currentStudentCount--;
         }
       }
 

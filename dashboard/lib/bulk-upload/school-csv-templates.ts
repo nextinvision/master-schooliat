@@ -1,8 +1,12 @@
 /**
  * Bulk CSV formats for POST /users/teachers/bulk and POST /users/students/bulk.
  * Backend csv.util parseCSV normalizes headers: lowercased, spaces removed
- * (e.g. "First Name" → "firstname", "PanCardNumber" → "pancardnumber").
- * Column order here must match keys the backend reads on each row object.
+ * (e.g. "First Name" → "firstname", "Phone" → "phone").
+ *
+ * Required columns (per row):
+ * - Teachers & students: **FirstName** (or **Name**) + **Contact** (or Phone / Mobile).
+ * - All other columns are optional; missing email/DOB/etc. use server defaults.
+ * - Students: **ClassName** optional — if empty, the first class (by grade, then division) is used.
  */
 
 function escapeCsvCell(value: string): string {
@@ -36,15 +40,14 @@ export function triggerCsvDownload(filename: string, csvContent: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** Matches user.router.js POST /users/teachers/bulk (row.firstname, row.email, …). */
+/** Matches user.router.js POST /users/teachers/bulk. */
 export const TEACHER_BULK_CSV = {
   filename: "teachers_upload_sample.csv",
-  /** Column headers (parseCSV keys: firstname, lastname, email, …) */
   headers: [
     "FirstName",
+    "Contact",
     "LastName",
     "Email",
-    "Contact",
     "Gender",
     "DateOfBirth",
     "Designation",
@@ -56,58 +59,58 @@ export const TEACHER_BULK_CSV = {
     "PanCardNumber",
     "Subjects",
   ],
-  /** One example row; users replace with real data. Date format YYYY-MM-DD. */
+  /** Minimal row: name + phone; other fields can be left blank. */
   sampleRow: [
     "Jane",
-    "Smith",
-    "jane.smith@example.com",
     "9876543210",
-    "FEMALE",
-    "1990-05-15",
-    "Senior Teacher",
-    "M.Sc",
-    "Example University",
-    "2012",
-    "85",
     "",
     "",
-    "Mathematics, Science",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
   ],
 } as const;
 
-/** Matches user.router.js POST /users/students/bulk (row.classname, …). */
+/** Matches user.router.js POST /users/students/bulk. */
 export const STUDENT_BULK_CSV = {
   filename: "students_upload_sample.csv",
   headers: [
     "FirstName",
+    "Contact",
+    "ClassName",
     "LastName",
     "Email",
-    "Contact",
     "Gender",
     "DateOfBirth",
     "FatherName",
     "MotherName",
     "FatherContact",
     "MotherContact",
-    "ClassName",
     "ApaarId",
     "RollNumber",
   ],
-  /** ClassName must match an existing class: "Grade Division" or "Grade-Division" (e.g. 10 A or 10-A). */
+  /** ClassName may be empty — server assigns first class in the school. */
   sampleRow: [
     "Ravi",
-    "Kumar",
-    "ravi.kumar@example.com",
     "9123456789",
-    "MALE",
-    "2015-01-20",
-    "Father Name",
-    "Mother Name",
-    "9988776655",
-    "8877665544",
-    "9 A",
     "",
-    "1",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
   ],
 } as const;
 
