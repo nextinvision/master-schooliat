@@ -25,7 +25,10 @@ import otpDeletionService from "../services/otp-deletion.service.js";
 import { resolveDeletionOtpRecipientEmail } from "../services/deletion-otp-recipient.service.js";
 import createStudentSchema from "../schemas/user/create-student.schema.js";
 import updateStudentSchema from "../schemas/user/update-student.schema.js";
-import { allocateTeacherPublicUserId } from "../utils/teacher-public-user-id.util.js";
+import {
+  allocateTeacherPublicUserId,
+  allocateStaffPublicUserId,
+} from "../utils/teacher-public-user-id.util.js";
 
 const router = Router();
 
@@ -43,7 +46,11 @@ function mapTeachersWithSubjects(users) {
 function parseUniqueConstraintField(error) {
   const target = error?.meta?.target;
   if (Array.isArray(target) && target.length > 0) {
-    return String(target[0]);
+    const raw = String(target[0]);
+    if (raw === "public_user_id") return "publicUserId";
+    if (raw === "aadhaar_id") return "aadhaarId";
+    if (raw === "email") return "email";
+    return raw;
   }
   const message = String(error?.message || "");
   if (message.includes("users_unique_email") || message.includes("email")) return "email";
@@ -786,6 +793,11 @@ router.post(
       // Get staff role
       const staffRole = await roleService.getRoleByName(RoleName.STAFF);
 
+      const emailNormalized = String(request.email || "").trim().toLowerCase();
+      if (!emailNormalized) {
+        return res.status(400).json({ message: "Email is required" });
+      }
+
       // Generate password
       const generatedPassword = stringUtil.generateRandomString(15);
 
@@ -795,32 +807,28 @@ router.post(
         registrationPhotoId = req.body.request.registrationPhotoId;
       }
 
-      // Generate or Use Provided publicUserId
-      let publicUserId = req.body.request.publicUserId;
-      if (publicUserId) {
+      // Generate or use provided Login ID (same allocation strategy as teachers: max suffix + retry)
+      const manualPublicUserId = String(req.body.request?.publicUserId ?? "").trim();
+      let publicUserId;
+      if (manualPublicUserId) {
         const existingIdUser = await prisma.user.findFirst({
-          where: { publicUserId },
+          where: { publicUserId: manualPublicUserId },
         });
         if (existingIdUser) {
-          return res.status(400).json({ message: "Login ID already exists!" });
+          return res.status(400).json({
+            message: `Login ID "${manualPublicUserId}" is already in use. Choose a different Login ID.`,
+          });
         }
+        publicUserId = manualPublicUserId;
       } else {
-        // AT for Admin/Staff Type
-        const existingStaff = await prisma.user.count({
-          where: {
-            schoolId: school.id,
-            roleId: staffRole.id,
-            deletedAt: null,
-          },
-        });
-        publicUserId = `${school.code}AT${String(existingStaff + 1).padStart(4, "0")}`;
+        publicUserId = await allocateStaffPublicUserId(school.code, school.id, staffRole.id);
       }
 
       // Create user
       const user = await prisma.user.create({
         data: {
           publicUserId,
-          email: req.body.request.email.trim(),
+          email: emailNormalized,
           password: await bcryptjs.hash(generatedPassword, 10),
           firstName: request.firstName.trim(),
           lastName: request.lastName?.trim() || "",
@@ -858,8 +866,24 @@ router.post(
       });
     } catch (error) {
       if (error.code === "P2002") {
+        const field = parseUniqueConstraintField(error);
+        if (field === "publicUserId") {
+          return res.status(400).json({
+            errorCode: "STAFF_LOGIN_ID_UNIQUE",
+            message: String(req.body.request?.publicUserId ?? "").trim()
+              ? `Login ID "${String(req.body.request.publicUserId).trim()}" is already in use. Choose a different Login ID.`
+              : "Login ID conflict while saving. Please try again, or set a custom Login ID in the form.",
+          });
+        }
+        if (field === "aadhaarId") {
+          return res.status(400).json({
+            errorCode: "STAFF_AADHAAR_UNIQUE",
+            message: "Aadhaar ID already exists for another account.",
+          });
+        }
         return res.status(400).json({
-          message: "Email already exists!",
+          errorCode: "STAFF_EMAIL_UNIQUE",
+          message: "Email already exists for another account.",
         });
       }
       return res.status(400).json({
@@ -1012,7 +1036,7 @@ router.patch(
       if (request.lastName !== undefined)
         userUpdateData.lastName = request.lastName.trim();
       if (request.email !== undefined)
-        userUpdateData.email = request.email.trim();
+        userUpdateData.email = String(request.email).trim().toLowerCase();
       if (request.contact !== undefined)
         userUpdateData.contact = request.contact.trim();
       if (request.gender !== undefined) userUpdateData.gender = request.gender;
@@ -1061,8 +1085,22 @@ router.patch(
       });
     } catch (error) {
       if (error.code === "P2002") {
+        const field = parseUniqueConstraintField(error);
+        if (field === "publicUserId") {
+          return res.status(400).json({
+            errorCode: "STAFF_LOGIN_ID_UNIQUE",
+            message: "Login ID already exists for another account.",
+          });
+        }
+        if (field === "aadhaarId") {
+          return res.status(400).json({
+            errorCode: "STAFF_AADHAAR_UNIQUE",
+            message: "Aadhaar ID already exists for another account.",
+          });
+        }
         return res.status(400).json({
-          message: "Email already exists!",
+          errorCode: "STAFF_EMAIL_UNIQUE",
+          message: "Email already exists for another account.",
         });
       }
       return res.status(400).json({

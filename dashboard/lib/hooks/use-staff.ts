@@ -30,6 +30,9 @@ function createStaffApi(form: any) {
             registrationPhotoId: form.registrationPhotoId || null,
             designation: form.designation?.trim() || null,
             basicSalary: form.basicSalary != null ? Number(form.basicSalary) : null,
+            ...(form.publicUserId?.trim()
+                ? { publicUserId: form.publicUserId.trim() }
+                : {}),
         },
     };
     return post("/users/staff", payload);
