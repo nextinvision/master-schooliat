@@ -27,8 +27,11 @@ export interface AddTeacherFormData {
   publicUserId?: string;
 }
 
-/** Edit form uses `dateOfBirth` (yyyy-MM-dd); add flow uses `dob`. */
-export type EditTeacherFormData = Omit<AddTeacherFormData, "dob"> & {
+/** Edit form uses `dateOfBirth` (yyyy-MM-dd); add flow uses `dob`. Identity docs are not edited here — omit from type and validation. */
+export type EditTeacherFormData = Omit<
+  AddTeacherFormData,
+  "dob" | "aadhaarId" | "panCardNumber"
+> & {
   dateOfBirth: string;
 };
 
@@ -98,12 +101,18 @@ export const addTeacherSchema = baseTeacherSchema.extend({
   subjects: z.string().min(1, "Subjects are required").trim(),
 });
 
-// Edit flow: same as add but swap `dob` for `dateOfBirth` (the edit page binds `dateOfBirth` only).
-// Without `.omit({ dob })`, validation always failed because `dob` was never submitted.
+// Edit flow: `dob` → `dateOfBirth`. Do not validate or submit `aadhaarId` / `panCardNumber` — those
+// fields are not on the edit UI; including them caused hidden Zod failures and PATCH side effects.
+// Contact: allow any 10-digit number on edit (legacy rows may not match new-teacher mobile prefix rule).
 export const editTeacherSchema = addTeacherSchema
-  .omit({ dob: true })
+  .omit({ dob: true, aadhaarId: true, panCardNumber: true })
   .extend({
     dateOfBirth: z.string().min(1, "Date of birth is required"),
+    contact: z
+      .string()
+      .min(10, "Contact must be 10 digits")
+      .max(10, "Contact must be 10 digits")
+      .regex(/^\d{10}$/, "Contact must be exactly 10 digits"),
   });
 
 // Apply explicit types for consistency

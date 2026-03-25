@@ -67,11 +67,7 @@ function updateTeacherApi(id: string, form: any) {
         `${form.location}, ${form.district}`,
         `${form.state} - ${form.pincode}`,
       ].filter(Boolean),
-      aadhaarId: form.aadhaarId?.trim(),
       subjects: form.subjects?.trim(),
-      panCardNumber: form.panCardNumber?.trim()
-        ? form.panCardNumber.trim().toUpperCase()
-        : undefined,
       designation: form.designation?.trim(),
       highestQualification: form.highestQualification?.trim(),
       university: form.university?.trim(),

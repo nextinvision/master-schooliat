@@ -69,8 +69,6 @@ export default function EditTeacherPage() {
       transportId: "",
       registrationPhotoId: null,
       subjects: "",
-      aadhaarId: "",
-      panCardNumber: "",
       basicSalary: undefined,
     },
     mode: "onBlur",
@@ -120,8 +118,6 @@ export default function EditTeacherPage() {
       transportId: teacher.transportId || "",
       registrationPhotoId: teacher.registrationPhotoId || null,
       subjects: teacher.subjects ?? teacher.teacherProfile?.subjects ?? "",
-      aadhaarId: teacher.aadhaarId || "",
-      panCardNumber: teacher.panCardNumber || "",
       basicSalary: teacher.teacherProfile?.basicSalary || undefined,
     });
   }, [teacher, reset]);

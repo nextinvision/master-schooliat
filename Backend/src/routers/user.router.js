@@ -668,8 +668,29 @@ router.patch(
       });
     } catch (error) {
       if (error.code === "P2002") {
+        const field = parseUniqueConstraintField(error);
+        if (field === "aadhaarId") {
+          return res.status(400).json({
+            errorCode: "TEACHER_AADHAAR_UNIQUE",
+            message: "This Aadhaar number is already registered to another account.",
+          });
+        }
+        if (field === "publicUserId") {
+          return res.status(400).json({
+            errorCode: "TEACHER_LOGIN_ID_UNIQUE",
+            message: "Login ID conflict while saving. Please try again in a moment.",
+          });
+        }
+        if (field === "email") {
+          return res.status(400).json({
+            errorCode: "TEACHER_EMAIL_UNIQUE",
+            message:
+              "Email is already in use by another account. Choose a different email address.",
+          });
+        }
         return res.status(400).json({
-          message: "Email already exists!",
+          errorCode: "TEACHER_UNIQUE_CONSTRAINT",
+          message: "This value conflicts with another account. Check email, login ID, or Aadhaar.",
         });
       }
       return res.status(400).json({
