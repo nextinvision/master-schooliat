@@ -4,8 +4,30 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
-function fetchStudents({ page = 1, limit = 15, academicYear, classId, gender }: { page?: number; limit?: number; academicYear?: string; classId?: string; gender?: string } = {}) {
-  return get("/users/students", { page, limit, academicYear, classId, gender });
+/**
+ * GET /users/students returns `totalPages` and `hasNext` at the top level (not under `pagination`).
+ * Normalize so list UIs can rely on `pagination.totalPages` and pagination / Next works past 15 rows.
+ */
+function fetchStudents({
+  page = 1,
+  limit = 15,
+  academicYear,
+  classId,
+  gender,
+}: { page?: number; limit?: number; academicYear?: string; classId?: string; gender?: string } = {}) {
+  return get("/users/students", { page, limit, academicYear, classId, gender }).then((res: any) => {
+    const totalPages = res?.totalPages ?? res?.pagination?.totalPages ?? 1;
+    const hasNext = res?.hasNext ?? res?.pagination?.hasNext ?? false;
+    return {
+      ...res,
+      totalPages,
+      hasNext,
+      pagination: {
+        totalPages,
+        hasNext,
+      },
+    };
+  });
 }
 
 function fetchStudent(studentId: string) {

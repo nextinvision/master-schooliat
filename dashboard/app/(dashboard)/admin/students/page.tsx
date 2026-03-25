@@ -119,12 +119,14 @@ export default function StudentsPage() {
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [studentOtpTarget, setStudentOtpTarget] = useState<StudentOtpTarget | null>(null);
+  /** Remount StudentsTable after bulk upload so class/division/search filters reset and new rows are visible. */
+  const [studentsTableResetKey, setStudentsTableResetKey] = useState(0);
   const limit = 15;
 
   // Students data
   const { data: studentsData, isLoading: studentsLoading, refetch: refetchStudents } = useStudentsPage(page, limit);
   const students = studentsData?.data || [];
-  const studentsTotalPages = studentsData?.pagination?.totalPages || 1;
+  const studentsTotalPages = studentsData?.pagination?.totalPages ?? studentsData?.totalPages ?? 1;
 
   const { data: tcsData, isLoading: tcsLoading, refetch: refetchTCs } = useTCs({
     page: tcPage,
@@ -370,6 +372,7 @@ export default function StudentsPage() {
         {/* All Students Tab */}
         <TabsContent value="all" className="mt-6">
           <StudentsTable
+            key={studentsTableResetKey}
             students={students}
             onAddNew={() => setIsAddStudentDialogOpen(true)}
             onEdit={handleEditStudent}
