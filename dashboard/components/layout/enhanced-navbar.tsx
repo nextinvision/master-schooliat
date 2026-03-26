@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { clearToken } from "@/lib/auth/storage";
 import { useAuth } from "@/lib/hooks/use-auth";
+import { useIsLgScreen } from "@/lib/hooks/use-media-query";
 import { useSidebar } from "@/lib/context/sidebar-context";
 import {
   useNotifications,
@@ -47,6 +48,7 @@ export function EnhancedNavbar() {
   const pathname = usePathname();
   const { user } = useAuth();
   const { isOpen, toggle } = useSidebar();
+  const isLg = useIsLgScreen();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -169,7 +171,9 @@ export function EnhancedNavbar() {
             toggle();
           }}
           className="rounded-md bg-gray-50 border border-gray-200 hover:bg-gray-100 h-8 w-8 shrink-0"
-          title={isOpen ? "Close Sidebar" : "Open Sidebar"}
+          title={isOpen ? "Close menu" : "Open menu"}
+          aria-expanded={!isLg ? isOpen : undefined}
+          aria-controls="dashboard-sidebar"
         >
           {isOpen ? (
             <X className="h-3.5 w-3.5 text-gray-600" />

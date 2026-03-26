@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
@@ -56,6 +56,7 @@ import {
 } from "@/lib/config/menu-items";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "@/lib/context/sidebar-context";
+import { useIsLgScreen } from "@/lib/hooks/use-media-query";
 
 const iconMap: Record<string, LucideIcon> = {
   LayoutDashboard,
@@ -96,7 +97,15 @@ const iconMap: Record<string, LucideIcon> = {
 export function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isOpen } = useSidebar();
+  const { isOpen, close } = useSidebar();
+  const isLg = useIsLgScreen();
+
+  /** Mobile drawer: close after navigation (desktop keeps expand/collapse unchanged). */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 1023px)").matches) return;
+    close();
+  }, [pathname, close]);
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>({});
 
   const isActive = (route: string) => {
@@ -153,10 +162,19 @@ export function Sidebar() {
 
   return (
     <aside
+      id="dashboard-sidebar"
+      aria-hidden={!isLg && !isOpen ? true : undefined}
       className={cn(
         "fixed left-0 bottom-0 bg-black border-r border-gray-800 flex flex-col z-30 transition-all duration-300 ease-in-out",
         "top-[var(--navbar-height)] h-[calc(100vh-var(--navbar-height))]",
-        isOpen ? "w-[var(--sidebar-width)] lg:w-[var(--sidebar-width-lg)]" : "w-[var(--sidebar-width-collapsed)] lg:w-[var(--sidebar-width-collapsed-lg)]"
+        // Mobile (max-lg): off-canvas drawer — closed = fully hidden (no collapsed icon rail).
+        isOpen
+          ? "max-lg:translate-x-0 max-lg:shadow-xl"
+          : "max-lg:-translate-x-full max-lg:pointer-events-none max-lg:border-transparent",
+        // Width: mobile uses full expanded drawer width for slide; desktop = expanded vs collapsed rail.
+        isOpen
+          ? "w-[var(--sidebar-width)] lg:w-[var(--sidebar-width-lg)]"
+          : "max-lg:w-[min(100vw,var(--sidebar-width-lg))] lg:w-[var(--sidebar-width-collapsed)] lg:w-[var(--sidebar-width-collapsed-lg)]"
       )}
     >
       {/* Menu Container */}
