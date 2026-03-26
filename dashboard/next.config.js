@@ -1,3 +1,36 @@
+const withPWA = require("@ducanh2912/next-pwa").default({
+  dest: "public",
+  disable: process.env.NODE_ENV === "development",
+  register: true,
+  /** Avoid serving a stale document shell after auth state changes. */
+  cacheStartUrl: false,
+  extendDefaultRuntimeCaching: true,
+  workboxOptions: {
+    skipWaiting: true,
+    runtimeCaching: [
+      {
+        /**
+         * Never cache proxied backend traffic: JWT APIs, auth, and private files.
+         * Matched first (see extendDefaultRuntimeCaching) so defaults like
+         * NetworkFirst "pages" / "apis" do not apply to these paths.
+         */
+        urlPattern: ({ url }) => {
+          const p = url.pathname;
+          return (
+            p.startsWith("/api/") ||
+            p.startsWith("/auth/") ||
+            p.startsWith("/files/")
+          );
+        },
+        handler: "NetworkOnly",
+        options: {
+          cacheName: "schooliat-network-only",
+        },
+      },
+    ],
+  },
+});
+
 /**
  * Allow next/image to fetch file URLs returned by the API (cross-origin in production).
  * Without this, /_next/image?url=https://api…/files/… returns 400.
@@ -109,5 +142,5 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withPWA(nextConfig);
 
