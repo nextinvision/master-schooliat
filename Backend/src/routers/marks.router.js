@@ -305,9 +305,18 @@ router.get(
         });
       }
 
-      // Teachers and admins
-      if (examId && classId) {
-        const marks = await marksService.getExamMarks(examId, classId);
+      // Teachers and admins: examId required; classId optional (omit = all classes for this exam)
+      if (examId) {
+        const exam = await prisma.exam.findFirst({
+          where: { id: examId, schoolId: currentUser.schoolId },
+        });
+        if (!exam) {
+          return res.status(404).json({
+            errorCode: "EXAM_NOT_FOUND",
+            message: "Exam not found",
+          });
+        }
+        const marks = await marksService.getExamMarks(examId, classId || null);
 
         return res.json({
           message: "Exam marks retrieved successfully",

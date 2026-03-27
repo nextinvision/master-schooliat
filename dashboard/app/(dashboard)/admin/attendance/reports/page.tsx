@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
-import { BASE_URL } from "@/lib/api/config";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
+import { downloadFromApi } from "@/lib/api/client";
 import { useAttendanceReports } from "@/lib/hooks/use-reports";
+import { useTeachersPage, TEACHERS_MAX_PAGE_SIZE } from "@/lib/hooks/use-teachers";
+import { useStaffPage } from "@/lib/hooks/use-staff";
+import { downloadTablePdf, formatDateLabel } from "@/lib/attendance/export-attendance";
 import { useAllClasses } from "@/lib/hooks/use-classes";
 import { useStudents } from "@/lib/hooks/use-students";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -72,6 +75,7 @@ export default function AttendanceReportsPage() {
   });
   const [selectedClassId, setSelectedClassId] = useState<string>("all");
   const [selectedStudentId, setSelectedStudentId] = useState<string>("all");
+  const [selectedMarkedById, setSelectedMarkedById] = useState<string>("all");
 
   useEffect(() => {
     if (!syncPortalMonth) return;
@@ -93,12 +97,30 @@ export default function AttendanceReportsPage() {
     ? allStudents.filter((s: any) => s.studentProfile?.classId === selectedClassId)
     : [];
 
+  const { data: teachersForMarkers } = useTeachersPage(1, TEACHERS_MAX_PAGE_SIZE);
+  const { data: staffForMarkers } = useStaffPage(1, 500);
+
+  const markerOptions = useMemo(() => {
+    const t = (teachersForMarkers?.data || []).map((u: { id: string; firstName: string; lastName?: string; publicUserId?: string }) => ({
+      id: u.id,
+      label: `${u.firstName} ${u.lastName || ""}`.trim() + (u.publicUserId ? ` (${u.publicUserId})` : ""),
+      kind: "Teacher" as const,
+    }));
+    const s = (staffForMarkers?.data || []).map((u: { id: string; firstName: string; lastName?: string; publicUserId?: string }) => ({
+      id: u.id,
+      label: `${u.firstName} ${u.lastName || ""}`.trim() + (u.publicUserId ? ` (${u.publicUserId})` : ""),
+      kind: "Staff" as const,
+    }));
+    return [...t, ...s].sort((a, b) => a.label.localeCompare(b.label));
+  }, [teachersForMarkers?.data, staffForMarkers?.data]);
+
   // Fetch attendance reports
-  const { data: reportsData, isLoading: reportsLoading, refetch } = useAttendanceReports({
+  const { data: reportsData, isLoading: reportsLoading } = useAttendanceReports({
     classId: selectedClassId && selectedClassId !== "all" ? selectedClassId : undefined,
     studentId: selectedStudentId && selectedStudentId !== "all" ? selectedStudentId : undefined,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
+    markedBy: selectedMarkedById && selectedMarkedById !== "all" ? selectedMarkedById : undefined,
   });
 
   const attendanceRecords = reportsData?.data || [];
@@ -215,47 +237,83 @@ export default function AttendanceReportsPage() {
     }));
   }, [attendanceRecords]);
 
-  const handleExport = async () => {
+  const saveBlob = useCallback((blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  const handleExportCsv = async () => {
     try {
-      const token = window.sessionStorage.getItem("accessToken");
-      const baseUrl = BASE_URL;
-
-      const queryParams = new URLSearchParams({
-        format: "csv",
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate,
-      });
-
-      if (selectedClassId && selectedClassId !== "all") {
-        queryParams.append("classId", selectedClassId);
-      }
-
-      if (selectedStudentId && selectedStudentId !== "all") {
-        queryParams.append("studentId", selectedStudentId);
-      }
-
-      const resp = await fetch(`${baseUrl}/attendance/report?${queryParams.toString()}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "x-platform": "web",
+      const blob = await downloadFromApi("/attendance/report", {
+        query: {
+          format: "csv",
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
+          ...(selectedClassId && selectedClassId !== "all" ? { classId: selectedClassId } : {}),
+          ...(selectedStudentId && selectedStudentId !== "all" ? { studentId: selectedStudentId } : {}),
+          ...(selectedMarkedById && selectedMarkedById !== "all" ? { markedBy: selectedMarkedById } : {}),
         },
       });
-
-      if (!resp.ok) throw new Error("Export failed");
-
-      const blob = await resp.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `attendance_report_${dateRange.startDate}_to_${dateRange.endDate}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-
-      toast.success("Report exported successfully!");
+      saveBlob(blob, `attendance_report_${dateRange.startDate}_to_${dateRange.endDate}.csv`);
+      toast.success("Excel-compatible CSV downloaded");
     } catch (error: any) {
       toast.error(error?.message || "Failed to export report");
+    }
+  };
+
+  const handleExportPdf = () => {
+    try {
+      if (!sortedAttendanceRecords.length) {
+        toast.error("No records to export");
+        return;
+      }
+      const headers = [
+        "Roll",
+        "Date",
+        "Student",
+        "Class",
+        "Status",
+        "Recorded by",
+        "Staff ID",
+      ];
+      const rows = sortedAttendanceRecords.map((record: any) => {
+        const name = `${record.student?.firstName || ""} ${record.student?.lastName || ""}`.trim();
+        const cls =
+          (record.student?.studentProfile?.class?.grade || "") +
+          (record.student?.studentProfile?.class?.division
+            ? `-${record.student.studentProfile.class.division}`
+            : "");
+        const mb = record.markedByUser;
+        const who = mb
+          ? `${mb.firstName || ""} ${mb.lastName || ""}`.trim()
+          : "—";
+        const staffId = mb?.publicUserId || "—";
+        return [
+          String(record.student?.studentProfile?.rollNumber ?? "—"),
+          format(new Date(record.date), "MMM dd, yyyy"),
+          name,
+          cls || "—",
+          String(record.status ?? "—"),
+          who,
+          staffId,
+        ];
+      });
+      downloadTablePdf({
+        title: "Attendance report",
+        subtitle: `${formatDateLabel(dateRange.startDate)} – ${formatDateLabel(dateRange.endDate)}`,
+        headers,
+        rows,
+        filename: `attendance_report_${dateRange.startDate}_to_${dateRange.endDate}.pdf`,
+      });
+      toast.success("PDF downloaded");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to build PDF");
     }
   };
 
@@ -295,10 +353,16 @@ export default function AttendanceReportsPage() {
           <h1 className="text-2xl font-semibold">Attendance Reports</h1>
           <p className="text-gray-600 mt-1">Comprehensive attendance analytics and reports</p>
         </div>
-        <Button onClick={handleExport} className="gap-2" variant="outline">
-          <Download className="h-4 w-4" />
-          Export Report
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={() => void handleExportCsv()} className="gap-2" variant="outline">
+            <Download className="h-4 w-4" />
+            Excel (CSV)
+          </Button>
+          <Button onClick={handleExportPdf} className="gap-2" variant="outline">
+            <Download className="h-4 w-4" />
+            PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -307,7 +371,7 @@ export default function AttendanceReportsPage() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label htmlFor="class">Class</Label>
               {classesLoading ? (
@@ -352,6 +416,22 @@ export default function AttendanceReportsPage() {
                   </SelectContent>
                 </Select>
               )}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="marked-by">Recorded by (teacher / staff)</Label>
+              <Select value={selectedMarkedById} onValueChange={setSelectedMarkedById}>
+                <SelectTrigger id="marked-by">
+                  <SelectValue placeholder="Anyone" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Anyone</SelectItem>
+                  {markerOptions.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.label} · {m.kind}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="col-span-full flex items-center gap-3 py-1">
               <Switch
@@ -621,7 +701,9 @@ function AttendanceRecordsTable({
         const name = `${r.student?.firstName || ""} ${r.student?.lastName || ""}`.toLowerCase();
         const roll = String(r.student?.studentProfile?.rollNumber ?? "");
         const userId = (r.student?.publicUserId || "").toLowerCase();
-        return name.includes(q) || roll.includes(q) || userId.includes(q);
+        const mb = r.markedByUser;
+        const marker = `${mb?.firstName || ""} ${mb?.lastName || ""} ${mb?.publicUserId || ""}`.toLowerCase();
+        return name.includes(q) || roll.includes(q) || userId.includes(q) || marker.includes(q);
       });
     }
     return list;
@@ -643,7 +725,7 @@ function AttendanceRecordsTable({
             <div className="relative w-full sm:w-64">
               <Users className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
               <Input
-                placeholder="Search student name, roll..."
+                placeholder="Search student, roll, or who recorded…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-8 h-9"
@@ -682,6 +764,8 @@ function AttendanceRecordsTable({
                     <TableHead>Student</TableHead>
                     <TableHead>Class</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Recorded by</TableHead>
+                    <TableHead>Staff ID</TableHead>
                     <TableHead>Late Arrival</TableHead>
                     <TableHead>Absence Reason</TableHead>
                   </TableRow>
@@ -710,6 +794,14 @@ function AttendanceRecordsTable({
                           : ""}
                       </TableCell>
                       <TableCell>{getStatusBadge(record.status)}</TableCell>
+                      <TableCell className="text-sm">
+                        {record.markedByUser
+                          ? `${record.markedByUser.firstName || ""} ${record.markedByUser.lastName || ""}`.trim()
+                          : "—"}
+                      </TableCell>
+                      <TableCell className="text-sm font-mono">
+                        {record.markedByUser?.publicUserId ?? "—"}
+                      </TableCell>
                       <TableCell>
                         {record.lateArrivalTime
                           ? format(new Date(record.lateArrivalTime), "hh:mm a")

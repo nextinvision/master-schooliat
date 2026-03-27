@@ -32,6 +32,8 @@ function fetchAttendanceReports(params: {
   schoolId?: string;
   startDate?: string;
   endDate?: string;
+  /** User who recorded the attendance */
+  markedBy?: string;
 }) {
   return get("/reports/attendance", params);
 }
@@ -72,6 +74,7 @@ export function useAttendanceReports(params: {
   schoolId?: string;
   startDate?: string;
   endDate?: string;
+  markedBy?: string;
 } = {}) {
   return useQuery({
     queryKey: ["reports", "attendance", params],

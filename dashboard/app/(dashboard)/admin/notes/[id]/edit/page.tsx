@@ -115,7 +115,7 @@ export default function EditNotePage() {
               <div className="space-y-2">
                 <Label>Subject</Label>
                 <Select
-                  value={formData.subjectId}
+                  value={formData.subjectId || undefined}
                   onValueChange={(v) => setFormData({ ...formData, subjectId: v })}
                 >
                   <SelectTrigger>
@@ -133,7 +133,7 @@ export default function EditNotePage() {
               <div className="space-y-2">
                 <Label>Class</Label>
                 <Select
-                  value={formData.classId}
+                  value={formData.classId || undefined}
                   onValueChange={(v) => setFormData({ ...formData, classId: v })}
                 >
                   <SelectTrigger>

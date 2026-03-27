@@ -3,7 +3,11 @@ import { AttendanceStatus } from "../prisma/generated/index.js";
 import logger from "../config/logger.js";
 import emailService from "./email.service.js";
 import notificationService from "./notification.service.js";
-import { getLocalDayBounds, resolveLateArrivalDateTime } from "../utils/attendance-date.util.js";
+import {
+  getLocalDayBounds,
+  resolveLateArrivalDateTime,
+  assertAttendanceDateEditable,
+} from "../utils/attendance-date.util.js";
 
 /**
  * Mark daily attendance for a student
@@ -33,6 +37,7 @@ const markAttendance = async (data) => {
   } = data;
 
   const attendanceDate = new Date(date);
+  assertAttendanceDateEditable(attendanceDate);
   const resolvedLate = resolveLateArrivalDateTime(attendanceDate, lateArrivalTime);
   const { start: startOfDay, end: endOfDay } = getLocalDayBounds(attendanceDate);
 
@@ -114,6 +119,7 @@ const markBulkAttendance = async (attendanceData, markedBy) => {
     await Promise.all(
       batch.map(async (data) => {
         try {
+          assertAttendanceDateEditable(data.date);
           const { start: dayStart, end: dayEnd } = getLocalDayBounds(data.date);
           const existing = await prisma.attendance.findFirst({
             where: {
@@ -433,6 +439,7 @@ const getAttendanceReport = async (filters) => {
     startDate,
     endDate,
     status,
+    markedBy,
   } = filters;
 
   const where = {
@@ -443,6 +450,7 @@ const getAttendanceReport = async (filters) => {
   if (classId) where.classId = classId;
   if (schoolId) where.schoolId = schoolId;
   if (status) where.status = status;
+  if (markedBy) where.markedBy = markedBy;
   if (startDate && endDate) {
     where.date = {
       gte: new Date(startDate),
@@ -476,6 +484,14 @@ const getAttendanceReport = async (filters) => {
         select: {
           id: true,
           name: true,
+        },
+      },
+      markedByUser: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          publicUserId: true,
         },
       },
     },

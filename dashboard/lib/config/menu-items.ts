@@ -46,7 +46,7 @@ export const RESULTS_SUBMENU: SubMenuItem[] = [
 // Submenu items for Students (if needed in future)
 export const STUDENTS_SUBMENU: SubMenuItem[] = [
   { name: "All Students", route: "/admin/students" },
-  { name: "Add Student", route: "/admin/students/add" },
+  { name: "New admission", route: "/admin/students?admission=1" },
   { name: "Transfer Certificates", route: "/admin/transfer-certificates" },
 ];
 

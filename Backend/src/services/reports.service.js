@@ -44,7 +44,7 @@ const salaryPaymentInDateRange = (payment, rangeStart, rangeEnd) => {
  * @returns {Promise<Object>} - Attendance report data
  */
 const getAttendanceReports = async (schoolId, filters = {}) => {
-  const { classId = null, startDate = null, endDate = null, studentId = null } = filters;
+  const { classId = null, startDate = null, endDate = null, studentId = null, markedBy = null } = filters;
 
   const where = {
     deletedAt: null,
@@ -60,6 +60,10 @@ const getAttendanceReports = async (schoolId, filters = {}) => {
 
   if (studentId) {
     where.studentId = studentId;
+  }
+
+  if (markedBy) {
+    where.markedBy = markedBy;
   }
 
   if (startDate && endDate) {
@@ -79,6 +83,14 @@ const getAttendanceReports = async (schoolId, filters = {}) => {
               class: true,
             },
           },
+        },
+      },
+      markedByUser: {
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          publicUserId: true,
         },
       },
     },

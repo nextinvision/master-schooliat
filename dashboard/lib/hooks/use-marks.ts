@@ -86,12 +86,14 @@ export function useMarks(params: {
   studentId?: string;
   classId?: string;
 } = {}) {
+  /** examId alone loads all marks for the exam (admin overview); examId+classId filters to one class. */
+  const enabled = !!params.studentId || !!params.examId;
   return useQuery({
     queryKey: ["marks", params],
     queryFn: () => fetchMarks(params),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
-    enabled: !!(params.examId && params.classId) || !!params.studentId,
+    enabled,
   });
 }
 
@@ -155,6 +157,7 @@ export function useCalculateResults() {
       calculateResultsApi(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["results"] });
+      queryClient.invalidateQueries({ queryKey: ["marks"] });
     },
   });
 }

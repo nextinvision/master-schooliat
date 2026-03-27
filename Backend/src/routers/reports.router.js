@@ -42,6 +42,7 @@ router.get(
         studentId: query.studentId,
         startDate: query.startDate,
         endDate: query.endDate,
+        markedBy: query.markedBy,
       });
 
       return res.status(200).json({

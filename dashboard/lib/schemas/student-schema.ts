@@ -11,7 +11,17 @@ const baseStudentSchema = z.object({
     .min(10, "Student mobile must be 10 digits")
     .max(10, "Student mobile must be 10 digits")
     .regex(/^[6-9]\d{9}$/, "Student mobile must be a valid 10-digit Indian number"),
-  email: z.string().trim().min(1, "Email is required").email("Invalid email address"),
+  /** Optional: backend assigns a unique placeholder when empty (avoids duplicate empty email). */
+  email: z
+    .string()
+    .default("")
+    .refine(
+      (s) => {
+        const t = s.trim();
+        return t === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t);
+      },
+      { message: "Invalid email address" },
+    ),
   areaStreet: z.string().default(""),
   location: z.string().default(""),
   district: z.string().default(""),

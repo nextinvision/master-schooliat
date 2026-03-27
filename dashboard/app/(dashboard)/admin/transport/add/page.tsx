@@ -73,8 +73,8 @@ export default function AddTransportPage() {
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Vehicle Number */}
-            <FormCard title="Vehicle Number">
+            {/* Owner + vehicle registration + DL */}
+            <FormCard title="Vehicle details">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="ownerfirstName">Vehicle Owner First Name</Label>
@@ -103,11 +103,11 @@ export default function AddTransportPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="licenseNumber">License Number</Label>
+                  <Label htmlFor="licenseNumber">Vehicle no.</Label>
                   <Input
                     id="licenseNumber"
                     {...methods.register("licenseNumber")}
-                    placeholder="AA11 AA 1111"
+                    placeholder="e.g. AA11 AA 1111"
                     className={errors.licenseNumber ? "border-red-500" : ""}
                   />
                   {errors.licenseNumber && (
@@ -116,11 +116,11 @@ export default function AddTransportPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="vehicleNumber">Transport Number</Label>
+                  <Label htmlFor="vehicleNumber">DL no.</Label>
                   <Input
                     id="vehicleNumber"
                     {...methods.register("vehicleNumber")}
-                    placeholder="Transport Number"
+                    placeholder="DL no."
                     className={errors.vehicleNumber ? "border-red-500" : ""}
                   />
                   {errors.vehicleNumber && (

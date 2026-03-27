@@ -62,6 +62,7 @@ function parseUniqueConstraintField(error) {
     if (raw === "public_user_id") return "publicUserId";
     if (raw === "aadhaar_id") return "aadhaarId";
     if (raw === "email") return "email";
+    if (raw === "apaar_id") return "apaarId";
     return raw;
   }
   const message = String(error?.message || "");
@@ -1302,9 +1303,18 @@ router.post(
       // Generate password
       const generatedPassword = stringUtil.generateRandomString(15);
 
+      const emailTrimmed = String(request.email ?? "")
+        .trim()
+        .toLowerCase();
+      /** User.email is globally @unique; empty strings collide. Use a unique placeholder when omitted (same as bulk import). */
+      const emailForUser =
+        emailTrimmed.length > 0
+          ? emailTrimmed
+          : bulkPlaceholderEmail(currentUser.schoolId, "student");
+
       const normalizedRequest = {
         ...request,
-        email: String(request.email || "").trim().toLowerCase(),
+        email: emailForUser,
         firstName: String(request.firstName || "").trim(),
         lastName: String(request.lastName || "").trim(),
         contact: String(request.contact || "").trim(),
@@ -1331,7 +1341,7 @@ router.post(
         try {
           user = await prisma.user.create({
             data: {
-              email: normalizedRequest.email,
+              email: emailForUser,
               password: await bcryptjs.hash(generatedPassword, 10),
               firstName: normalizedRequest.firstName,
               lastName: normalizedRequest.lastName,
@@ -1420,12 +1430,14 @@ router.post(
         return res.status(400).json({
           message:
             field === "email"
-              ? "Email already exists!"
+              ? "This email is already registered to another user. Use a different email or leave email blank to auto-generate a school login ID."
               : field === "aadhaarId"
                 ? "Aadhaar ID already exists!"
-                : field === "publicUserId"
-                  ? "Student ID generation conflict, please retry."
-                  : "Email or Aadhaar ID already exists!",
+                : field === "apaarId"
+                  ? "APAAR ID already exists for another student."
+                  : field === "publicUserId"
+                    ? "Student ID generation conflict, please retry."
+                    : "A unique field already exists (email, Aadhaar, or APAAR).",
         });
       }
       return res.status(400).json({

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { DownloadCloud } from "lucide-react";
+import { resolvePublicFileUrl } from "@/lib/utils/resolve-public-file-url";
 
 function formatCurrency(num: number | string | null | undefined): string {
   return `₹${Number(num || 0).toLocaleString("en-IN")}`;
@@ -87,6 +89,17 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
                     {[fees.student?.firstName, fees.student?.lastName]
                       .filter(Boolean)
                       .join(" ") || "—"}
+                    {studentId ? (
+                      <>
+                        {" "}
+                        <Link
+                          href={`/admin/students/${studentId}`}
+                          className="text-primary font-medium hover:underline text-sm"
+                        >
+                          View profile
+                        </Link>
+                      </>
+                    ) : null}
                   </div>
                   <div>
                     <span className="text-gray-600">Class:</span>{" "}
@@ -192,7 +205,11 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
                                   size="sm"
                                   className="h-8 gap-1 text-primary"
                                   onClick={() =>
-                                    window.open(installment.receiptFileUrl, "_blank")
+                                    window.open(
+                                      resolvePublicFileUrl(installment.receiptFileUrl),
+                                      "_blank",
+                                      "noopener,noreferrer"
+                                    )
                                   }
                                   title="Download receipt"
                                 >
@@ -250,7 +267,13 @@ export function FeeDetailsModal({ visible, onClose, studentId }: FeeDetailsModal
                                       variant="link"
                                       size="sm"
                                       className="h-8 px-1"
-                                      onClick={() => window.open(e.receiptFileUrl, "_blank")}
+                                      onClick={() =>
+                                        window.open(
+                                          resolvePublicFileUrl(e.receiptFileUrl),
+                                          "_blank",
+                                          "noopener,noreferrer"
+                                        )
+                                      }
                                     >
                                       Open
                                     </Button>

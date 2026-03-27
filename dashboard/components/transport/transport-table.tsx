@@ -17,7 +17,8 @@ import { searchTransportByName } from "@/lib/utils/search-utils";
 
 const TRANSPORT_COLUMNS = [
   { key: "no", title: "No", width: "w-16" },
-  { key: "vehicleNumber", title: "Vehicle Number", width: "w-40" },
+  { key: "licenseNumber", title: "Vehicle no.", width: "w-40" },
+  { key: "vehicleNumber", title: "DL no.", width: "w-40" },
   { key: "driver", title: "Driver", width: "w-48" },
   { key: "driverContact", title: "Driver Contact", width: "w-40" },
   { key: "conductor", title: "Conductor", width: "w-48" },
@@ -117,7 +118,7 @@ export function TransportTable({
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex-1">
           <Input
-            placeholder="Search by Vehicle Number, Driver, or Conductor"
+            placeholder="Search by DL no., vehicle no., driver, or conductor"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full"
@@ -192,6 +193,7 @@ export function TransportTable({
                       <TableCell className="font-medium">
                         {String(index + 1).padStart(2, "0")}
                       </TableCell>
+                      <TableCell>{transport.licenseNumber || "-"}</TableCell>
                       <TableCell>{transport.vehicleNumber || "-"}</TableCell>
                       <TableCell>
                         {`${transport.driverFirstName || ""} ${transport.driverLastName || ""}`.trim() || "-"}

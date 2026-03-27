@@ -11,7 +11,7 @@ const validateLicenseNumber = (vehicleNumber: string) => {
 export const addTransportSchema = z.object({
   ownerfirstName: z.string().min(1, "Owner first name is required").trim(),
   ownerlastName: z.string().min(1, "Owner last name is required").trim(),
-  vehicleNumber: z.string().min(1, "Vehicle number is required").trim(),
+  vehicleNumber: z.string().min(1, "DL no. is required").trim(),
   busSerialNumber: z.string().optional(),
   driverfirstName: z.string().min(1, "Driver first name is required").trim(),
   driverlastName: z.string().min(1, "Driver last name is required").trim(),
@@ -36,9 +36,9 @@ export const addTransportSchema = z.object({
   conductorPhotoId: z.string().nullable().optional(),
   licenseNumber: z
     .string()
-    .min(1, "License number is required")
+    .min(1, "Vehicle no. is required")
     .refine(validateLicenseNumber, {
-      message: "Invalid license number format",
+      message: "Invalid vehicle no. format",
     }),
 });
 

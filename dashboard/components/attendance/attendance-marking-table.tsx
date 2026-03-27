@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle, Clock, User, Minus } from "lucide-react";
 export type MarkableAttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
 
@@ -48,8 +47,41 @@ interface AttendanceMarkingTableProps {
     lateArrivalTime?: string;
     absenceReason?: string;
   }) => void;
+  /** Mark every student in the class for the selected date/period */
   onBulkMark: (status: MarkableAttendanceStatus) => void;
+  /** Mark only the given student IDs (selection toolbar) */
+  onBulkMarkSelected: (status: MarkableAttendanceStatus, studentIds: string[]) => void;
+  /** When true, marks cannot be submitted (48h policy) */
+  isDateLocked?: boolean;
   isLoading?: boolean;
+}
+
+function normalizeAttendanceRow(
+  r:
+    | {
+        status: MarkableAttendanceStatus;
+        lateArrivalTime?: string;
+        absenceReason?: string;
+      }
+    | undefined
+) {
+  if (!r) return null;
+  return {
+    status: r.status,
+    late: (r.lateArrivalTime || "").trim(),
+    absence: (r.absenceReason || "").trim(),
+  };
+}
+
+function rowNeedsSave(
+  local: { status: MarkableAttendanceStatus; lateArrivalTime?: string; absenceReason?: string },
+  server: Student["attendance"]
+) {
+  const a = normalizeAttendanceRow(local);
+  const b = normalizeAttendanceRow(server);
+  if (!server) return true;
+  if (!a || !b) return true;
+  return a.status !== b.status || a.late !== b.late || a.absence !== b.absence;
 }
 
 export function AttendanceMarkingTable({
@@ -58,6 +90,8 @@ export function AttendanceMarkingTable({
   classId,
   onMarkAttendance,
   onBulkMark,
+  onBulkMarkSelected,
+  isDateLocked = false,
   isLoading = false,
 }: AttendanceMarkingTableProps) {
   const sortedStudents = useMemo(() => {
@@ -150,6 +184,7 @@ export function AttendanceMarkingTable({
   };
 
   const handleSave = (studentId: string) => {
+    if (isDateLocked) return;
     const data = attendanceData[studentId];
     if (data) {
       onMarkAttendance({
@@ -159,12 +194,28 @@ export function AttendanceMarkingTable({
     }
   };
 
-  const handleBulkMark = (status: MarkableAttendanceStatus) => {
-    const updates: Record<string, any> = {};
-    selectedStudents.forEach((studentId) => {
-      updates[studentId] = { status };
+  const handleBulkMarkSelection = (status: MarkableAttendanceStatus) => {
+    if (isDateLocked) return;
+    const ids = Array.from(selectedStudents);
+    setAttendanceData((prev) => {
+      const next = { ...prev };
+      ids.forEach((studentId) => {
+        next[studentId] = {
+          ...next[studentId],
+          status,
+          lateArrivalTime:
+            status === "LATE" ? next[studentId]?.lateArrivalTime : undefined,
+          absenceReason:
+            status === "ABSENT" ? next[studentId]?.absenceReason : undefined,
+        };
+      });
+      return next;
     });
-    setAttendanceData((prev) => ({ ...prev, ...updates }));
+    onBulkMarkSelected(status, ids);
+  };
+
+  const handleBulkMarkEntireClass = (status: MarkableAttendanceStatus) => {
+    if (isDateLocked) return;
     onBulkMark(status);
   };
 
@@ -188,72 +239,91 @@ export function AttendanceMarkingTable({
     }
   };
 
-  const getStatusIcon = (status: MarkableAttendanceStatus) => {
-    switch (status) {
-      case "PRESENT":
-        return <CheckCircle2 className="h-4 w-4 text-primary" />;
-      case "ABSENT":
-        return <XCircle className="h-4 w-4 text-red-600" />;
-      case "LATE":
-        return <Clock className="h-4 w-4 text-yellow-600" />;
-      case "HALF_DAY":
-        return <Minus className="h-4 w-4 text-amber-700" />;
-    }
-  };
-
-  const getStatusBadge = (status: MarkableAttendanceStatus) => {
-    switch (status) {
-      case "PRESENT":
-        return <Badge className="bg-primary hover:bg-schooliat-primary-dark">Present</Badge>;
-      case "ABSENT":
-        return <Badge variant="destructive">Absent</Badge>;
-      case "LATE":
-        return <Badge className="bg-yellow-500 hover:bg-yellow-600">Late</Badge>;
-      case "HALF_DAY":
-        return <Badge className="bg-amber-100 text-amber-900 hover:bg-amber-200">Half day</Badge>;
-    }
-  };
+  const disableActions = isLoading || isDateLocked;
 
   return (
     <div className="space-y-4">
+      {/* Whole class — always visible */}
+      {sortedStudents.length > 0 && (
+        <div className="bg-schooliat-tint/50 rounded-lg p-4 border flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-gray-700 font-medium">Class-wide actions</div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBulkMarkEntireClass("PRESENT")}
+              disabled={disableActions}
+              className="border-green-300 text-green-800 hover:bg-green-50"
+            >
+              Mark all present
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBulkMarkEntireClass("ABSENT")}
+              disabled={disableActions}
+              className="border-red-300 text-red-800 hover:bg-red-50"
+            >
+              Mark all absent
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBulkMarkEntireClass("LATE")}
+              disabled={disableActions}
+            >
+              Mark all late
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleBulkMarkEntireClass("HALF_DAY")}
+              disabled={disableActions}
+            >
+              Mark all half day
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Bulk Actions */}
       {selectedStudents.size > 0 && (
         <div className="bg-white rounded-lg p-4 border flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Badge variant="secondary">{selectedStudents.size} selected</Badge>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleBulkMark("PRESENT")}
-              disabled={isLoading}
+              onClick={() => handleBulkMarkSelection("PRESENT")}
+              disabled={disableActions}
             >
-              Mark All Present
+              Mark selected present
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleBulkMark("ABSENT")}
-              disabled={isLoading}
+              onClick={() => handleBulkMarkSelection("ABSENT")}
+              disabled={disableActions}
             >
-              Mark All Absent
+              Mark selected absent
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleBulkMark("LATE")}
-              disabled={isLoading}
+              onClick={() => handleBulkMarkSelection("LATE")}
+              disabled={disableActions}
             >
-              Mark All Late
+              Mark selected late
             </Button>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleBulkMark("HALF_DAY")}
-              disabled={isLoading}
+              onClick={() => handleBulkMarkSelection("HALF_DAY")}
+              disabled={disableActions}
             >
-              Mark All Half Day
+              Mark selected half day
             </Button>
           </div>
         </div>
@@ -264,11 +334,12 @@ export function AttendanceMarkingTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-schooliat-tint">
+                <TableRow className="bg-schooliat-tint">
                 <TableHead className="w-12">
                   <Checkbox
                     checked={selectedStudents.size === students.length && students.length > 0}
                     onCheckedChange={toggleSelectAll}
+                    disabled={disableActions}
                   />
                 </TableHead>
                 <TableHead className="w-16">No</TableHead>
@@ -290,21 +361,33 @@ export function AttendanceMarkingTable({
               ) : (
                 sortedStudents.map((student, index) => {
                   const attendance = attendanceData[student.id] || { status: "PRESENT" as const };
+                  const persisted = !!student.attendance;
+                  const saved = persisted && !rowNeedsSave(attendance, student.attendance);
                   return (
                     <TableRow key={student.id}>
                       <TableCell>
                         <Checkbox
                           checked={selectedStudents.has(student.id)}
                           onCheckedChange={() => toggleStudentSelection(student.id)}
+                          disabled={disableActions}
                         />
                       </TableCell>
                       <TableCell className="font-medium">
                         {String(index + 1).padStart(2, "0")}
                       </TableCell>
                       <TableCell className="font-medium">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-gray-400" />
-                          {student.firstName} {student.lastName}
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <User className="h-4 w-4 text-gray-400 shrink-0" />
+                            <span>
+                              {student.firstName} {student.lastName}
+                            </span>
+                            {persisted && saved ? (
+                              <Badge variant="outline" className="text-xs font-normal text-muted-foreground">
+                                Already marked
+                              </Badge>
+                            ) : null}
+                          </div>
                         </div>
                       </TableCell>
                       <TableCell>{student.rollNumber || "N/A"}</TableCell>
@@ -314,6 +397,7 @@ export function AttendanceMarkingTable({
                           onValueChange={(value: MarkableAttendanceStatus) =>
                             handleStatusChange(student.id, value)
                           }
+                          disabled={disableActions}
                         >
                           <SelectTrigger className="w-full">
                             <SelectValue />
@@ -353,6 +437,7 @@ export function AttendanceMarkingTable({
                             value={attendance.lateArrivalTime || ""}
                             onChange={(e) => handleLateTimeChange(student.id, e.target.value)}
                             className="w-full"
+                            disabled={disableActions}
                           />
                         ) : (
                           <span className="text-gray-400">N/A</span>
@@ -365,6 +450,7 @@ export function AttendanceMarkingTable({
                             value={attendance.absenceReason || ""}
                             onChange={(e) => handleAbsenceReasonChange(student.id, e.target.value)}
                             className="w-full"
+                            disabled={disableActions}
                           />
                         ) : (
                           <span className="text-gray-400">N/A</span>
@@ -374,10 +460,21 @@ export function AttendanceMarkingTable({
                         <Button
                           size="sm"
                           onClick={() => handleSave(student.id)}
-                          disabled={isLoading}
-                          className="bg-[#4CAF50] hover:bg-[#45a049]"
+                          disabled={isLoading || disableActions || saved}
+                          variant={saved ? "outline" : "default"}
+                          className={
+                            saved
+                              ? "border-green-600 text-green-800 bg-green-50 hover:bg-green-50"
+                              : "bg-[#4CAF50] hover:bg-[#45a049]"
+                          }
                         >
-                          Save
+                          {isDateLocked
+                            ? persisted
+                              ? "Saved"
+                              : "Locked"
+                            : saved
+                              ? "Saved"
+                              : "Save"}
                         </Button>
                       </TableCell>
                     </TableRow>

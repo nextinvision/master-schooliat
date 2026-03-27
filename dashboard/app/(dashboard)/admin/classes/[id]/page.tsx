@@ -93,6 +93,30 @@ export default function ClassDetailPage() {
     resetStudentQuery();
   };
 
+  const orderOptions = useMemo(() => {
+    if (sortBy === "rollNumber") {
+      return [
+        { value: "asc" as const, label: "Low to high (1, 2, 3…)" },
+        { value: "desc" as const, label: "High to low (…3, 2, 1)" },
+      ];
+    }
+    if (sortBy === "name") {
+      return [
+        { value: "asc" as const, label: "A to Z" },
+        { value: "desc" as const, label: "Z to A" },
+      ];
+    }
+    return [
+      { value: "asc" as const, label: "Oldest first" },
+      { value: "desc" as const, label: "Newest first" },
+    ];
+  }, [sortBy]);
+
+  const formatRollDisplay = (roll: number | null | undefined) => {
+    if (roll == null || roll === 0) return "—";
+    return String(roll);
+  };
+
   const downloadClassCsv = async () => {
     try {
       const token = await getAuthToken();
@@ -263,28 +287,31 @@ export default function ClassDetailPage() {
               />
             </div>
             <div className="flex flex-col sm:flex-row gap-4">
-              <div className="space-y-2 w-full sm:w-44">
+              <div className="space-y-2 w-full sm:min-w-[220px] sm:max-w-sm">
                 <Label>Sort by</Label>
                 <Select value={sortBy} onValueChange={handleSortByChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="rollNumber">Roll number</SelectItem>
-                    <SelectItem value="name">Name</SelectItem>
+                    <SelectItem value="rollNumber">Roll number (numerical)</SelectItem>
+                    <SelectItem value="name">Name (alphabetical)</SelectItem>
                     <SelectItem value="createdAt">Date added</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2 w-full sm:w-36">
+              <div className="space-y-2 w-full sm:min-w-[200px] sm:max-w-xs">
                 <Label>Order</Label>
                 <Select value={sortOrder} onValueChange={handleSortOrderChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="asc">Ascending</SelectItem>
-                    <SelectItem value="desc">Descending</SelectItem>
+                    {orderOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -324,7 +351,7 @@ export default function ClassDetailPage() {
                     return (
                       <TableRow key={row.id}>
                         <TableCell className="tabular-nums font-medium">
-                          {row.studentProfile?.rollNumber ?? "—"}
+                          {formatRollDisplay(row.studentProfile?.rollNumber)}
                         </TableCell>
                         <TableCell>{name}</TableCell>
                         <TableCell className="hidden md:table-cell text-muted-foreground text-sm">

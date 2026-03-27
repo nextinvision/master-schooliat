@@ -19,7 +19,15 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Download, Loader2, Info, FileDown, Eye } from "lucide-react";
+import {
+  Loader2,
+  Info,
+  FileDown,
+  Eye,
+  Calculator,
+  Megaphone,
+  ClipboardPenLine,
+} from "lucide-react";
 import { useClassFilters } from "@/lib/hooks/use-class-filters";
 import {
   useExams,
@@ -28,10 +36,10 @@ import {
   useCalculateResults,
   usePublishResults,
 } from "@/lib/hooks/use-marks";
-import { get } from "@/lib/api/client";
+import { get, downloadFromApi } from "@/lib/api/client";
 import { toast } from "sonner";
 import { ResultViewModal } from "./result-view-modal";
-import { BASE_URL } from "@/lib/api/config";
+import Link from "next/link";
 
 export function ResultManagement() {
   const [page, setPage] = useState(0);
@@ -239,7 +247,7 @@ export function ResultManagement() {
       // Build CSV
       const headers = ["Roll No", "Student Name", ...subjects, "Total", "Max Total", "Percentage"];
       const rows = Object.values(studentMap)
-        .sort((a, b) => a.rollNumber.localeCompare(b.rollNumber))
+        .sort((a, b) => String(a.rollNumber).localeCompare(String(b.rollNumber), undefined, { numeric: true }))
         .map((student) => {
           const subjectMarks = subjects.map((s) => student.subjects[s]?.obtained ?? "");
           const totalObtained = subjects.reduce((sum, s) => sum + (student.subjects[s]?.obtained || 0), 0);
@@ -273,26 +281,23 @@ export function ResultManagement() {
     }
     setIsExportingAll(true);
     try {
-      const token = window.sessionStorage.getItem("accessToken");
-      const baseUrl = BASE_URL;
-      const resp = await fetch(`${baseUrl}/marks/results/export?examId=${examFilter}`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "x-platform": "web",
-        },
+      const blob = await downloadFromApi("/marks/results/export", {
+        query: { examId: examFilter },
       });
-      if (!resp.ok) throw new Error("Export failed");
-      const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       const examName = exams.find((e: any) => e.id === examFilter)?.name || "results";
-      a.download = `exam_results_${examName}.csv`;
+      a.download = `exam_results_${String(examName).replace(/[^\w.-]+/g, "_")}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success("All exam results exported successfully!");
-    } catch (e: any) {
-      toast.error(e?.message || "Failed to export results");
+    } catch (e: unknown) {
+      const msg =
+        e && typeof e === "object" && "message" in e
+          ? String((e as { message: string }).message)
+          : "Failed to export results";
+      toast.error(msg);
     } finally {
       setIsExportingAll(false);
     }
@@ -303,36 +308,43 @@ export function ResultManagement() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-2xl font-semibold">Results Management</h1>
-        <div className="flex gap-2">
+        <h2 className="text-lg font-semibold">Exam &amp; class status</h2>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="gap-2">
+            <Link href="/admin/marks/entry">
+              <ClipboardPenLine className="h-4 w-4" />
+              Enter marks
+            </Link>
+          </Button>
           <Button
             onClick={handleExportAll}
             variant="outline"
             className="gap-2"
-            disabled={isProcessing || isExportingAll}
+            disabled={isProcessing || isExportingAll || !examFilter}
           >
             {isExportingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            Download All Results
+            Download all results
           </Button>
           <Button
             onClick={handlePublishAll}
             variant="outline"
             className="gap-2"
-            disabled={isProcessing}
+            disabled={isProcessing || !examFilter}
           >
-            Publish All
+            <Megaphone className="h-4 w-4" />
+            Publish all
           </Button>
           <Button
             onClick={handleGenerateAll}
-            className="gap-2"
-            disabled={isProcessing}
+            className="gap-2 bg-[#4b830d] hover:bg-[#3a6a0a] text-white"
+            disabled={isProcessing || !examFilter}
           >
             {isProcessing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              <Download className="w-4 h-4" />
+              <Calculator className="w-4 h-4" />
             )}
-            Generate All
+            Generate all
           </Button>
         </div>
       </div>
@@ -442,21 +454,21 @@ export function ResultManagement() {
                       <div className="flex items-center gap-1">
                         {item.marksCount > 0 && !item.isPublished && (
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
                             onClick={() => handleGenerate(item.id)}
                             disabled={isProcessing}
                             className="gap-1"
                             title={item.hasResults ? "Recalculate results" : "Calculate results"}
                           >
-                            <Download className="w-4 h-4" />
+                            <Calculator className="w-4 h-4 shrink-0" />
                             {item.hasResults ? "Recalculate" : "Generate"}
                           </Button>
                         )}
                         {item.marksCount > 0 && (
                           <>
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => {
                                 setViewClassId(item.id);
@@ -467,21 +479,21 @@ export function ResultManagement() {
                               className="gap-1"
                               title="View results"
                             >
-                              <Eye className="w-4 h-4" />
+                              <Eye className="w-4 h-4 shrink-0" />
                               View
                             </Button>
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={() => handleDownloadCSV(item.id, item.class, item.division)}
                               disabled={downloading === item.id}
-                              className="gap-1 text-primary"
+                              className="gap-1 text-primary border-primary/30"
                               title="Download results as CSV"
                             >
                               {downloading === item.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
                               ) : (
-                                <FileDown className="w-4 h-4" />
+                                <FileDown className="w-4 h-4 shrink-0" />
                               )}
                               CSV
                             </Button>

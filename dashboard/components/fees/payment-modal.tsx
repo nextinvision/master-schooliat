@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,12 +63,29 @@ export function PaymentModal({
   };
 
   const remainingAmount = installment?.remainingAmount || 0;
+  const paidSoFar = Number(installment?.paidAmount ?? 0);
+  const isFirstPaymentOnRow = paidSoFar <= 0;
+  const submitLabel = isWaiver
+    ? "Apply waiver & generate receipt"
+    : isFirstPaymentOnRow
+      ? "Mark paid & generate receipt"
+      : "Record payment & generate receipt";
 
   return (
     <Dialog open={visible} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Record Payment</DialogTitle>
+          {installment?.studentId ? (
+            <p className="text-sm text-muted-foreground pt-1">
+              <Link
+                href={`/admin/students/${installment.studentId}`}
+                className="text-primary font-medium hover:underline"
+              >
+                Open student profile
+              </Link>
+            </p>
+          ) : null}
         </DialogHeader>
         <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
           <div className="flex items-center space-x-2 pb-2 border-b">
@@ -152,14 +170,14 @@ export function PaymentModal({
 
           <div className="pt-4 border-t flex flex-col gap-2">
             <p className="text-xs text-muted-foreground">
-              Receipts and ledger entries are created automatically when you record a payment.
+              A fee receipt is generated on the server when you confirm; it opens automatically after success when available.
             </p>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Recording..." : "Record payment"}
+                {isSubmitting ? "Recording..." : submitLabel}
               </Button>
             </div>
           </div>

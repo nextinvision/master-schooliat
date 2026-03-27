@@ -24,6 +24,12 @@ import { format } from "date-fns";
 import { useClassesContext } from "@/lib/context/classes-context";
 import { useStudents } from "@/lib/hooks/use-students";
 import { resolveStudentAttendanceRow } from "@/lib/attendance/resolve-student-attendance";
+import { isAttendanceDateLocked } from "@/lib/attendance/attendance-date-policy";
+import {
+  downloadCsv,
+  downloadTablePdf,
+  formatDateLabel,
+} from "@/lib/attendance/export-attendance";
 
 export default function AttendancePage() {
   const router = useRouter();
@@ -79,6 +85,12 @@ export default function AttendancePage() {
         toast.error("Please select a class");
         return;
       }
+      if (isAttendanceDateLocked(selectedDate)) {
+        toast.error(
+          "Attendance cannot be marked or edited more than 48 hours after the attendance date."
+        );
+        return;
+      }
 
       try {
         await markAttendance.mutateAsync({
@@ -96,10 +108,16 @@ export default function AttendancePage() {
     [selectedClassId, selectedDate, periodQueryParam, markAttendance, refetch]
   );
 
-  const handleBulkMark = useCallback(
+  const handleBulkMarkAll = useCallback(
     async (status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY") => {
       if (!selectedClassId) {
         toast.error("Please select a class");
+        return;
+      }
+      if (isAttendanceDateLocked(selectedDate)) {
+        toast.error(
+          "Attendance cannot be marked or edited more than 48 hours after the attendance date."
+        );
         return;
       }
 
@@ -127,6 +145,45 @@ export default function AttendancePage() {
     [selectedClassId, selectedDate, periodQueryParam, filteredStudents, markBulkAttendance, refetch]
   );
 
+  const handleBulkMarkSelected = useCallback(
+    async (
+      status: "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY",
+      studentIds: string[]
+    ) => {
+      if (!selectedClassId) {
+        toast.error("Please select a class");
+        return;
+      }
+      if (isAttendanceDateLocked(selectedDate)) {
+        toast.error(
+          "Attendance cannot be marked or edited more than 48 hours after the attendance date."
+        );
+        return;
+      }
+      if (studentIds.length === 0) {
+        toast.error("No students selected");
+        return;
+      }
+
+      try {
+        const attendances = studentIds.map((studentId) => ({
+          studentId,
+          classId: selectedClassId,
+          date: selectedDate,
+          status,
+          ...(periodQueryParam ? { periodId: periodQueryParam } : {}),
+        }));
+
+        await markBulkAttendance.mutateAsync({ attendances });
+        toast.success(`Marked ${studentIds.length} student(s) as ${status}`);
+        refetch();
+      } catch (error: any) {
+        toast.error(error?.message || "Failed to mark bulk attendance");
+      }
+    },
+    [selectedClassId, selectedDate, periodQueryParam, markBulkAttendance, refetch]
+  );
+
   const tableStudents = useMemo(() => {
     const rows = attendanceData?.data;
     return filteredStudents.map((student: any) => ({
@@ -150,6 +207,60 @@ export default function AttendancePage() {
   const totalCount = statistics.total ?? statistics.totalCount ?? 0;
   const attendancePercentage =
     totalCount > 0 ? ((presentCount / totalCount) * 100).toFixed(1) : "0";
+
+  const dateLocked = isAttendanceDateLocked(selectedDate);
+
+  const selectedClassLabel = useMemo(() => {
+    const cls = classes?.find((c) => c.id === selectedClassId);
+    if (!cls) return "";
+    return cls.division ? `${cls.grade}-${cls.division}` : String(cls.grade);
+  }, [classes, selectedClassId]);
+
+  const exportMarkingSheet = useCallback(
+    (kind: "csv" | "pdf") => {
+      if (!selectedClassId || tableStudents.length === 0) {
+        toast.error("Select a class with students to export");
+        return;
+      }
+      const headers = [
+        "No",
+        "Roll No",
+        "Student name",
+        "Status",
+        "Late time",
+        "Absence reason",
+        "Recorded",
+      ];
+      const rows = tableStudents.map((s: (typeof tableStudents)[number], i: number) => {
+        const att = s.attendance;
+        const recorded = att ? "Yes" : "No";
+        return [
+          String(i + 1),
+          String(s.rollNumber ?? "—"),
+          `${s.firstName} ${s.lastName}`.trim(),
+          att?.status ?? "Not recorded",
+          att?.lateArrivalTime ?? "—",
+          att?.absenceReason ?? "—",
+          recorded,
+        ];
+      });
+      const subtitle = `${selectedClassLabel || "Class"} · ${formatDateLabel(selectedDate)}`;
+      const base = `attendance_${selectedClassLabel || "class"}_${selectedDate}`;
+      if (kind === "csv") {
+        downloadCsv(`${base}.csv`, headers, rows);
+      } else {
+        downloadTablePdf({
+          title: "Student attendance (marking view)",
+          subtitle,
+          headers,
+          rows,
+          filename: `${base}.pdf`,
+        });
+      }
+      toast.success(kind === "csv" ? "Excel-compatible CSV downloaded" : "PDF downloaded");
+    },
+    [selectedClassId, selectedClassLabel, selectedDate, tableStudents]
+  );
 
   return (
     <div className="space-y-6 pb-8">
@@ -206,6 +317,12 @@ export default function AttendancePage() {
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
+              {dateLocked ? (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                  This date is closed for marking: changes are not allowed more than 48 hours after
+                  the attendance day.
+                </p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <Label>Period (Optional)</Label>
@@ -294,10 +411,32 @@ export default function AttendancePage() {
           </Card>
         ) : (
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>
                 Attendance for {format(new Date(selectedDate), "MMMM dd, yyyy")}
               </CardTitle>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportMarkingSheet("csv")}
+                  className="gap-1"
+                >
+                  <Download className="h-4 w-4" />
+                  Excel (CSV)
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportMarkingSheet("pdf")}
+                  className="gap-1"
+                >
+                  <Download className="h-4 w-4" />
+                  PDF
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <AttendanceMarkingTable
@@ -306,7 +445,9 @@ export default function AttendancePage() {
                 date={selectedDate}
                 classId={selectedClassId}
                 onMarkAttendance={handleMarkAttendance}
-                onBulkMark={handleBulkMark}
+                onBulkMark={handleBulkMarkAll}
+                onBulkMarkSelected={handleBulkMarkSelected}
+                isDateLocked={dateLocked}
                 isLoading={markAttendance.isPending || markBulkAttendance.isPending}
               />
             </CardContent>

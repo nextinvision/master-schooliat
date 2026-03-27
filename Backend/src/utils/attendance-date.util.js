@@ -28,3 +28,20 @@ export function resolveLateArrivalDateTime(onDate, timeOrDate) {
   const parsed = new Date(timeOrDate);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
+
+/** Hours after end of attendance day after which marks/edits are blocked */
+export const ATTENDANCE_EDIT_WINDOW_MS = 48 * 60 * 60 * 1000;
+
+/**
+ * Throws if attendance date is outside the allowed edit window (48h after end of that calendar day).
+ * @param {Date|string|number} attendanceDateInput
+ */
+export function assertAttendanceDateEditable(attendanceDateInput) {
+  const { end: endOfDay } = getLocalDayBounds(attendanceDateInput);
+  const now = Date.now();
+  if (now - endOfDay.getTime() > ATTENDANCE_EDIT_WINDOW_MS) {
+    throw new Error(
+      "Attendance cannot be marked or edited more than 48 hours after the attendance date."
+    );
+  }
+}

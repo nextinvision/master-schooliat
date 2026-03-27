@@ -145,7 +145,12 @@ export async function listStudentsInClass({
   } else if (field === "createdAt") {
     orderBy = { createdAt: order };
   } else {
-    orderBy = { studentProfile: { rollNumber: order } };
+    // Numerical roll order, then name (A–Z) so ties / unset rolls (0) list predictably.
+    orderBy = [
+      { studentProfile: { rollNumber: order } },
+      { firstName: "asc" },
+      { lastName: "asc" },
+    ];
   }
 
   const [rows, totalCount] = await Promise.all([

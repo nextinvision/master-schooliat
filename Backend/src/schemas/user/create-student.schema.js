@@ -6,7 +6,14 @@ const createStudentSchema = z
       .object({
         firstName: z.string().trim().min(1, "First name is required"),
         lastName: z.string().trim().min(1, "Last name is required"),
-        email: z.string().trim().email("Invalid email format"),
+        email: z.preprocess(
+          (val) => {
+            if (val === undefined || val === null) return undefined;
+            const s = String(val).trim();
+            return s === "" ? undefined : s;
+          },
+          z.string().email("Invalid email format").optional(),
+        ),
         contact: z.string().trim().min(1, "Contact is required"),
         gender: z.enum(["MALE", "FEMALE"], {
           errorMap: () => ({ message: "Gender must be MALE or FEMALE" }),

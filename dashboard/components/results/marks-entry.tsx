@@ -137,7 +137,7 @@ export function MarksEntry() {
     return (
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h1 className="text-2xl font-semibold">Enter Marks</h1>
+                <h2 className="text-lg font-semibold">Enter marks (by subject)</h2>
                 <Button
                     onClick={handleSave}
                     disabled={enterBulkMarks.isPending || !examId || !subjectId || !selectedClassId}

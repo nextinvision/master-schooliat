@@ -13,6 +13,7 @@ const getAttendanceReportSchema = z
         endDate: z.string().or(z.date()),
         status: z.nativeEnum(AttendanceStatus).optional(),
         periodId: z.string().uuid("Invalid period ID").optional(),
+        markedBy: z.string().uuid("Invalid marked-by user ID").optional(),
         format: z.enum(["json", "pdf", "excel", "csv"]).optional().default("json"),
       })
     ,

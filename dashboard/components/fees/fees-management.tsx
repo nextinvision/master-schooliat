@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -36,6 +37,7 @@ import {
   buildSchoolLedgerQuery,
 } from "@/lib/hooks/use-fees";
 import { get, downloadFromApi } from "@/lib/api/client";
+import { resolvePublicFileUrl } from "@/lib/utils/resolve-public-file-url";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FeeDetailsModal } from "./fee-details-modal";
 import { PaymentModal } from "./payment-modal";
@@ -227,7 +229,7 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
     if (!selectedInstallment) return;
 
     try {
-      await recordPayment({
+      const result = await recordPayment({
         installmentId: selectedInstallment.id,
         amount: data.isWaiver ? undefined : Math.round(Number(data.amount) || 0),
         paymentMethod: data.paymentMethod,
@@ -236,8 +238,23 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
         remarks: data.remarks,
       });
       handleClosePaymentModal();
-      refetch();
-    } catch (error: any) {
+      const rawReceiptUrl = result?.data?.installment?.receiptFileUrl as
+        | string
+        | undefined;
+      if (rawReceiptUrl) {
+        const url = resolvePublicFileUrl(rawReceiptUrl);
+        if (url) {
+          window.open(url, "_blank", "noopener,noreferrer");
+        }
+        toast.success("Payment recorded. Receipt opened in a new tab.");
+      } else {
+        toast.success("Payment recorded.");
+        toast.info(
+          "Receipt file was not linked yet. Refresh the list or open fee details if you need the PDF/HTML receipt."
+        );
+      }
+      await refetch();
+    } catch (error: unknown) {
       console.error("Payment failed:", error);
       throw error;
     }
@@ -656,7 +673,21 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                       <TableCell className="font-medium">
                         {String(from + index + 1).padStart(2, "0")}
                       </TableCell>
-                      <TableCell>{name}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <Link
+                            href={`/admin/students/${item.studentId}`}
+                            className="font-medium text-primary hover:underline truncate"
+                          >
+                            {name}
+                          </Link>
+                          {item.student?.publicUserId ? (
+                            <span className="text-xs text-muted-foreground truncate">
+                              {item.student.publicUserId}
+                            </span>
+                          ) : null}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div className="space-y-1">
                           <div>{formatCurrency(item.amount)}</div>
@@ -720,11 +751,19 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                                 ? "Fully paid"
                                 : status === "Cancelled"
                                   ? "Cancelled"
-                                  : "Record payment"
+                                  : status === "Partially Paid"
+                                    ? "Pay remaining balance (marks paid when complete)"
+                                    : "Record payment — marks installment paid when balance is cleared"
                             }
                           >
                             <IndianRupee className="w-4 h-4" />
-                            <span className="hidden sm:inline">Pay</span>
+                            <span className="hidden sm:inline">
+                              {status === "Partially Paid"
+                                ? "Pay balance"
+                                : status === "Pending"
+                                  ? "Mark paid"
+                                  : "Pay"}
+                            </span>
                           </Button>
                           <Button
                             variant="ghost"
@@ -740,35 +779,19 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => window.open(item.receiptFileUrl, "_blank")}
+                              onClick={() =>
+                                window.open(
+                                  resolvePublicFileUrl(item.receiptFileUrl),
+                                  "_blank",
+                                  "noopener,noreferrer"
+                                )
+                              }
                               className="h-8 w-8 text-primary"
-                              title="Download Receipt"
+                              title="Open receipt for this installment"
                             >
                               <DownloadCloud className="w-4 h-4" />
                             </Button>
                           )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Student fee receipt"
-                            onClick={async () => {
-                              try {
-                                const res = await get(`/fees/student/${item.studentId}`);
-                                const installments = res?.data?.installments ?? [];
-                                const withReceipt = installments.filter((i: any) => i.receiptFileUrl);
-                                if (withReceipt.length > 0) {
-                                  window.open(withReceipt[0].receiptFileUrl, "_blank");
-                                } else {
-                                  toast.info("No receipt available for this student yet. Record a payment first.");
-                                }
-                              } catch {
-                                toast.error("Could not load student receipts.");
-                              }
-                            }}
-                          >
-                            <FileDown className="w-4 h-4" />
-                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -951,7 +974,18 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                             </Badge>
                           </TableCell>
                           <TableCell>
-                            <div className="text-sm font-medium">{name}</div>
+                            <div className="text-sm font-medium min-w-0">
+                              {row.studentId ? (
+                                <Link
+                                  href={`/admin/students/${row.studentId}`}
+                                  className="text-primary hover:underline"
+                                >
+                                  {name}
+                                </Link>
+                              ) : (
+                                name
+                              )}
+                            </div>
                             <div className="text-xs text-muted-foreground">
                               {st?.publicUserId || row.studentId?.slice(0, 8) || ""}
                             </div>
@@ -976,7 +1010,13 @@ export function FeesManagement({ onEdit, onDelete }: FeesManagementProps) {
                                 variant="ghost"
                                 size="sm"
                                 className="h-8 px-2 text-primary"
-                                onClick={() => window.open(row.receiptFileUrl, "_blank")}
+                                onClick={() =>
+                                  window.open(
+                                    resolvePublicFileUrl(row.receiptFileUrl),
+                                    "_blank",
+                                    "noopener,noreferrer"
+                                  )
+                                }
                               >
                                 Open
                               </Button>

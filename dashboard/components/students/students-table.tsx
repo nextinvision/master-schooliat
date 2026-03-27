@@ -141,12 +141,11 @@ export function StudentsTable({
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Students</h1>
-        <Button onClick={onAddNew} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add New
+      {/* Toolbar: list title lives on parent page; primary action here for quick access */}
+      <div className="flex items-center justify-end">
+        <Button onClick={onAddNew} className="gap-2 font-semibold" title="New admission">
+          <Plus className="h-5 w-5" aria-hidden />
+          <span>New admission</span>
         </Button>
       </div>
 

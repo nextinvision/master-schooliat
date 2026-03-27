@@ -84,7 +84,7 @@ export default function AddSyllabusPage() {
                             <div className="space-y-2">
                                 <Label>Subject</Label>
                                 <Select
-                                    value={formData.subjectId}
+                                    value={formData.subjectId || undefined}
                                     onValueChange={(v) => setFormData({ ...formData, subjectId: v })}
                                 >
                                     <SelectTrigger>
@@ -100,7 +100,7 @@ export default function AddSyllabusPage() {
                             <div className="space-y-2">
                                 <Label>Class</Label>
                                 <Select
-                                    value={formData.classId}
+                                    value={formData.classId || undefined}
                                     onValueChange={(v) => setFormData({ ...formData, classId: v })}
                                 >
                                     <SelectTrigger>
@@ -145,7 +145,9 @@ export default function AddSyllabusPage() {
                                                         value={chapter.chapterNumber}
                                                         onChange={(e) => {
                                                             const newChapters = [...formData.chapters];
-                                                            newChapters[cIndex].chapterNumber = parseInt(e.target.value);
+                                                            const n = parseInt(e.target.value, 10);
+                                                            newChapters[cIndex].chapterNumber =
+                                                                Number.isFinite(n) ? n : cIndex + 1;
                                                             setFormData({ ...formData, chapters: newChapters });
                                                         }}
                                                     />

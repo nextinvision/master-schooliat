@@ -48,6 +48,7 @@ export const searchTeachersByName = <T extends { firstName?: string; lastName?: 
 
 export const searchTransportByName = <T extends {
   vehicleNumber?: string;
+  licenseNumber?: string;
   driverFirstName?: string;
   driverLastName?: string;
   conductorFirstName?: string;
@@ -58,6 +59,7 @@ export const searchTransportByName = <T extends {
 ): T[] => {
   return searchByName(data, query, (transport) => [
     transport.vehicleNumber || "",
+    transport.licenseNumber || "",
     transport.driverFirstName || "",
     transport.driverLastName || "",
     `${transport.driverFirstName || ""} ${transport.driverLastName || ""}`,

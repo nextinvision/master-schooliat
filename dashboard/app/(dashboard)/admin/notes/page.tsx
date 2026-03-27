@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useNotes, useDeleteNote } from "@/lib/hooks/use-notes";
 import { DeletionOtpDialog } from "@/components/deletion/deletion-otp-dialog";
@@ -30,6 +30,15 @@ export default function NotesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [noteOtpId, setNoteOtpId] = useState<string | null>(null);
   const limit = 15;
+
+  /** Open correct tab when linked from e.g. /admin/syllabus/add redirect (?tab=syllabus) */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "syllabus" || tab === "notes") {
+      setActiveTab(tab);
+    }
+  }, []);
 
   const { data: notesData, isLoading: notesLoading, refetch: refetchNotes } = useNotes({
     page,
@@ -78,11 +87,13 @@ export default function NotesPage() {
     }
   }, [router, activeTab]);
 
-  const filteredNotes = notes.filter(
-    (note: any) =>
-      note.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      note.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredNotes = notes.filter((note: any) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    const title = String(note.title ?? "").toLowerCase();
+    const desc = String(note.description ?? "").toLowerCase();
+    return title.includes(q) || desc.includes(q);
+  });
 
   return (
     <div className="space-y-6 pb-8">
@@ -95,7 +106,10 @@ export default function NotesPage() {
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as "notes" | "syllabus")}
+      >
         <TabsList>
           <TabsTrigger value="notes">Notes</TabsTrigger>
           <TabsTrigger value="syllabus">Syllabus</TabsTrigger>
@@ -271,7 +285,8 @@ export default function NotesPage() {
                             <TableCell>{syl.academicYear || "N/A"}</TableCell>
                             <TableCell>
                               <Badge variant="secondary">
-                                {syl.chapters?.length || 0} chapters
+                                {Array.isArray(syl.chapters) ? syl.chapters.length : 0}{" "}
+                                chapters
                               </Badge>
                             </TableCell>
                             <TableCell>

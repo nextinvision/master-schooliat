@@ -11,13 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { BorrowerSearchSelect, type BorrowerOption } from "@/components/library/borrower-search-select";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -36,8 +30,15 @@ export default function LibraryIssuePage() {
   const bookId = typeof params.id === "string" ? params.id : "";
 
   const { data: bookData, isLoading: bookLoading, error: bookError } = useBookById(bookId);
-  const { data: studentsRes } = useStudents({ page: 1, limit: 500 });
-  const { data: teachersRes } = useTeachersPage(1, TEACHERS_MAX_PAGE_SIZE);
+  const { data: studentsRes, isLoading: studentsLoading } = useStudents({
+    page: 1,
+    limit: 500,
+  });
+  const { data: teachersRes, isLoading: teachersLoading } = useTeachersPage(
+    1,
+    TEACHERS_MAX_PAGE_SIZE
+  );
+  const borrowersLoading = studentsLoading || teachersLoading;
 
   const issueBook = useIssueBook();
   const book = bookData?.data;
@@ -45,16 +46,67 @@ export default function LibraryIssuePage() {
   const students = studentsRes?.data ?? [];
   const teachers = teachersRes?.data ?? [];
 
-  const borrowerOptions = useMemo(() => {
-    const list: { id: string; label: string }[] = [];
-    students.forEach((s: { id: string; firstName?: string; lastName?: string }) => {
-      const name = [s.firstName, s.lastName].filter(Boolean).join(" ").trim() || s.id;
-      list.push({ id: s.id, label: `${name} (Student)` });
-    });
-    teachers.forEach((t: { id: string; firstName?: string; lastName?: string }) => {
-      const name = [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || t.id;
-      list.push({ id: t.id, label: `${name} (Teacher)` });
-    });
+  const borrowerOptions = useMemo((): BorrowerOption[] => {
+    const list: BorrowerOption[] = [];
+
+    students.forEach(
+      (s: {
+        id: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        publicUserId?: string;
+        studentProfile?: { rollNumber?: string | number };
+      }) => {
+        const name =
+          [s.firstName, s.lastName].filter(Boolean).join(" ").trim() || s.id;
+        const email = (s.email || "").trim();
+        const pid = (s.publicUserId || "").trim();
+        const roll =
+          s.studentProfile?.rollNumber != null
+            ? String(s.studentProfile.rollNumber)
+            : "";
+        const searchText = [name, email, pid, roll, "student"]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const labelParts = [`${name} (Student)`];
+        if (pid) labelParts.push(pid);
+        if (roll) labelParts.push(`Roll ${roll}`);
+        list.push({
+          id: s.id,
+          label: labelParts.join(" · "),
+          searchText,
+        });
+      }
+    );
+
+    teachers.forEach(
+      (t: {
+        id: string;
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        publicUserId?: string;
+      }) => {
+        const name =
+          [t.firstName, t.lastName].filter(Boolean).join(" ").trim() || t.id;
+        const email = (t.email || "").trim();
+        const pid = (t.publicUserId || "").trim();
+        const searchText = [name, email, pid, "teacher"]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        const labelParts = [`${name} (Teacher)`];
+        if (pid) labelParts.push(pid);
+        list.push({
+          id: t.id,
+          label: labelParts.join(" · "),
+          searchText,
+        });
+      }
+    );
+
     return list;
   }, [students, teachers]);
 
@@ -151,27 +203,16 @@ export default function LibraryIssuePage() {
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4 max-w-md">
             <div>
-              <Label>Borrower *</Label>
-              <Select
+              <Label className="mb-1 block">Borrower *</Label>
+              <BorrowerSearchSelect
                 value={form.watch("userId")}
-                onValueChange={(v) => form.setValue("userId", v)}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select student or teacher" />
-                </SelectTrigger>
-                <SelectContent>
-                  {borrowerOptions.map((opt) => (
-                    <SelectItem key={opt.id} value={opt.id}>
-                      {opt.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.userId && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.userId.message}
-                </p>
-              )}
+                onChange={(userId) => form.setValue("userId", userId, { shouldValidate: true })}
+                options={borrowerOptions}
+                loading={borrowersLoading}
+                disabled={issueBook.isPending}
+                emptyHint="No students or teachers found for this school."
+                error={form.formState.errors.userId?.message}
+              />
             </div>
             <div>
               <Label htmlFor="dueDate">Due date *</Label>

@@ -37,6 +37,17 @@ import {
 import { toast } from "sonner";
 import { downloadFromApi } from "@/lib/api/client";
 import {
+  downloadBlankAdmissionFormHtml,
+  openBlankAdmissionFormPrint,
+  downloadAttendanceRegisterBlankCsv,
+} from "@/lib/student-admission-templates";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Plus,
   FileText,
   FileUp,
@@ -109,6 +120,20 @@ export default function StudentsPage() {
       }
     }
   }, []);
+
+  const [admissionQueryHandled, setAdmissionQueryHandled] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || admissionQueryHandled) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("admission") === "1") {
+      setIsAddStudentDialogOpen(true);
+      params.delete("admission");
+      const qs = params.toString();
+      const path = `${window.location.pathname}${qs ? `?${qs}` : ""}`;
+      window.history.replaceState({}, "", path);
+    }
+    setAdmissionQueryHandled(true);
+  }, [admissionQueryHandled]);
 
   const [page, setPage] = useState(1);
   const [tcPage, setTcPage] = useState(1);
@@ -197,7 +222,7 @@ export default function StudentsPage() {
   const handleCreateStudent = useCallback(async (data: StudentFormData) => {
     try {
       await createStudent.mutateAsync(data);
-      toast.success("Student created successfully!");
+      toast.success("Admission saved successfully!");
       studentForm.reset();
       setIsAddStudentDialogOpen(false);
       refetchStudents();
@@ -290,8 +315,41 @@ export default function StudentsPage() {
             className="gap-2"
           >
             <UserPlus className="h-4 w-4" />
-            Add Student
+            New admission
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="outline" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Blank &amp; print forms
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[min(100vw-2rem,22rem)]">
+              <DropdownMenuItem
+                onClick={() => {
+                  downloadBlankAdmissionFormHtml();
+                  toast.success("Blank admission form downloaded (open in browser to print).");
+                }}
+              >
+                New admission — download blank (HTML)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  openBlankAdmissionFormPrint();
+                }}
+              >
+                New admission — print blank
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  downloadAttendanceRegisterBlankCsv();
+                  toast.success("Attendance register template downloaded (CSV).");
+                }}
+              >
+                Class attendance register — blank (CSV)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             onClick={() => {
@@ -593,9 +651,9 @@ export default function StudentsPage() {
       <Dialog open={isAddStudentDialogOpen} onOpenChange={setIsAddStudentDialogOpen}>
         <DialogContent className="sm:max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle>Add New Student</DialogTitle>
+            <DialogTitle>New admission</DialogTitle>
             <DialogDescription>
-              Fill in the student information below. All required fields are marked with *.
+              Fill in the admission form below. Required fields are marked with *. Email is optional — leave blank if not available.
             </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-y-auto pr-4 min-h-0">
@@ -754,12 +812,12 @@ export default function StudentsPage() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
+                        <Label htmlFor="email">Email (optional)</Label>
                         <Input
                           id="email"
                           type="email"
                           {...studentForm.register("email")}
-                          placeholder="example@gmail.com"
+                          placeholder="Leave blank if not available"
                         />
                       </div>
 
@@ -965,7 +1023,7 @@ export default function StudentsPage() {
               })}
               disabled={createStudent.isPending}
             >
-              {createStudent.isPending ? "Creating..." : "Create Student"}
+              {createStudent.isPending ? "Saving..." : "Submit admission"}
             </Button>
           </DialogFooter>
         </DialogContent>

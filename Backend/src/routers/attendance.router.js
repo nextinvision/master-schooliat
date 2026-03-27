@@ -249,7 +249,7 @@ router.get(
   validateRequest(getAttendanceReportSchema),
   async (req, res) => {
     const currentUser = req.context.user;
-    const { studentId, classId, schoolId, startDate, endDate, status, format } = req.query;
+    const { studentId, classId, schoolId, startDate, endDate, status, format, markedBy } = req.query;
 
     const filters = {
       studentId: studentId || (currentUser.role.name === "STUDENT" ? currentUser.id : null),
@@ -258,6 +258,7 @@ router.get(
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       status,
+      markedBy: markedBy || undefined,
     };
 
     let reportData = await attendanceService.getAttendanceReport(filters);
@@ -282,6 +283,7 @@ router.get(
         { label: "Status", key: "status" },
         { label: "Late Time", key: "lateArrivalTime" },
         { label: "Reason", key: "absenceReason" },
+        { label: "Recorded by", key: "markedBy" },
       ];
 
       // Flatten the data for CSV
@@ -294,6 +296,9 @@ router.get(
         status: record.status || "N/A",
         lateArrivalTime: record.lateArrivalTime ? new Date(record.lateArrivalTime).toLocaleTimeString() : "N/A",
         absenceReason: record.absenceReason || "N/A",
+        markedBy: record.markedByUser
+          ? `${record.markedByUser.firstName} ${record.markedByUser.lastName || ""} (${record.markedByUser.publicUserId})`
+          : "N/A",
       }));
 
       const csv = csvUtil.generateCSV(flattenedData, headers);

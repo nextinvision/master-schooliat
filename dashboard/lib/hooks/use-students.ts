@@ -47,6 +47,7 @@ function buildAddressLines(form: any) {
 }
 
 function createStudentApi(form: any) {
+  const emailTrim = (form.email ?? "").trim().toLowerCase();
   const payload = {
     request: {
       firstName: form.firstName?.trim(),
@@ -54,7 +55,7 @@ function createStudentApi(form: any) {
       gender: form.gender,
       dateOfBirth: form.dob,
       contact: form.phone?.trim(),
-      email: form.email?.trim().toLowerCase(),
+      ...(emailTrim ? { email: emailTrim } : {}),
       classId: form.classId,
       address: buildAddressLines(form),
       fatherName: form.fatherName?.trim(),

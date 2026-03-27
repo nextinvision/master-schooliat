@@ -4,9 +4,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { get, post, patch, del } from "@/lib/api/client";
 import { keepPreviousData } from "@tanstack/react-query";
 
-// Fetch leave balance
-function fetchLeaveBalance() {
-  return get("/leave/balance");
+// Fetch leave balance (optional calendar year — same contract as mobile GET /leave/balance?year=)
+function fetchLeaveBalance(year?: number) {
+  return get("/leave/balance", year != null ? { year } : undefined);
 }
 
 // Fetch leave history (optionally for a specific user - school admin can pass userId)
@@ -63,11 +63,31 @@ function cancelLeaveApi(leaveRequestId: string) {
 }
 
 // Hooks
-export function useLeaveBalance() {
+export function useLeaveBalance(options?: { year?: number }) {
+  const year = options?.year;
   return useQuery({
-    queryKey: ["leave-balance"],
-    queryFn: () => fetchLeaveBalance(),
+    queryKey: ["leave-balance", year ?? "current"],
+    queryFn: () => fetchLeaveBalance(year),
     staleTime: 60 * 1000,
+  });
+}
+
+/** One-shot fetch for CSV export (school-wide history with filters). */
+export async function fetchLeaveHistoryExport(params: {
+  status?: string;
+  startDate?: string;
+  endDate?: string;
+  classId?: string;
+  limit?: number;
+}) {
+  return get("/leave/history", {
+    userId: "all",
+    page: 1,
+    limit: params.limit ?? 5000,
+    ...(params.status ? { status: params.status } : {}),
+    ...(params.startDate ? { startDate: params.startDate } : {}),
+    ...(params.endDate ? { endDate: params.endDate } : {}),
+    ...(params.classId ? { classId: params.classId } : {}),
   });
 }
 
@@ -177,6 +197,8 @@ export function useCreateLeaveRequest() {
       queryClient.invalidateQueries({ queryKey: ["leave-balance"] });
       queryClient.invalidateQueries({ queryKey: ["leave-history"] });
       queryClient.invalidateQueries({ queryKey: ["leave-calendar"] });
+      /** New pending requests should appear on Approvals without a manual refresh. */
+      queryClient.invalidateQueries({ queryKey: ["leave-pending-approvals"] });
     },
   });
 }

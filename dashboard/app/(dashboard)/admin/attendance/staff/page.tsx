@@ -1,307 +1,636 @@
 "use client";
 
 import { useState, useCallback, useMemo } from "react";
+import { isAttendanceDateLocked } from "@/lib/attendance/attendance-date-policy";
+import {
+  downloadCsv,
+  downloadTablePdf,
+  formatDateLabel,
+} from "@/lib/attendance/export-attendance";
 import { useStaffPage } from "@/lib/hooks/use-staff";
 import { TEACHERS_MAX_PAGE_SIZE, useTeachersPage } from "@/lib/hooks/use-teachers";
 import { useAttendance, useMarkBulkAttendance } from "@/lib/hooks/use-attendance";
 import { useClassesContext } from "@/lib/context/classes-context";
+import {
+  StaffAttendanceTable,
+  type StaffAttendanceRow,
+  type StaffAttendanceStatus,
+} from "@/components/attendance/staff-attendance-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { Calendar, CheckCircle2, XCircle, Clock } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, Download } from "lucide-react";
 import { format } from "date-fns";
-import { cn } from "@/lib/utils";
 
-type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
-
-interface StaffMember {
-    id: string;
-    firstName: string;
-    lastName?: string;
-    role?: { name: string };
-    email?: string;
-    contact?: string;
-}
+type RoleFilter = "all" | "teacher" | "staff";
 
 export default function StaffAttendancePage() {
-    const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-    const [statusMap, setStatusMap] = useState<Record<string, AttendanceStatus>>({});
+  const [selectedDate, setSelectedDate] = useState<string>(
+    format(new Date(), "yyyy-MM-dd")
+  );
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [statusMap, setStatusMap] = useState<
+    Record<string, StaffAttendanceStatus>
+  >({});
 
-    // Fetch staff & teacher lists (high limit to get all)
-    const { data: staffData, isLoading: staffLoading } = useStaffPage(1, 500);
-    const { data: teachersData, isLoading: teachersLoading } = useTeachersPage(1, TEACHERS_MAX_PAGE_SIZE);
+  const { classes, isLoading: classesLoading } = useClassesContext();
 
-    // Get default class for attendance (required by schema)
-    const { classes } = useClassesContext();
-    const defaultClassId = classes?.[0]?.id || "";
+  const { data: staffData, isLoading: staffLoading } = useStaffPage(1, 500);
+  const { data: teachersData, isLoading: teachersLoading } = useTeachersPage(
+    1,
+    TEACHERS_MAX_PAGE_SIZE
+  );
 
-    // Fetch existing attendance for the date
-    const { data: attendanceData, isLoading: attendanceLoading, refetch } = useAttendance({
-        date: selectedDate,
-        classId: defaultClassId || undefined,
+  const { data: attendanceData, isLoading: attendanceLoading, refetch } =
+    useAttendance({
+      date: selectedDate,
+      classId: selectedClassId || undefined,
     });
 
-    const markBulkAttendance = useMarkBulkAttendance();
+  const markBulkAttendance = useMarkBulkAttendance();
 
-    // Merge staff + teachers into one list
-    const allStaff: StaffMember[] = useMemo(() => {
-        const staffList = (staffData?.data || []).map((s: any) => ({
-            ...s,
-            _role: "STAFF",
-        }));
-        const teacherList = (teachersData?.data || []).map((t: any) => ({
-            ...t,
-            _role: "TEACHER",
-        }));
-        return [...teacherList, ...staffList];
-    }, [staffData, teachersData]);
+  const allMembers: StaffAttendanceRow[] = useMemo(() => {
+    const staffList = (staffData?.data || []).map((s: { id: string; firstName: string; lastName?: string; email?: string; publicUserId?: string }) => ({
+      id: s.id,
+      firstName: s.firstName,
+      lastName: s.lastName,
+      email: s.email,
+      publicUserId: s.publicUserId,
+      kind: "STAFF" as const,
+    }));
+    const teacherList = (teachersData?.data || []).map((t: { id: string; firstName: string; lastName?: string; email?: string; publicUserId?: string }) => ({
+      id: t.id,
+      firstName: t.firstName,
+      lastName: t.lastName,
+      email: t.email,
+      publicUserId: t.publicUserId,
+      kind: "TEACHER" as const,
+    }));
+    return [...teacherList, ...staffList];
+  }, [staffData, teachersData]);
 
-    // Build initial status map from existing attendance data
-    const existingAttendance = attendanceData?.data || [];
+  const existingAttendance = useMemo(
+    () => attendanceData?.data ?? [],
+    [attendanceData?.data]
+  );
 
-    // Get the effective status for a staff member
-    const getStatus = (staffId: string): AttendanceStatus | null => {
-        if (statusMap[staffId]) return statusMap[staffId];
-        const existing = existingAttendance.find((a: any) => a.studentId === staffId);
-        return existing?.status || null;
+  const getStatus = useCallback(
+    (staffId: string): StaffAttendanceStatus | null => {
+      if (statusMap[staffId]) return statusMap[staffId];
+      const existing = existingAttendance.find(
+        (a: { studentId: string; status?: string }) => a.studentId === staffId
+      );
+      const st = existing?.status;
+      if (
+        st === "PRESENT" ||
+        st === "ABSENT" ||
+        st === "LATE" ||
+        st === "HALF_DAY"
+      ) {
+        return st;
+      }
+      return null;
+    },
+    [statusMap, existingAttendance]
+  );
+
+  const filteredMembers = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allMembers.filter((m) => {
+      if (roleFilter === "teacher" && m.kind !== "TEACHER") return false;
+      if (roleFilter === "staff" && m.kind !== "STAFF") return false;
+      if (!q) return true;
+      const name = `${m.firstName} ${m.lastName || ""}`.toLowerCase();
+      const email = (m.email || "").toLowerCase();
+      return name.includes(q) || email.includes(q);
+    });
+  }, [allMembers, search, roleFilter]);
+
+  const summary = useMemo(() => {
+    let present = 0;
+    let absent = 0;
+    let late = 0;
+    let halfDay = 0;
+    let unmarked = 0;
+    for (const m of filteredMembers) {
+      const s = getStatus(m.id);
+      if (!s) unmarked++;
+      else if (s === "PRESENT") present++;
+      else if (s === "ABSENT") absent++;
+      else if (s === "LATE") late++;
+      else if (s === "HALF_DAY") halfDay++;
+    }
+    const total = filteredMembers.length;
+    const marked = total - unmarked;
+    const pct =
+      marked > 0
+        ? (((present + late + halfDay) / marked) * 100).toFixed(1)
+        : "0";
+    return {
+      total,
+      present,
+      absent,
+      late,
+      halfDay,
+      unmarked,
+      marked,
+      pct,
     };
+  }, [filteredMembers, getStatus]);
 
-    const toggleStatus = (staffId: string, status: AttendanceStatus) => {
-        setStatusMap((prev) => ({
-            ...prev,
-            [staffId]: prev[staffId] === status ? "PRESENT" : status,
-        }));
-    };
+  const setRowStatus = useCallback((id: string, status: StaffAttendanceStatus) => {
+    setStatusMap((prev) => ({ ...prev, [id]: status }));
+  }, []);
 
-    const setAllStatus = (status: AttendanceStatus) => {
-        const newMap: Record<string, AttendanceStatus> = {};
-        allStaff.forEach((s) => {
-            newMap[s.id] = status;
+  const dateLocked = isAttendanceDateLocked(selectedDate);
+
+  const handleBulkMarkApi = useCallback(
+    async (
+      status: StaffAttendanceStatus,
+      memberIds: string[]
+    ) => {
+      if (!selectedClassId) {
+        toast.error("Please select a class");
+        return;
+      }
+      if (dateLocked) {
+        toast.error(
+          "Attendance cannot be marked or edited more than 48 hours after the attendance date."
+        );
+        return;
+      }
+      if (memberIds.length === 0) {
+        toast.error("No people to mark");
+        return;
+      }
+      try {
+        await markBulkAttendance.mutateAsync({
+          attendances: memberIds.map((studentId) => ({
+            studentId,
+            classId: selectedClassId,
+            date: selectedDate,
+            status,
+          })),
         });
-        setStatusMap(newMap);
-    };
+        toast.success(
+          `Marked ${memberIds.length} as ${status.replace("_", " ").toLowerCase()}`
+        );
+        setStatusMap({});
+        await refetch();
+      } catch (error: unknown) {
+        const msg =
+          error && typeof error === "object" && "message" in error
+            ? String((error as { message: string }).message)
+            : "Failed to mark attendance";
+        toast.error(msg);
+      }
+    },
+    [selectedClassId, selectedDate, dateLocked, markBulkAttendance, refetch]
+  );
 
-    const handleSave = useCallback(async () => {
-        if (!defaultClassId) {
-            toast.error("No classes found. Please create at least one class first.");
-            return;
-        }
+  const handleSavePending = useCallback(async () => {
+    const entries = Object.entries(statusMap);
+    if (!selectedClassId) {
+      toast.error("Please select a class");
+      return;
+    }
+    if (dateLocked) {
+      toast.error(
+        "Attendance cannot be marked or edited more than 48 hours after the attendance date."
+      );
+      return;
+    }
+    if (entries.length === 0) {
+      toast.error("No attendance changes to save");
+      return;
+    }
+    try {
+      await markBulkAttendance.mutateAsync({
+        attendances: entries.map(([studentId, status]) => ({
+          studentId,
+          classId: selectedClassId,
+          date: selectedDate,
+          status,
+        })),
+      });
+      toast.success(`Saved attendance for ${entries.length} people`);
+      setStatusMap({});
+      await refetch();
+    } catch (error: unknown) {
+      const msg =
+        error && typeof error === "object" && "message" in error
+          ? String((error as { message: string }).message)
+          : "Failed to save attendance";
+      toast.error(msg);
+    }
+  }, [statusMap, selectedClassId, selectedDate, dateLocked, markBulkAttendance, refetch]);
 
-        const entries = Object.entries(statusMap);
-        if (entries.length === 0) {
-            toast.error("No attendance changes to save");
-            return;
-        }
+  const exportStaffAttendance = useCallback(
+    (kind: "csv" | "pdf") => {
+      if (!selectedClassId || filteredMembers.length === 0) {
+        toast.error("Select a class and ensure there are people in the list");
+        return;
+      }
+      const headers = ["Name", "Staff ID", "Role", "Present / Absent"];
+      const rows = filteredMembers.map((m) => {
+        const st = getStatus(m.id);
+        const label =
+          st === "PRESENT"
+            ? "Present"
+            : st === "ABSENT"
+              ? "Absent"
+              : st === "LATE"
+                ? "Late"
+                : st === "HALF_DAY"
+                  ? "Half day"
+                  : "Not marked";
+        return [
+          `${m.firstName} ${m.lastName || ""}`.trim(),
+          m.publicUserId ?? "—",
+          m.kind === "TEACHER" ? "Teacher" : "Staff",
+          label,
+        ];
+      });
+      const cls = classes?.find((c) => c.id === selectedClassId);
+      const clsLabel = cls
+        ? cls.division
+          ? `${cls.grade}-${cls.division}`
+          : String(cls.grade)
+        : "";
+      const subtitle = `${clsLabel || "Class"} · ${formatDateLabel(selectedDate)}`;
+      const base = `staff_attendance_${clsLabel || "class"}_${selectedDate}`;
+      if (kind === "csv") {
+        downloadCsv(`${base}.csv`, headers, rows);
+      } else {
+        downloadTablePdf({
+          title: "Staff & teacher attendance",
+          subtitle,
+          headers,
+          rows,
+          filename: `${base}.pdf`,
+        });
+      }
+      toast.success(kind === "csv" ? "Excel-compatible CSV downloaded" : "PDF downloaded");
+    },
+    [selectedClassId, selectedDate, filteredMembers, getStatus, classes]
+  );
 
-        try {
-            const attendances = entries.map(([staffId, status]) => ({
-                studentId: staffId,
-                classId: defaultClassId,
-                date: selectedDate,
-                status,
-            }));
+  const isLoading = staffLoading || teachersLoading;
+  const changedCount = Object.keys(statusMap).length;
+  const tableLoading = isLoading || (selectedClassId ? attendanceLoading : false);
 
-            await markBulkAttendance.mutateAsync({ attendances });
-            toast.success(`Saved attendance for ${entries.length} staff members`);
-            setStatusMap({});
-            refetch();
-        } catch (error: any) {
-            toast.error(error?.message || "Failed to save attendance");
-        }
-    }, [statusMap, defaultClassId, selectedDate, markBulkAttendance, refetch]);
-
-    const isLoading = staffLoading || teachersLoading;
-    const changedCount = Object.keys(statusMap).length;
-
-    return (
-        <div className="space-y-6 pb-8">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-semibold">Staff & Teacher Attendance</h1>
-                <div className="flex items-center gap-3">
-                    <Button
-                        variant="outline"
-                        onClick={() => setAllStatus("PRESENT")}
-                        className="gap-2 text-green-700 border-green-300 hover:bg-green-50"
-                    >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Mark All Present
-                    </Button>
-                    <Button
-                        variant="outline"
-                        onClick={() => setAllStatus("ABSENT")}
-                        className="gap-2 text-red-700 border-red-300 hover:bg-red-50"
-                    >
-                        <XCircle className="h-4 w-4" />
-                        Mark All Absent
-                    </Button>
-                </div>
-            </div>
-
-            {/* Date Picker */}
-            <Card>
-                <CardContent className="pt-6">
-                    <div className="flex items-center gap-4">
-                        <div className="space-y-2">
-                            <Label>Date</Label>
-                            <Input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(e) => {
-                                    setSelectedDate(e.target.value);
-                                    setStatusMap({});
-                                }}
-                                className="w-48"
-                            />
-                        </div>
-                        <div className="mt-6 text-sm text-gray-500">
-                            {allStaff.length} staff & teachers found
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Staff List */}
-            {isLoading ? (
-                <Card>
-                    <CardContent className="pt-6">
-                        <Skeleton className="h-64 w-full" />
-                    </CardContent>
-                </Card>
-            ) : allStaff.length === 0 ? (
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="text-center py-12 text-gray-500">
-                            <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                            <p>No staff or teachers found</p>
-                        </div>
-                    </CardContent>
-                </Card>
-            ) : (
-                <Card>
-                    <CardHeader className="pb-3">
-                        <CardTitle className="text-lg">
-                            Attendance for {format(new Date(selectedDate), "MMMM dd, yyyy")}
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b text-left text-sm text-gray-500">
-                                        <th className="pb-3 pr-4 font-medium w-12">#</th>
-                                        <th className="pb-3 pr-4 font-medium">Name</th>
-                                        <th className="pb-3 pr-4 font-medium">Role</th>
-                                        <th className="pb-3 font-medium text-center">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {allStaff.map((member, idx) => {
-                                        const currentStatus = getStatus(member.id);
-                                        return (
-                                            <tr key={member.id} className="border-b last:border-0 hover:bg-gray-50/50">
-                                                <td className="py-3 pr-4 text-sm text-gray-500">{idx + 1}</td>
-                                                <td className="py-3 pr-4">
-                                                    <div className="font-medium text-gray-900">
-                                                        {member.firstName} {member.lastName || ""}
-                                                    </div>
-                                                    {member.email && (
-                                                        <div className="text-xs text-gray-400">{member.email}</div>
-                                                    )}
-                                                </td>
-                                                <td className="py-3 pr-4">
-                                                    <span className={cn(
-                                                        "text-xs font-medium px-2 py-1 rounded-full",
-                                                        (member as any)._role === "TEACHER"
-                                                            ? "bg-blue-100 text-blue-700"
-                                                            : "bg-purple-100 text-purple-700"
-                                                    )}>
-                                                        {(member as any)._role === "TEACHER" ? "Teacher" : "Staff"}
-                                                    </span>
-                                                </td>
-                                                <td className="py-3">
-                                                    <div className="flex items-center justify-center gap-2">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleStatus(member.id, "PRESENT")}
-                                                            className={cn(
-                                                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                                currentStatus === "PRESENT"
-                                                                    ? "bg-green-600 text-white shadow-sm"
-                                                                    : "bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-700"
-                                                            )}
-                                                        >
-                                                            Present
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleStatus(member.id, "ABSENT")}
-                                                            className={cn(
-                                                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                                currentStatus === "ABSENT"
-                                                                    ? "bg-red-600 text-white shadow-sm"
-                                                                    : "bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-700"
-                                                            )}
-                                                        >
-                                                            Absent
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleStatus(member.id, "LATE")}
-                                                            className={cn(
-                                                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                                currentStatus === "LATE"
-                                                                    ? "bg-yellow-500 text-white shadow-sm"
-                                                                    : "bg-gray-100 text-gray-500 hover:bg-yellow-100 hover:text-yellow-700"
-                                                            )}
-                                                        >
-                                                            Late
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => toggleStatus(member.id, "HALF_DAY")}
-                                                            className={cn(
-                                                                "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                                                                currentStatus === "HALF_DAY"
-                                                                    ? "bg-orange-500 text-white shadow-sm"
-                                                                    : "bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-700"
-                                                            )}
-                                                        >
-                                                            Half Day
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
-                        </div>
-
-                        {/* Save Button */}
-                        <div className="mt-6 flex items-center justify-between border-t pt-4">
-                            <p className="text-sm text-gray-500">
-                                {changedCount > 0 ? `${changedCount} change(s) pending` : "No changes"}
-                            </p>
-                            <Button
-                                onClick={handleSave}
-                                disabled={changedCount === 0 || markBulkAttendance.isPending}
-                                className="bg-[#4b830d] hover:bg-[#3a6a0a] text-white gap-2"
-                            >
-                                {markBulkAttendance.isPending ? (
-                                    <Clock className="h-4 w-4 animate-spin" />
-                                ) : (
-                                    <CheckCircle2 className="h-4 w-4" />
-                                )}
-                                Save Attendance
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+  return (
+    <div className="space-y-6 pb-8">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-2xl font-semibold">Staff &amp; Teacher Attendance</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={
+              !selectedClassId ||
+              filteredMembers.length === 0 ||
+              markBulkAttendance.isPending ||
+              dateLocked
+            }
+            onClick={() =>
+              handleBulkMarkApi(
+                "PRESENT",
+                filteredMembers.map((m) => m.id)
+              )
+            }
+            className="gap-2 text-green-800 border-green-300 hover:bg-green-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Mark all present
+          </Button>
+          <Button
+            variant="outline"
+            disabled={
+              !selectedClassId ||
+              filteredMembers.length === 0 ||
+              markBulkAttendance.isPending ||
+              dateLocked
+            }
+            onClick={() =>
+              handleBulkMarkApi(
+                "ABSENT",
+                filteredMembers.map((m) => m.id)
+              )
+            }
+            className="gap-2 text-red-800 border-red-300 hover:bg-red-50"
+          >
+            Mark all absent
+          </Button>
+          <Button
+            variant="outline"
+            disabled={
+              !selectedClassId ||
+              filteredMembers.length === 0 ||
+              markBulkAttendance.isPending ||
+              dateLocked
+            }
+            onClick={() =>
+              handleBulkMarkApi(
+                "LATE",
+                filteredMembers.map((m) => m.id)
+              )
+            }
+            className="gap-2 text-yellow-800 border-yellow-300 hover:bg-yellow-50"
+          >
+            Mark all late
+          </Button>
+          <Button
+            variant="outline"
+            disabled={
+              !selectedClassId ||
+              filteredMembers.length === 0 ||
+              markBulkAttendance.isPending ||
+              dateLocked
+            }
+            onClick={() =>
+              handleBulkMarkApi(
+                "HALF_DAY",
+                filteredMembers.map((m) => m.id)
+              )
+            }
+            className="gap-2 text-amber-900 border-amber-300 hover:bg-amber-50"
+          >
+            Mark all half day
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!selectedClassId || filteredMembers.length === 0}
+            onClick={() => exportStaffAttendance("csv")}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Excel (CSV)
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!selectedClassId || filteredMembers.length === 0}
+            onClick={() => exportStaffAttendance("pdf")}
+            className="gap-2"
+          >
+            <Download className="h-4 w-4" />
+            PDF
+          </Button>
         </div>
-    );
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Filters</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Class</Label>
+              {classesLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select
+                  value={selectedClassId}
+                  onValueChange={(v) => {
+                    setSelectedClassId(v);
+                    setStatusMap({});
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes?.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.division
+                          ? `${cls.grade}-${cls.division}`
+                          : cls.grade}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Attendance is stored against this class (same as student attendance).
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  setStatusMap({});
+                }}
+              />
+              {dateLocked ? (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5">
+                  This date is closed for marking: changes are not allowed more than 48 hours after
+                  the attendance day.
+                </p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <Label>Role</Label>
+              <Select
+                value={roleFilter}
+                onValueChange={(v) => setRoleFilter(v as RoleFilter)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="teacher">Teachers only</SelectItem>
+                  <SelectItem value="staff">Staff only</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="space-y-2 max-w-md">
+            <Label htmlFor="staff-att-search">Search</Label>
+            <Input
+              id="staff-att-search"
+              placeholder="Search by name or email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedClassId && !isLoading && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                In view
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{summary.total}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-primary">
+                Present
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-primary">
+                {summary.present}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-red-600">
+                Absent
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {summary.absent}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-yellow-600">
+                Late
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                {summary.late}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-amber-900">
+                Half day
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-800">
+                {summary.halfDay}
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Unmarked
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{summary.unmarked}</div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-yellow-700">
+                Present % (marked)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-700">
+                {summary.pct}%
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {tableLoading ? (
+        <Card>
+          <CardContent className="pt-6">
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      ) : !selectedClassId ? (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12 text-muted-foreground">
+              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Select a class to load and mark staff or teacher attendance.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : allMembers.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center py-12 text-muted-foreground">
+              <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No staff or teachers found for this school.</p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">
+              Attendance for{" "}
+              {format(new Date(selectedDate), "MMMM dd, yyyy")}
+              {filteredMembers.length !== allMembers.length && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  {" "}
+                  ({filteredMembers.length} shown)
+                </span>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <StaffAttendanceTable
+              key={`${selectedClassId}-${selectedDate}-${roleFilter}`}
+              members={filteredMembers}
+              getStatus={getStatus}
+              onSetStatus={setRowStatus}
+              onBulkMarkSelected={handleBulkMarkApi}
+              disabled={markBulkAttendance.isPending || dateLocked}
+            />
+
+            <div className="flex items-center justify-between border-t pt-4">
+              <p className="text-sm text-muted-foreground">
+                {changedCount > 0
+                  ? `${changedCount} unsaved change(s)`
+                  : "No unsaved changes"}
+              </p>
+              <Button
+                onClick={() => void handleSavePending()}
+                disabled={
+                  changedCount === 0 || markBulkAttendance.isPending || dateLocked
+                }
+                className="bg-[#4b830d] hover:bg-[#3a6a0a] text-white gap-2"
+              >
+                {markBulkAttendance.isPending ? (
+                  <Clock className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                {changedCount === 0 ? "No changes to save" : "Save pending changes"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
 }

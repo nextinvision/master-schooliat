@@ -119,8 +119,11 @@ export function AdminLeaveTracker() {
             {/* All Leave Records Tracker (Global Admin) */}
             <Card>
                 <CardHeader>
-                    <CardTitle>All Leave Interactions</CardTitle>
-                    <CardDescription>A broad overview of leave applications across the school.</CardDescription>
+                    <CardTitle>All leave interactions</CardTitle>
+                    <CardDescription>
+                        Recent leave requests for the school (up to 100 rows from the API). Use filters on other tabs or
+                        export if you need full history.
+                    </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="overflow-x-auto">

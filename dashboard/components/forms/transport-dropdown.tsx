@@ -33,11 +33,11 @@ export function TransportDropdown({
   }
 
   const transportOptions: TransportOption[] = transports.map((transport: any) => {
-    const vehicleNumber = transport.vehicleNumber || "N/A";
-    const licenseNumber = transport.licenseNumber || "N/A";
+    const dlNo = transport.vehicleNumber || "N/A";
+    const vehicleNo = transport.licenseNumber || "N/A";
     return {
       value: transport.id,
-      label: `${vehicleNumber} (${licenseNumber})`,
+      label: `DL no.: ${dlNo} · Vehicle no.: ${vehicleNo}`,
     };
   });
 
