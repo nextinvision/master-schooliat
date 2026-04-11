@@ -7,21 +7,8 @@
     <title>{{COMPANY_NAME}} Letterhead</title>
     <style>
         :root {
-            --primary: {
-                    {
-                    THEME_COLOR
-                }
-            }
-
-            ;
-
-            --secondary: {
-                    {
-                    THEME_COLOR_DARK
-                }
-            }
-
-            ;
+            --primary: {{THEME_COLOR}};
+            --secondary: {{THEME_COLOR_DARK}};
             --text-dark: #1e293b;
             --text-gray: #64748b;
             --bg-light: #f8fafc;
@@ -196,8 +183,34 @@
             flex: 1;
         }
 
-        .letter-body p {
+        .letter-body p,
+        .letter-body div {
             margin-bottom: 1em;
+        }
+
+        .letter-body ul,
+        .letter-body ol {
+            margin: 0.75em 0 0.75em 2em;
+            padding-left: 1em;
+            white-space: normal;
+        }
+
+        .letter-body li {
+            margin-bottom: 0.35em;
+        }
+
+        .letter-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0.75em 0;
+            white-space: normal;
+        }
+
+        .letter-body th,
+        .letter-body td {
+            border: 1px solid #94a3b8;
+            padding: 8px;
+            vertical-align: top;
         }
 
         /* Signature */
@@ -277,8 +290,9 @@
             <div class="contact-item">
                 <span style="text-align: right">{{COMPANY_ADDRESS}}</span>
                 <svg class="contact-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                    <circle cx="12" cy="10" r="3"></circle>
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="2" y1="12" x2="22" y2="12"></line>
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
                 </svg>
             </div>
             <div class="contact-item">
@@ -312,10 +326,10 @@
 
     <footer class="footer">
         <div class="footer-left">
-            Official System Generated Document
+            Official System Generated Document &bull; {{COMPANY_NAME}}
         </div>
         <div class="footer-right">
-            {{COMPANY_NAME}}
+            {{COMPANY_ADDRESS}}
         </div>
     </footer>
 </body>
