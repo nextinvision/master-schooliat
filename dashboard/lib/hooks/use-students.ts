@@ -118,12 +118,17 @@ function bulkDeleteStudentsApi(studentIds: string[], otp: string) {
   });
 }
 
-export function useStudentsPage(page: number, limit = 15, academicYear?: string) {
+export function useStudentsPage(
+  page: number,
+  limit = 15,
+  academicYear?: string,
+  classId?: string,
+) {
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["students", page, limit, academicYear],
-    queryFn: () => fetchStudents({ page, limit, academicYear }),
+    queryKey: ["students", page, limit, academicYear, classId ?? ""],
+    queryFn: () => fetchStudents({ page, limit, academicYear, classId }),
     placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
   });
@@ -132,8 +137,8 @@ export function useStudentsPage(page: number, limit = 15, academicYear?: string)
   if (!query.isPlaceholderData && query.data?.hasNext) {
     const nextPage = page + 1;
     queryClient.prefetchQuery({
-      queryKey: ["students", nextPage, limit, academicYear],
-      queryFn: () => fetchStudents({ page: nextPage, limit, academicYear }),
+      queryKey: ["students", nextPage, limit, academicYear, classId ?? ""],
+      queryFn: () => fetchStudents({ page: nextPage, limit, academicYear, classId }),
     });
   }
 
@@ -208,6 +213,19 @@ export function useStudents(params?: { page?: number; limit?: number; academicYe
       gender: params?.gender
     }),
     staleTime: 30 * 1000,
+  });
+}
+
+export function useToggleStudentAccountActive() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      patch(`/users/students/${id}/account-active`, { request: { active } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["students"] });
+      queryClient.invalidateQueries({ queryKey: ["student"] });
+    },
   });
 }
 

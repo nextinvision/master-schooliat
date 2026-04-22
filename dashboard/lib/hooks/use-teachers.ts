@@ -185,3 +185,16 @@ export function useBulkUploadTeachers() {
   });
 }
 
+export function useToggleTeacherAccountActive() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, active }: { id: string; active: boolean }) =>
+      patch(`/users/teachers/${id}/account-active`, { request: { active } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher"] });
+    },
+  });
+}
+

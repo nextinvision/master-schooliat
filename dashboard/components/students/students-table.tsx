@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,9 +14,13 @@ import {
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Eye, Edit, Trash2, Key, Plus } from "lucide-react";
+import { Eye, Edit, Trash2, Key, Plus, UserCheck, UserX } from "lucide-react";
 import { useClassFilters } from "@/lib/hooks/use-class-filters";
-import { searchStudentsByName } from "@/lib/utils/search-utils";
+import {
+  searchStudentsByName,
+  sortUsersByClassThenName,
+  getStudentClassDisplayLabel,
+} from "@/lib/utils/search-utils";
 import {
   Select,
   SelectContent,
@@ -26,7 +30,8 @@ import {
 } from "@/components/ui/select";
 import { StudentDetailModal } from "./student-detail-modal";
 import { PasswordResetModal } from "./password-reset-modal";
-import { useBulkAssignClass } from "@/lib/hooks/use-students";
+import { useBulkAssignClass, useToggleStudentAccountActive } from "@/lib/hooks/use-students";
+import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
 import { useAllClasses } from "@/lib/hooks/use-classes";
 import {
   Dialog,
@@ -41,7 +46,6 @@ import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 const STUDENT_COLUMNS = [
-  { key: "no", title: "No", width: "w-16" },
   { key: "student", title: "Student", width: "w-48" },
   { key: "rollNo", title: "Roll No", width: "w-32" },
   { key: "class", title: "Class", width: "w-28" },
@@ -67,6 +71,22 @@ interface StudentsTableProps {
   serverTotalPages: number;
   loading: boolean;
   onRefresh: () => void;
+  /** Active server-side class filter (GET /users/students?classId=). */
+  serverClassId?: string;
+  onServerClassFilterChange?: (classId: string | undefined) => void;
+}
+
+function resolveSchoolClassId(
+  schoolClasses: { id: string; grade: string; division?: string | null }[],
+  selectedLabel: string,
+  allLabel: string,
+): string | undefined {
+  if (!selectedLabel || selectedLabel === allLabel) return undefined;
+  const found = schoolClasses.find((cls) => {
+    const label = cls.division ? `${cls.grade}-${cls.division}` : cls.grade;
+    return label === selectedLabel;
+  });
+  return found?.id;
 }
 
 export function StudentsTable({
@@ -80,8 +100,10 @@ export function StudentsTable({
   onPageChange,
   serverTotalPages,
   loading,
+  serverClassId,
+  onServerClassFilterChange,
 }: StudentsTableProps) {
-  const { classFilter, divisionFilter } = useClassFilters();
+  const { classFilter, divisionFilter, classes: schoolClasses } = useClassFilters();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedClass, setSelectedClass] = useState(classFilter.defaultValue);
   const [selectedDivision, setSelectedDivision] = useState(divisionFilter.defaultValue);
@@ -91,24 +113,51 @@ export function StudentsTable({
   const [passwordResetVisible, setPasswordResetVisible] = useState(false);
   const [resetStudent, setResetStudent] = useState<any>(null);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [accountDialog, setAccountDialog] = useState<{
+    id: string;
+    name: string;
+    nextActive: boolean;
+  } | null>(null);
   const bulkAssign = useBulkAssignClass();
+  const toggleStudentActive = useToggleStudentAccountActive();
   const { data: classesData } = useAllClasses();
   const classesList = classesData?.data || [];
 
-  // Filter and search
-  let filteredStudents = students;
+  const filteredStudents = useMemo(() => {
+    let list = students;
 
-  if (searchQuery.trim()) {
-    filteredStudents = searchStudentsByName(filteredStudents, searchQuery);
-  }
+    if (searchQuery.trim()) {
+      list = searchStudentsByName(list, searchQuery);
+    }
 
-  if (selectedClass !== classFilter.defaultValue) {
-    filteredStudents = classFilter.onFilter(filteredStudents, selectedClass);
-  }
+    const classFilteredOnServer = Boolean(serverClassId);
+    if (!classFilteredOnServer && selectedClass !== classFilter.defaultValue) {
+      list = classFilter.onFilter(list, selectedClass);
+    }
 
-  if (selectedDivision !== divisionFilter.defaultValue) {
-    filteredStudents = divisionFilter.onFilter(filteredStudents, selectedDivision);
-  }
+    if (!serverClassId && selectedDivision !== divisionFilter.defaultValue) {
+      list = divisionFilter.onFilter(list, selectedDivision);
+    }
+
+    const touchedClientFilters =
+      Boolean(searchQuery.trim()) ||
+      (!classFilteredOnServer && selectedClass !== classFilter.defaultValue) ||
+      (!serverClassId && selectedDivision !== divisionFilter.defaultValue);
+
+    if (touchedClientFilters) {
+      return sortUsersByClassThenName(list, getStudentClassDisplayLabel);
+    }
+
+    return list;
+  }, [
+    students,
+    searchQuery,
+    selectedClass,
+    selectedDivision,
+    classFilter,
+    divisionFilter,
+    serverClassId,
+  ]);
 
   const handleViewDetails = (student: any) => {
     setSelectedStudent(student);
@@ -152,7 +201,15 @@ export function StudentsTable({
       {/* Filters and Search */}
       <div className="bg-white rounded-lg p-4 space-y-4 border">
         <div className="flex items-center gap-4 flex-wrap">
-          <Select value={selectedClass} onValueChange={setSelectedClass}>
+          <Select
+            value={selectedClass}
+            onValueChange={(v) => {
+              setSelectedClass(v);
+              const id = resolveSchoolClassId(schoolClasses, v, classFilter.defaultValue);
+              onServerClassFilterChange?.(id);
+              if (id) setSelectedDivision(divisionFilter.defaultValue);
+            }}
+          >
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Select Class" />
             </SelectTrigger>
@@ -231,22 +288,26 @@ export function StudentsTable({
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredStudents.length === 0 ? (
+              {loading && filteredStudents.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={STUDENT_COLUMNS.length + 1} className="text-center py-8">
+                    Loading…
+                  </TableCell>
+                </TableRow>
+              ) : filteredStudents.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={STUDENT_COLUMNS.length + 1} className="text-center py-8">
                     No students found
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredStudents.map((student, index) => {
-                  const indexInServerPage = students.findIndex((s) => s.id === student.id);
-                  const globalSerial =
-                    page * pageSize + (indexInServerPage >= 0 ? indexInServerPage : index) + 1;
+                filteredStudents.map((student) => {
                   return (
                   <TableRow
                     key={student.id}
                     className={cn(
-                      selectedRows.has(student.id) && "bg-blue-50"
+                      selectedRows.has(student.id) && "bg-blue-50",
+                      student.isAccountActive === false && "opacity-70",
                     )}
                   >
                     <TableCell>
@@ -256,22 +317,23 @@ export function StudentsTable({
                       />
                     </TableCell>
                     <TableCell className="font-medium">
-                      {String(globalSerial).padStart(2, "0")}
-                    </TableCell>
-                    <TableCell className="font-medium">
                       <Link
                         href={`/admin/students/${student.id}`}
-                        className="text-primary hover:underline"
+                        className="text-primary hover:underline inline-flex flex-wrap items-center gap-2"
                       >
                         {student.firstName} {student.lastName}
+                        {student.isAccountActive === false ? (
+                          <Badge variant="secondary" className="text-xs">
+                            Inactive
+                          </Badge>
+                        ) : null}
                       </Link>
                     </TableCell>
                     <TableCell>
                       {student.studentProfile?.rollNumber || "N/A"}
                     </TableCell>
                     <TableCell>
-                      {student.studentProfile?.class?.grade || "N/A"}-
-                      {student.studentProfile?.class?.division || ""}
+                      {getStudentClassDisplayLabel(student) || "N/A"}
                     </TableCell>
                     <TableCell>
                       {student.studentProfile?.fatherName || "N/A"}
@@ -323,6 +385,29 @@ export function StudentsTable({
                           className="h-8 w-8"
                         >
                           <Trash2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title={
+                            student.isAccountActive === false
+                              ? "Reactivate login"
+                              : "Deactivate login"
+                          }
+                          onClick={() =>
+                            setAccountDialog({
+                              id: student.id,
+                              name: `${student.firstName} ${student.lastName ?? ""}`.trim(),
+                              nextActive: student.isAccountActive === false,
+                            })
+                          }
+                          className="h-8 w-8"
+                        >
+                          {student.isAccountActive === false ? (
+                            <UserCheck className="h-4 w-4 text-primary" />
+                          ) : (
+                            <UserX className="h-4 w-4 text-muted-foreground" />
+                          )}
                         </Button>
                         <Button
                           variant="ghost"
@@ -397,6 +482,35 @@ export function StudentsTable({
         }}
         bulkAssignMutation={bulkAssign}
       />
+
+      <ConfirmActionDialog
+        open={!!accountDialog}
+        onOpenChange={(open) => !open && setAccountDialog(null)}
+        title={accountDialog?.nextActive ? "Reactivate account?" : "Deactivate account?"}
+        description={
+          accountDialog?.nextActive
+            ? `Allow ${accountDialog.name} to sign in to the app again?`
+            : `${accountDialog?.name ?? "This student"} will not be able to sign in until you reactivate their account.`
+        }
+        confirmLabel={accountDialog?.nextActive ? "Reactivate" : "Deactivate"}
+        variant={accountDialog?.nextActive ? "default" : "destructive"}
+        isLoading={toggleStudentActive.isPending}
+        onConfirm={async () => {
+          if (!accountDialog) return;
+          try {
+            await toggleStudentActive.mutateAsync({
+              id: accountDialog.id,
+              active: accountDialog.nextActive,
+            });
+            toast.success(
+              accountDialog.nextActive ? "Account reactivated." : "Account deactivated.",
+            );
+            setAccountDialog(null);
+          } catch (e: any) {
+            toast.error(e?.message || "Could not update account status.");
+          }
+        }}
+      />
     </div>
   );
 }
@@ -457,7 +571,7 @@ function AssignClassDialog({
               <SelectContent>
                 {classes.map((cls) => (
                   <SelectItem key={cls.id} value={cls.id}>
-                    {cls.grade}-{cls.division}
+                    {cls.grade}
                   </SelectItem>
                 ))}
               </SelectContent>

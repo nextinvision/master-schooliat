@@ -14,8 +14,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, Clock, Minus, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export type StaffAttendanceStatus = "PRESENT" | "ABSENT" | "LATE" | "HALF_DAY";
+
+/** Radix Select needs a stable value; must not collide with real statuses. */
+const STAFF_ATT_UNMARKED = "__UNMARKED__" as const;
 
 export interface StaffAttendanceRow {
   id: string;
@@ -162,23 +172,31 @@ export function StaffAttendanceTable({
                     onCheckedChange={() => toggleAll()}
                   />
                 </TableHead>
-                <TableHead className="w-14">#</TableHead>
-                <TableHead>Name</TableHead>
+                <TableHead className="w-14">No</TableHead>
+                <TableHead>Staff Name</TableHead>
                 <TableHead className="w-32">Staff ID</TableHead>
                 <TableHead className="w-28">Role</TableHead>
-                <TableHead className="text-center min-w-[280px]">Status</TableHead>
+                <TableHead className="w-44">Status</TableHead>
+                <TableHead className="w-24">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sorted.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                     No people match your filters
                   </TableCell>
                 </TableRow>
               ) : (
                 sorted.map((member, idx) => {
                   const currentStatus = getStatus(member.id);
+                  const selectValue =
+                    currentStatus === "PRESENT" ||
+                    currentStatus === "ABSENT" ||
+                    currentStatus === "LATE" ||
+                    currentStatus === "HALF_DAY"
+                      ? currentStatus
+                      : STAFF_ATT_UNMARKED;
                   return (
                     <TableRow key={member.id}>
                       <TableCell>
@@ -221,64 +239,68 @@ export function StaffAttendanceTable({
                         </span>
                       </TableCell>
                       <TableCell>
-                        <div className="flex items-center justify-center gap-2 flex-wrap">
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => onSetStatus(member.id, "PRESENT")}
-                            className={cn(
-                              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                              currentStatus === "PRESENT"
-                                ? "bg-green-600 text-white shadow-sm"
-                                : "bg-gray-100 text-gray-500 hover:bg-green-100 hover:text-green-800"
-                            )}
-                          >
-                            <CheckCircle2 className="inline h-3.5 w-3.5 mr-1 align-text-bottom" />
-                            Present
-                          </button>
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => onSetStatus(member.id, "ABSENT")}
-                            className={cn(
-                              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                              currentStatus === "ABSENT"
-                                ? "bg-red-600 text-white shadow-sm"
-                                : "bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-800"
-                            )}
-                          >
-                            <XCircle className="inline h-3.5 w-3.5 mr-1 align-text-bottom" />
-                            Absent
-                          </button>
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => onSetStatus(member.id, "LATE")}
-                            className={cn(
-                              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                              currentStatus === "LATE"
-                                ? "bg-yellow-500 text-white shadow-sm"
-                                : "bg-gray-100 text-gray-500 hover:bg-yellow-100 hover:text-yellow-800"
-                            )}
-                          >
-                            <Clock className="inline h-3.5 w-3.5 mr-1 align-text-bottom" />
-                            Late
-                          </button>
-                          <button
-                            type="button"
-                            disabled={disabled}
-                            onClick={() => onSetStatus(member.id, "HALF_DAY")}
-                            className={cn(
-                              "px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
-                              currentStatus === "HALF_DAY"
-                                ? "bg-orange-500 text-white shadow-sm"
-                                : "bg-gray-100 text-gray-500 hover:bg-orange-100 hover:text-orange-800"
-                            )}
-                          >
-                            <Minus className="inline h-3.5 w-3.5 mr-1 align-text-bottom" />
-                            Half day
-                          </button>
-                        </div>
+                        <Select
+                          value={selectValue}
+                          onValueChange={(value) => {
+                            if (value === STAFF_ATT_UNMARKED) return;
+                            onSetStatus(member.id, value as StaffAttendanceStatus);
+                          }}
+                          disabled={disabled}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Not marked" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={STAFF_ATT_UNMARKED}>
+                              <span className="text-muted-foreground">Not marked</span>
+                            </SelectItem>
+                            <SelectItem value="PRESENT">
+                              <div className="flex items-center gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-primary" />
+                                Present
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="ABSENT">
+                              <div className="flex items-center gap-2">
+                                <XCircle className="h-4 w-4 text-red-600" />
+                                Absent
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="LATE">
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-yellow-600" />
+                                Late
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="HALF_DAY">
+                              <div className="flex items-center gap-2">
+                                <Minus className="h-4 w-4 text-amber-700" />
+                                Half day
+                              </div>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={
+                            disabled ||
+                            !onBulkMarkSelected ||
+                            selectValue === STAFF_ATT_UNMARKED
+                          }
+                          onClick={async () => {
+                            if (!onBulkMarkSelected || selectValue === STAFF_ATT_UNMARKED) return;
+                            await onBulkMarkSelected(
+                              selectValue as StaffAttendanceStatus,
+                              [member.id],
+                            );
+                          }}
+                          className="border-[#4CAF50] text-[#2f6b1f] bg-[#eff9eb] hover:bg-[#e5f5df]"
+                        >
+                          Save
+                        </Button>
                       </TableCell>
                     </TableRow>
                   );

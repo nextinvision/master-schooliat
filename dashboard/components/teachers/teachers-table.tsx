@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,16 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Eye, Edit, Trash2, Key, SlidersHorizontal } from "lucide-react";
+import { Eye, Edit, Trash2, Key, SlidersHorizontal, UserCheck, UserX } from "lucide-react";
 import { useClassFilters } from "@/lib/hooks/use-class-filters";
-import { searchTeachersByName } from "@/lib/utils/search-utils";
+import {
+  searchTeachersByName,
+  sortUsersByClassThenName,
+  getTeacherClassDisplayLabel,
+} from "@/lib/utils/search-utils";
+import { useToggleTeacherAccountActive } from "@/lib/hooks/use-teachers";
+import { ConfirmActionDialog } from "@/components/common/confirm-action-dialog";
+import { toast } from "sonner";
 import {
   Select,
   SelectContent,
@@ -29,7 +36,6 @@ import { PasswordResetModal } from "../students/password-reset-modal";
 import { cn } from "@/lib/utils";
 
 const TEACHER_COLUMNS = [
-  { key: "no", title: "No", width: "w-16" },
   { key: "teacher", title: "Teachers", width: "w-48" },
   { key: "employeeId", title: "Employee ID", width: "w-32" },
   { key: "class", title: "Class", width: "w-28" },
@@ -98,42 +104,60 @@ export function TeachersTable({
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [passwordResetVisible, setPasswordResetVisible] = useState(false);
   const [resetTeacher, setResetTeacher] = useState<any>(null);
+  const [accountDialog, setAccountDialog] = useState<{
+    id: string;
+    name: string;
+    nextActive: boolean;
+  } | null>(null);
 
-  // Filter and search
-  let filteredTeachers = teachers;
+  const toggleTeacherActive = useToggleTeacherAccountActive();
 
-  if (searchQuery.trim()) {
-    filteredTeachers = searchTeachersByName(filteredTeachers, searchQuery);
-  }
+  const filteredTeachers = useMemo(() => {
+    let list = teachers;
 
-  if (selectedClass !== classFilter.defaultValue) {
-    filteredTeachers = filteredTeachers.filter((teacher) => {
-      const teacherClass = teacher.class || "";
-      if (!teacherClass) return false;
-      // Check if class string contains the selected class
-      const classStr = teacherClass.toLowerCase();
-      const selectedClassStr = selectedClass.toLowerCase();
-      return classStr.includes(selectedClassStr) || 
-             classStr.includes(selectedClassStr.split("-")[0] || "");
-    });
-  }
+    if (searchQuery.trim()) {
+      list = searchTeachersByName(list, searchQuery);
+    }
 
-  if (selectedDivision !== divisionFilter.defaultValue) {
-    filteredTeachers = filteredTeachers.filter((teacher) => {
-      const teacherClass = teacher.class || "";
-      if (!teacherClass) return false;
-      // Check if class string contains the selected division
-      return teacherClass.toLowerCase().includes(selectedDivision.toLowerCase());
-    });
-  }
+    if (selectedClass !== classFilter.defaultValue) {
+      list = list.filter((teacher) => {
+        const teacherClass = teacher.class || "";
+        if (!teacherClass) return false;
+        const classStr = teacherClass.toLowerCase();
+        const selectedClassStr = selectedClass.toLowerCase();
+        return (
+          classStr.includes(selectedClassStr) ||
+          classStr.includes(selectedClassStr.split("-")[0] || "")
+        );
+      });
+    }
 
-  if (selectedSubject !== "All Subjects") {
-    filteredTeachers = filteredTeachers.filter((teacher) =>
-      (teacher.subjects ?? teacher.teacherProfile?.subjects ?? "")
-        .toLowerCase()
-        .includes(selectedSubject.toLowerCase())
-    );
-  }
+    if (selectedDivision !== divisionFilter.defaultValue) {
+      list = list.filter((teacher) => {
+        const teacherClass = teacher.class || "";
+        if (!teacherClass) return false;
+        return teacherClass.toLowerCase().includes(selectedDivision.toLowerCase());
+      });
+    }
+
+    if (selectedSubject !== "All Subjects") {
+      list = list.filter((teacher) =>
+        (teacher.subjects ?? teacher.teacherProfile?.subjects ?? "")
+          .toLowerCase()
+          .includes(selectedSubject.toLowerCase()),
+      );
+    }
+
+    return sortUsersByClassThenName(list, getTeacherClassDisplayLabel);
+  }, [
+    teachers,
+    searchQuery,
+    selectedClass,
+    selectedDivision,
+    selectedSubject,
+    classFilter,
+    divisionFilter,
+  ]);
 
   const handlePasswordReset = (teacher: any) => {
     setResetTeacher(teacher);
@@ -261,17 +285,16 @@ export function TeachersTable({
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="bg-green-600 hover:bg-green-600">
-                <TableHead className="w-12 text-white">
+              <TableRow className="bg-schooliat-tint">
+                <TableHead className="w-12">
                   <Checkbox
                     checked={allSelected}
                     onCheckedChange={toggleSelectAll}
                     aria-label="Select all"
-                    className="border-white data-[state=checked]:bg-white data-[state=checked]:text-primary"
                   />
                 </TableHead>
                 {TEACHER_COLUMNS.map((column) => (
-                  <TableHead key={column.key} className={cn(column.width, "text-white font-semibold")}>
+                  <TableHead key={column.key} className={cn(column.width, "font-semibold")}>
                     {column.title}
                   </TableHead>
                 ))}
@@ -291,7 +314,7 @@ export function TeachersTable({
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredTeachers.map((teacher, index) => {
+                filteredTeachers.map((teacher) => {
                   const isSelected = selectedRows.has(teacher.id);
                   const registrationPhotoUrl = teacher.registrationPhotoUrl || null;
                   const attendancePercentage = teacher.attendance?.percentage;
@@ -304,7 +327,8 @@ export function TeachersTable({
                       key={teacher.id}
                       className={cn(
                         isSelected && "bg-blue-50",
-                        "hover:bg-gray-50"
+                        "hover:bg-gray-50",
+                        teacher.isAccountActive === false && "opacity-70",
                       )}
                     >
                       <TableCell>
@@ -313,9 +337,6 @@ export function TeachersTable({
                           onCheckedChange={() => toggleRowSelection(teacher.id)}
                           aria-label={`Select ${teacher.firstName} ${teacher.lastName}`}
                         />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {String((page * 15) + index + 1).padStart(2, "0")}
                       </TableCell>
                       <TableCell>
                         <Link
@@ -330,8 +351,13 @@ export function TeachersTable({
                               {getInitials(teacher.firstName, teacher.lastName)}
                             </AvatarFallback>
                           </Avatar>
-                          <span>
+                          <span className="flex flex-wrap items-center gap-2">
                             {teacher.firstName} {teacher.lastName}
+                            {teacher.isAccountActive === false ? (
+                              <Badge variant="secondary" className="text-xs">
+                                Inactive
+                              </Badge>
+                            ) : null}
                           </span>
                         </Link>
                       </TableCell>
@@ -352,9 +378,12 @@ export function TeachersTable({
                           variant={
                             teacher.salary === "DUE"
                               ? "destructive"
-                              : teacher.salary === "PAID"
-                              ? "default"
-                              : "secondary"
+                              : "default"
+                          }
+                          className={
+                            teacher.salary === "PAID"
+                              ? "bg-primary hover:bg-schooliat-primary-dark"
+                              : ""
                           }
                         >
                           {teacher.salary || "N/A"}
@@ -384,6 +413,29 @@ export function TeachersTable({
                             className="h-8 w-8"
                           >
                             <Trash2 className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            title={
+                              teacher.isAccountActive === false
+                                ? "Reactivate login"
+                                : "Deactivate login"
+                            }
+                            onClick={() =>
+                              setAccountDialog({
+                                id: teacher.id,
+                                name: `${teacher.firstName} ${teacher.lastName ?? ""}`.trim(),
+                                nextActive: teacher.isAccountActive === false,
+                              })
+                            }
+                            className="h-8 w-8"
+                          >
+                            {teacher.isAccountActive === false ? (
+                              <UserCheck className="w-4 h-4 text-primary" />
+                            ) : (
+                              <UserX className="w-4 h-4 text-muted-foreground" />
+                            )}
                           </Button>
                           <Button
                             variant="ghost"
@@ -439,6 +491,35 @@ export function TeachersTable({
         userName={`${resetTeacher?.firstName || ""} ${resetTeacher?.lastName || ""}`}
         onSuccess={() => {
           // Toast will be handled by the modal
+        }}
+      />
+
+      <ConfirmActionDialog
+        open={!!accountDialog}
+        onOpenChange={(open) => !open && setAccountDialog(null)}
+        title={accountDialog?.nextActive ? "Reactivate account?" : "Deactivate account?"}
+        description={
+          accountDialog?.nextActive
+            ? `Allow ${accountDialog.name} to sign in to the app and dashboard again?`
+            : `${accountDialog?.name ?? "This user"} will not be able to sign in until you reactivate their account.`
+        }
+        confirmLabel={accountDialog?.nextActive ? "Reactivate" : "Deactivate"}
+        variant={accountDialog?.nextActive ? "default" : "destructive"}
+        isLoading={toggleTeacherActive.isPending}
+        onConfirm={async () => {
+          if (!accountDialog) return;
+          try {
+            await toggleTeacherActive.mutateAsync({
+              id: accountDialog.id,
+              active: accountDialog.nextActive,
+            });
+            toast.success(
+              accountDialog.nextActive ? "Account reactivated." : "Account deactivated.",
+            );
+            setAccountDialog(null);
+          } catch (e: any) {
+            toast.error(e?.message || "Could not update account status.");
+          }
         }}
       />
     </div>

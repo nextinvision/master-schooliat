@@ -136,6 +136,8 @@ export default function StudentsPage() {
   }, [admissionQueryHandled]);
 
   const [page, setPage] = useState(1);
+  /** When set, GET /users/students?classId=… filters server-side (works with pagination). */
+  const [studentListClassId, setStudentListClassId] = useState<string | undefined>();
   const [tcPage, setTcPage] = useState(1);
   const [tcSearchQuery, setTcSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ISSUED" | "COLLECTED" | "CANCELLED" | "all">("all");
@@ -149,7 +151,12 @@ export default function StudentsPage() {
   const limit = 15;
 
   // Students data
-  const { data: studentsData, isLoading: studentsLoading, refetch: refetchStudents } = useStudentsPage(page, limit);
+  const { data: studentsData, isLoading: studentsLoading, refetch: refetchStudents } = useStudentsPage(
+    page,
+    limit,
+    undefined,
+    studentListClassId,
+  );
   const students = studentsData?.data || [];
   const studentsTotalPages = studentsData?.pagination?.totalPages ?? studentsData?.totalPages ?? 1;
 
@@ -442,6 +449,11 @@ export default function StudentsPage() {
             serverTotalPages={studentsTotalPages}
             loading={studentsLoading}
             onRefresh={refetchStudents}
+            serverClassId={studentListClassId}
+            onServerClassFilterChange={(classId) => {
+              setStudentListClassId(classId);
+              setPage(1);
+            }}
           />
         </TabsContent>
 
@@ -554,9 +566,6 @@ export default function StudentsPage() {
                                 </TableCell>
                                 <TableCell>
                                   {tc.student?.studentProfile?.class?.grade || "N/A"}
-                                  {tc.student?.studentProfile?.class?.division
-                                    ? `-${tc.student.studentProfile.class.division}`
-                                    : ""}
                                 </TableCell>
                                 <TableCell className="max-w-xs truncate">{tc.reason || "N/A"}</TableCell>
                                 <TableCell>

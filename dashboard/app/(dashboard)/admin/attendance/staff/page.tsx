@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { isAttendanceDateLocked } from "@/lib/attendance/attendance-date-policy";
 import {
   downloadCsv,
@@ -38,14 +38,13 @@ export default function StaffAttendancePage() {
   const [selectedDate, setSelectedDate] = useState<string>(
     format(new Date(), "yyyy-MM-dd")
   );
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [statusMap, setStatusMap] = useState<
     Record<string, StaffAttendanceStatus>
   >({});
 
-  const { classes, isLoading: classesLoading } = useClassesContext();
+  const { classes } = useClassesContext();
 
   const { data: staffData, isLoading: staffLoading } = useStaffPage(1, 500);
   const { data: teachersData, isLoading: teachersLoading } = useTeachersPage(
@@ -56,7 +55,6 @@ export default function StaffAttendancePage() {
   const { data: attendanceData, isLoading: attendanceLoading, refetch } =
     useAttendance({
       date: selectedDate,
-      classId: selectedClassId || undefined,
     });
 
   const markBulkAttendance = useMarkBulkAttendance();
@@ -155,14 +153,15 @@ export default function StaffAttendancePage() {
   }, []);
 
   const dateLocked = isAttendanceDateLocked(selectedDate);
+  const effectiveClassId = classes?.[0]?.id || "";
 
   const handleBulkMarkApi = useCallback(
     async (
       status: StaffAttendanceStatus,
       memberIds: string[]
     ) => {
-      if (!selectedClassId) {
-        toast.error("Please select a class");
+      if (!effectiveClassId) {
+        toast.error("No class is configured for this school");
         return;
       }
       if (dateLocked) {
@@ -179,7 +178,7 @@ export default function StaffAttendancePage() {
         await markBulkAttendance.mutateAsync({
           attendances: memberIds.map((studentId) => ({
             studentId,
-            classId: selectedClassId,
+            classId: effectiveClassId,
             date: selectedDate,
             status,
           })),
@@ -197,13 +196,13 @@ export default function StaffAttendancePage() {
         toast.error(msg);
       }
     },
-    [selectedClassId, selectedDate, dateLocked, markBulkAttendance, refetch]
+    [effectiveClassId, selectedDate, dateLocked, markBulkAttendance, refetch]
   );
 
   const handleSavePending = useCallback(async () => {
     const entries = Object.entries(statusMap);
-    if (!selectedClassId) {
-      toast.error("Please select a class");
+    if (!effectiveClassId) {
+      toast.error("No class is configured for this school");
       return;
     }
     if (dateLocked) {
@@ -220,7 +219,7 @@ export default function StaffAttendancePage() {
       await markBulkAttendance.mutateAsync({
         attendances: entries.map(([studentId, status]) => ({
           studentId,
-          classId: selectedClassId,
+          classId: effectiveClassId,
           date: selectedDate,
           status,
         })),
@@ -235,12 +234,12 @@ export default function StaffAttendancePage() {
           : "Failed to save attendance";
       toast.error(msg);
     }
-  }, [statusMap, selectedClassId, selectedDate, dateLocked, markBulkAttendance, refetch]);
+  }, [statusMap, effectiveClassId, selectedDate, dateLocked, markBulkAttendance, refetch]);
 
   const exportStaffAttendance = useCallback(
     (kind: "csv" | "pdf") => {
-      if (!selectedClassId || filteredMembers.length === 0) {
-        toast.error("Select a class and ensure there are people in the list");
+      if (!effectiveClassId || filteredMembers.length === 0) {
+        toast.error("Ensure there are people in the list");
         return;
       }
       const headers = ["Name", "Staff ID", "Role", "Present / Absent"];
@@ -263,14 +262,14 @@ export default function StaffAttendancePage() {
           label,
         ];
       });
-      const cls = classes?.find((c) => c.id === selectedClassId);
-      const clsLabel = cls
+      const cls = classes?.find((c) => c.id === effectiveClassId);
+      const schoolUnitLabel = cls
         ? cls.division
           ? `${cls.grade}-${cls.division}`
           : String(cls.grade)
-        : "";
-      const subtitle = `${clsLabel || "Class"} · ${formatDateLabel(selectedDate)}`;
-      const base = `staff_attendance_${clsLabel || "class"}_${selectedDate}`;
+        : "school";
+      const subtitle = `${formatDateLabel(selectedDate)}`;
+      const base = `staff_attendance_${schoolUnitLabel}_${selectedDate}`;
       if (kind === "csv") {
         downloadCsv(`${base}.csv`, headers, rows);
       } else {
@@ -284,112 +283,17 @@ export default function StaffAttendancePage() {
       }
       toast.success(kind === "csv" ? "Excel-compatible CSV downloaded" : "PDF downloaded");
     },
-    [selectedClassId, selectedDate, filteredMembers, getStatus, classes]
+    [effectiveClassId, selectedDate, filteredMembers, getStatus, classes]
   );
 
   const isLoading = staffLoading || teachersLoading;
   const changedCount = Object.keys(statusMap).length;
-  const tableLoading = isLoading || (selectedClassId ? attendanceLoading : false);
+  const tableLoading = isLoading || (effectiveClassId ? attendanceLoading : false);
 
   return (
     <div className="space-y-6 pb-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Staff &amp; Teacher Attendance</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            disabled={
-              !selectedClassId ||
-              filteredMembers.length === 0 ||
-              markBulkAttendance.isPending ||
-              dateLocked
-            }
-            onClick={() =>
-              handleBulkMarkApi(
-                "PRESENT",
-                filteredMembers.map((m) => m.id)
-              )
-            }
-            className="gap-2 text-green-800 border-green-300 hover:bg-green-50"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-            Mark all present
-          </Button>
-          <Button
-            variant="outline"
-            disabled={
-              !selectedClassId ||
-              filteredMembers.length === 0 ||
-              markBulkAttendance.isPending ||
-              dateLocked
-            }
-            onClick={() =>
-              handleBulkMarkApi(
-                "ABSENT",
-                filteredMembers.map((m) => m.id)
-              )
-            }
-            className="gap-2 text-red-800 border-red-300 hover:bg-red-50"
-          >
-            Mark all absent
-          </Button>
-          <Button
-            variant="outline"
-            disabled={
-              !selectedClassId ||
-              filteredMembers.length === 0 ||
-              markBulkAttendance.isPending ||
-              dateLocked
-            }
-            onClick={() =>
-              handleBulkMarkApi(
-                "LATE",
-                filteredMembers.map((m) => m.id)
-              )
-            }
-            className="gap-2 text-yellow-800 border-yellow-300 hover:bg-yellow-50"
-          >
-            Mark all late
-          </Button>
-          <Button
-            variant="outline"
-            disabled={
-              !selectedClassId ||
-              filteredMembers.length === 0 ||
-              markBulkAttendance.isPending ||
-              dateLocked
-            }
-            onClick={() =>
-              handleBulkMarkApi(
-                "HALF_DAY",
-                filteredMembers.map((m) => m.id)
-              )
-            }
-            className="gap-2 text-amber-900 border-amber-300 hover:bg-amber-50"
-          >
-            Mark all half day
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!selectedClassId || filteredMembers.length === 0}
-            onClick={() => exportStaffAttendance("csv")}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Excel (CSV)
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!selectedClassId || filteredMembers.length === 0}
-            onClick={() => exportStaffAttendance("pdf")}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            PDF
-          </Button>
-        </div>
       </div>
 
       <Card>
@@ -397,37 +301,7 @@ export default function StaffAttendancePage() {
           <CardTitle>Filters</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Class</Label>
-              {classesLoading ? (
-                <Skeleton className="h-10 w-full" />
-              ) : (
-                <Select
-                  value={selectedClassId}
-                  onValueChange={(v) => {
-                    setSelectedClassId(v);
-                    setStatusMap({});
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select class" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {classes?.map((cls) => (
-                      <SelectItem key={cls.id} value={cls.id}>
-                        {cls.division
-                          ? `${cls.grade}-${cls.division}`
-                          : cls.grade}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-              <p className="text-xs text-muted-foreground">
-                Attendance is stored against this class (same as student attendance).
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Date</Label>
               <Input
@@ -474,7 +348,7 @@ export default function StaffAttendancePage() {
         </CardContent>
       </Card>
 
-      {selectedClassId && !isLoading && (
+      {effectiveClassId && !isLoading && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
           <Card>
             <CardHeader className="pb-2">
@@ -565,12 +439,12 @@ export default function StaffAttendancePage() {
             <Skeleton className="h-64 w-full" />
           </CardContent>
         </Card>
-      ) : !selectedClassId ? (
+      ) : !effectiveClassId ? (
         <Card>
           <CardContent className="pt-6">
             <div className="text-center py-12 text-muted-foreground">
               <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>Select a class to load and mark staff or teacher attendance.</p>
+              <p>No class found. Add a class to enable staff or teacher attendance.</p>
             </div>
           </CardContent>
         </Card>
@@ -596,10 +470,119 @@ export default function StaffAttendancePage() {
                 </span>
               )}
             </CardTitle>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                disabled={
+                  !effectiveClassId ||
+                  filteredMembers.length === 0 ||
+                  markBulkAttendance.isPending ||
+                  dateLocked
+                }
+                onClick={() =>
+                  handleBulkMarkApi(
+                    "PRESENT",
+                    filteredMembers.map((m) => m.id)
+                  )
+                }
+                className="gap-2 text-green-800 border-green-300 hover:bg-green-50"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+                Mark all present
+              </Button>
+              <Button
+                variant="outline"
+                disabled={
+                  !effectiveClassId ||
+                  filteredMembers.length === 0 ||
+                  markBulkAttendance.isPending ||
+                  dateLocked
+                }
+                onClick={() =>
+                  handleBulkMarkApi(
+                    "ABSENT",
+                    filteredMembers.map((m) => m.id)
+                  )
+                }
+                className="gap-2 text-red-800 border-red-300 hover:bg-red-50"
+              >
+                Mark all absent
+              </Button>
+              <Button
+                variant="outline"
+                disabled={
+                  !effectiveClassId ||
+                  filteredMembers.length === 0 ||
+                  markBulkAttendance.isPending ||
+                  dateLocked
+                }
+                onClick={() =>
+                  handleBulkMarkApi(
+                    "LATE",
+                    filteredMembers.map((m) => m.id)
+                  )
+                }
+                className="gap-2 text-yellow-800 border-yellow-300 hover:bg-yellow-50"
+              >
+                Mark all late
+              </Button>
+              <Button
+                variant="outline"
+                disabled={
+                  !effectiveClassId ||
+                  filteredMembers.length === 0 ||
+                  markBulkAttendance.isPending ||
+                  dateLocked
+                }
+                onClick={() =>
+                  handleBulkMarkApi(
+                    "HALF_DAY",
+                    filteredMembers.map((m) => m.id)
+                  )
+                }
+                className="gap-2 text-amber-900 border-amber-300 hover:bg-amber-50"
+              >
+                Mark all half day
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!effectiveClassId || filteredMembers.length === 0}
+                onClick={() => exportStaffAttendance("csv")}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Excel (CSV)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!effectiveClassId || filteredMembers.length === 0}
+                onClick={() => exportStaffAttendance("pdf")}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                PDF
+              </Button>
+              <Button
+                onClick={() => void handleSavePending()}
+                disabled={
+                  changedCount === 0 || markBulkAttendance.isPending || dateLocked
+                }
+                className="bg-[#4b830d] hover:bg-[#3a6a0a] text-white gap-2"
+              >
+                {markBulkAttendance.isPending ? (
+                  <Clock className="h-4 w-4 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
+                {changedCount === 0 ? "No changes to save" : "Submit attendance"}
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-6">
             <StaffAttendanceTable
-              key={`${selectedClassId}-${selectedDate}-${roleFilter}`}
+              key={`${effectiveClassId}-${selectedDate}-${roleFilter}`}
               members={filteredMembers}
               getStatus={getStatus}
               onSetStatus={setRowStatus}
