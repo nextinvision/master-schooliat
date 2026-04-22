@@ -26,7 +26,9 @@ const config = {
   JWT_EXPIRATION_TIME: parseInt(process.env.JWT_EXPIRATION_TIME) || 48, // in hours
   ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS || "*",
   /** Browser app origin (dashboard). Merged into CORS allowlist in production; set in prod if API is locked to a subset of ALLOWED_ORIGINS. */
-  FRONTEND_URL: process.env.FRONTEND_URL?.replace(/\/$/, "").trim() || "",
+  FRONTEND_URL: process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.trim().replace(/\/$/, "")
+    : "",
   // GET /files/:uuid must match without a bogus trailing slash (browser open / download has no auth header)
   AUTH_EXCLUDED_PATHS: process.env.AUTH_EXCLUDED_PATHS?.split(",") || [
     /^\/$/,
